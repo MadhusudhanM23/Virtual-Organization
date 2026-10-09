@@ -1,0 +1,51 @@
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Node / web
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.vite/
+
+# Java
+target/
+*.class
+hs_err_pid*
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Data, models, media produced at runtime
+data/
+*.onnx
+*.pt
+infra/docker/volumes/
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.iml
+.DS_Store
+Thumbs.db
+
+# Agent tooling (local only)
+.claude/worktrees/
+.claude/settings.local.json
+
+# Logs
+*.log
+logs/
