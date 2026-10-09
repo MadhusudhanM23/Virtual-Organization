@@ -8,6 +8,9 @@ secrets/
 
 # Node / web
 node_modules/
+# Per-package lockfiles: the single root lockfile is created after the wave-1 merge
+packages/*/package-lock.json
+apps/*/package-lock.json
 dist/
 coverage/
 playwright-report/
