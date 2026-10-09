@@ -1,0 +1,15 @@
+# Prometheus configuration for the local "observability" compose profile.
+# Mounted by infra/docker/compose.yaml at /etc/prometheus/prometheus.yml.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Spring Boot API running on the host (services/api, port 8080; Plan 1.2).
+  - job_name: vorg-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+        labels:
+          service: api
