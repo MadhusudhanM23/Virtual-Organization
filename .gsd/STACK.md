@@ -8,7 +8,14 @@
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | Java (Eclipse Temurin) | 21.0.12.1 LTS | API + simulation |
-| Spring Boot | latest stable at scaffold | API framework |
+| Spring Boot | 4.1.1 (GA) | API framework (Spring Framework 7, Jackson 3, Hibernate 7.4.5) |
+| Flyway | 12.4.0 (flyway-database-postgresql) | Migrations |
+| PostgreSQL JDBC driver | 42.7.13 | DB driver |
+| Micrometer | 1.17.1 | Metrics + tracing (OTel bridge, OTLP exporter) |
+| Testcontainers | 2.0.5 (postgis/postgis:16-3.5) | Integration tests |
+| ArchUnit | 1.5.1 | Module boundary tests |
+| uuid-creator | 6.1.1 | UUIDv7 generation |
+| Maven (wrapper) | 3.10.0 (wrapper 3.3.4) | Java builds |
 | PostgreSQL (postgis/postgis image) | 16.x | State, events, RLS |
 | Redis | 7.x | Hot state, rate limits, WS cache |
 | Node.js | 24.18.0 (host) | Web tooling |
