@@ -46,7 +46,7 @@ updated: 2026-10-09
 
 **Plans:**
 - [x] Plan 1.1: Repo scaffold, local infrastructure & event contracts (wave 1)
-- [ ] Plan 1.2: Spring Boot API skeleton & observability baseline (wave 1)
+- [x] Plan 1.2: Spring Boot API skeleton & observability baseline (wave 1)
 - [ ] Plan 1.3: Web app shell & design system foundation (wave 1)
 - [ ] Plan 1.4: Tenancy (RLS), identity (dev JWT issuer) & authorization matrix (wave 2)
 - [ ] Plan 1.5: Commands, transactional outbox, event store & audit (wave 3)
@@ -205,7 +205,7 @@ simulation · external digital-twin APIs · world-model template marketplace.
 
 | Phase | Status | Plans | Complete |
 |-------|--------|-------|----------|
-| 1 Foundation | 🔄 | 1/7 | — |
+| 1 Foundation | 🔄 | 2/7 | — |
 | 2 World Model & Twin | ⬜ | 0/5 | — |
 | 3 Live Operations | ⬜ | 0/6 | — |
 | 4 Incidents & Safety | ⬜ | 0/3 | — |
