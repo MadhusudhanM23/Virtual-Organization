@@ -1,0 +1,22 @@
+# Local profile: dev placeholders only (never real secrets). Keep in sync with .env.example (Plan 1.1).
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:virtual_org}
+    password: ${VO_APP_DB_PASSWORD:vo_app_dev_password}
+  flyway:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:virtual_org}
+    user: ${POSTGRES_USER:vo_owner}
+    password: ${POSTGRES_PASSWORD:vo_owner_dev_password}
+    placeholders:
+      app_password: ${VO_APP_DB_PASSWORD:vo_app_dev_password}
+      outbox_password: ${VO_OUTBOX_DB_PASSWORD:vo_outbox_dev_password}
+      sim_password: ${VO_SIM_DB_PASSWORD:vo_sim_dev_password}
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+
+vo:
+  security:
+    permit-prometheus: true
