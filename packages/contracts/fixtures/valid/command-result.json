@@ -1,0 +1,19 @@
+{
+  "event_id": "0199f3a0-3d4e-7f50-8b6c-7d8e9f0a1b23",
+  "tenant_id": "0199f3a0-0000-7000-8000-000000000001",
+  "aggregate_type": "COMMAND",
+  "aggregate_id": "0199f3a0-0000-7000-8000-0000000000f9",
+  "event_type": "COMMAND_SUCCEEDED",
+  "sequence": null,
+  "occurred_at": "2026-10-09T10:40:00Z",
+  "ingested_at": "2026-10-09T10:40:00.050Z",
+  "source": "API",
+  "data_mode": "LIVE",
+  "actor_type": "HUMAN",
+  "actor_id": "usr:7f3a9c",
+  "location": null,
+  "correlation_id": "0199f3a0-0000-7000-8000-0000000000c3",
+  "causation_id": null,
+  "schema_version": 1,
+  "payload": { "status": "SUCCEEDED" }
+}

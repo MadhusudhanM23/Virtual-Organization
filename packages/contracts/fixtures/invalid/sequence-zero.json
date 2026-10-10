@@ -1,0 +1,19 @@
+{
+  "event_id": "0199f3a0-1b2c-7d3e-8f4a-5b6c7d8e9f01",
+  "tenant_id": "0199f3a0-0000-7000-8000-000000000001",
+  "aggregate_type": "FORKLIFT",
+  "aggregate_id": "0199f3a0-0000-7000-8000-0000000000f1",
+  "event_type": "FORKLIFT_POSITION_UPDATED",
+  "sequence": 0,
+  "occurred_at": "2026-10-09T10:24:18Z",
+  "ingested_at": "2026-10-09T10:24:18.120Z",
+  "source": "SIMULATION",
+  "data_mode": "SIMULATED",
+  "actor_type": "SERVICE",
+  "actor_id": "svc:simulated-wms-adapter",
+  "location": null,
+  "correlation_id": "0199f3a0-0000-7000-8000-0000000000c1",
+  "causation_id": null,
+  "schema_version": 1,
+  "payload": {}
+}

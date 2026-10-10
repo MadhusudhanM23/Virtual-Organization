@@ -1,0 +1,76 @@
+# Local development infrastructure for Virtual Organization (REQ-002).
+#
+# Run from the repository root (same command in PowerShell and Bash):
+#   docker compose -f infra/docker/compose.yaml --env-file .env up -d
+#   docker compose -f infra/docker/compose.yaml --env-file .env --profile observability up -d
+#
+# All credentials come from .env (copied from .env.example); nothing secret is
+# hard-coded here (NFR-14). Ports are published on 127.0.0.1 only, so the dev
+# placeholder credentials are never reachable from the local network.
+# Memory limits keep the whole local stack inside the dev-machine budget (NFR-15).
+
+name: vorg
+
+services:
+  postgres:
+    # PostgreSQL 16 + PostGIS 3.5. Keep in sync with .gsd/STACK.md and the Testcontainers image.
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # TCP check: the image's first-run init server listens on the unix socket only,
+      # so the container turns healthy only once the final server accepts connections.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    mem_limit: 1g
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    mem_limit: 256m
+
+  # --- Profile "observability": started only with --profile observability ---
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    profiles: ["observability"]
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      # Docker Desktop resolves host.docker.internal itself; this mapping makes Linux hosts (CI) behave the same.
+      - "host.docker.internal:host-gateway"
+    mem_limit: 256m
+
+  grafana:
+    image: grafana/grafana:13.2.3
+    profiles: ["observability"]
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      # Anonymous read-only access; no dashboards are provisioned yet.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    depends_on:
+      - prometheus
+    # Grafana idles at about 290 MiB; 512m leaves headroom for dashboards.
+    mem_limit: 512m
+
+volumes:
+  postgres-data:

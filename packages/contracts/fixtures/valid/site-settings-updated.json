@@ -1,0 +1,19 @@
+{
+  "event_id": "0199f3a0-4e5f-7061-8c7d-8e9f0a1b2c34",
+  "tenant_id": "0199f3a0-0000-7000-8000-000000000001",
+  "aggregate_type": "SITE",
+  "aggregate_id": "0199f3a0-0000-7000-8000-0000000000a1",
+  "event_type": "SITE_SETTINGS_UPDATED",
+  "sequence": 3,
+  "occurred_at": "2026-10-09T09:00:00Z",
+  "ingested_at": "2026-10-09T09:00:00.010Z",
+  "source": "HUMAN",
+  "data_mode": "SYNTHETIC",
+  "actor_type": "HUMAN",
+  "actor_id": "usr:2b81de",
+  "location": { "site_id": "0199f3a0-0000-7000-8000-0000000000a1" },
+  "correlation_id": "0199f3a0-0000-7000-8000-0000000000c4",
+  "causation_id": null,
+  "schema_version": 1,
+  "payload": {}
+}

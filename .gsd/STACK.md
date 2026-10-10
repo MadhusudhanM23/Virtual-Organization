@@ -9,8 +9,8 @@
 |------------|---------|---------|
 | Java (Eclipse Temurin) | 21.0.12.1 LTS | API + simulation |
 | Spring Boot | latest stable at scaffold | API framework |
-| PostgreSQL (postgis/postgis image) | 16.x | State, events, RLS |
-| Redis | 7.x | Hot state, rate limits, WS cache |
+| PostgreSQL + PostGIS (`postgis/postgis:16-3.5`) | PostgreSQL 16.9, PostGIS 3.5.2 | State, events, RLS |
+| Redis (`redis:7-alpine`) | 7.4.11 | Hot state, rate limits, WS cache |
 | Node.js | 24.18.0 (host) | Web tooling |
 | React / TypeScript / Vite | latest stable at scaffold | Web app |
 | Tailwind CSS | v4 latest | Styling |

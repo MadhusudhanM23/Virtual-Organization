@@ -1,0 +1,27 @@
+{
+  "event_id": "0199f3a0-2c3d-7e4f-8a5b-6c7d8e9f0a12",
+  "tenant_id": "0199f3a0-0000-7000-8000-000000000001",
+  "aggregate_type": "INCIDENT",
+  "aggregate_id": "0199f3a0-0000-7000-8000-0000000000d1",
+  "event_type": "INCIDENT_DETECTED",
+  "sequence": 1,
+  "occurred_at": "2026-10-09T10:31:02Z",
+  "ingested_at": "2026-10-09T10:31:02.450Z",
+  "source": "CAMERA",
+  "data_mode": "SYNTHETIC",
+  "actor_type": "DEVICE",
+  "actor_id": "device:cam-07",
+  "location": {
+    "site_id": "0199f3a0-0000-7000-8000-0000000000a1",
+    "floor_id": "0199f3a0-0000-7000-8000-0000000000b1",
+    "zone_id": "0199f3a0-0000-7000-8000-0000000000e1",
+    "position": { "x": 12.0, "y": 30.5, "z": 0 },
+    "heading_deg": null
+  },
+  "correlation_id": "0199f3a0-0000-7000-8000-0000000000c2",
+  "causation_id": "0199f3a0-1b2c-7d3e-8f4a-5b6c7d8e9f01",
+  "schema_version": 1,
+  "payload": { "kind": "PROXIMITY" },
+  "confidence": 0.87,
+  "observation_status": "UNCONFIRMED"
+}

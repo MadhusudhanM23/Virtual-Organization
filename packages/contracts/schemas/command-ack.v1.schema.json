@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vorg.dev/schemas/command-ack.v1.json",
+  "title": "CommandAck",
+  "description": "Acknowledgement returned by every command endpoint: 202 while asynchronous, 200 when complete.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["command_id", "status", "correlation_id"],
+  "properties": {
+    "command_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ACCEPTED", "SUCCEEDED", "FAILED", "REJECTED"]
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "result": {
+      "description": "Command-specific outcome; present when the command has completed.",
+      "type": "object"
+    }
+  }
+}
