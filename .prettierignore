@@ -1,0 +1,23 @@
+# Dependencies, build output and test artifacts
+node_modules/
+**/dist/
+**/coverage/
+**/playwright-report/
+**/test-results/
+**/target/
+package-lock.json
+
+# Hand-formatted documentation and GSD/agent tooling (not source code)
+*.md
+*.yaml
+docs/
+adapters/
+.agent/
+.agents/
+.gemini/
+.gsd/
+
+# Owned by other plans / non-JS toolchains
+infra/
+services/
+scripts/
