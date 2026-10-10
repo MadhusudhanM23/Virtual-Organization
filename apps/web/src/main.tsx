@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { App } from './app/App';
 import './styles/index.css';
 
 // Auth note (BLUEPRINT §18): when the auth store lands (Plan 1.6) the access token lives in memory only —
@@ -10,6 +11,6 @@ if (!container) throw new Error('Root element #root not found');
 
 createRoot(container).render(
   <StrictMode>
-    <h1>Virtual Organization</h1>
+    <App />
   </StrictMode>,
 );
