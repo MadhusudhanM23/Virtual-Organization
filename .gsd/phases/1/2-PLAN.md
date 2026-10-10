@@ -93,7 +93,7 @@ module boundaries. No business features yet.
        placeholders, idempotent (`DO $$ ... IF NOT EXISTS ... $$`); grant USAGE on schemas; ALTER DEFAULT PRIVILEGES
        so tables created later grant SELECT/INSERT/UPDATE/DELETE to vo_app (audit schema: SELECT/INSERT only),
        evt schema to vo_outbox, sim schema to vo_sim; sequences USAGE/SELECT accordingly.
-    4. `AbstractIntegrationTest`: one shared Testcontainers `postgis/postgis:16-3.4` container
+    4. `AbstractIntegrationTest`: one shared Testcontainers `postgis/postgis:16-3.5` container (same tag as infra/docker/compose.yaml)
        (`DockerImageName.parse(...).asCompatibleSubstituteFor("postgres")`), username `vo_owner`; `@DynamicPropertySource`
        sets flyway url/user/password = owner and datasource url = container url with user `vo_app` and the test
        app password (also passed as flyway placeholder). This proves the app runs as a non-superuser.

@@ -17,8 +17,8 @@ Priority: **M** must-have for the MCD, **S** should-have, **C** could-have.
 
 | ID | Requirement | Source | Pri | Phase | Status |
 |----|-------------|--------|-----|-------|--------|
-| REQ-001 | Monorepo layout per §20 (apps/, services/, packages/, infra/, docs/, tests/); README with quick start. | §20 | M | 1 | Pending |
-| REQ-002 | One-command local infrastructure: `docker compose` brings up PostgreSQL 16 (PostGIS image) and Redis 7 healthy. | §6, §19 | M | 1 | Pending |
+| REQ-001 | Monorepo layout per §20 (apps/, services/, packages/, infra/, docs/, tests/); README with quick start. | §20 | M | 1 | Complete |
+| REQ-002 | One-command local infrastructure: `docker compose` brings up PostgreSQL 16 (PostGIS image) and Redis 7 healthy. | §6, §19 | M | 1 | Complete |
 | REQ-003 | Every platform-owned table carries `tenant_id`; PostgreSQL RLS enabled **and forced**; API binds tenant context per connection and fails closed without it; cross-tenant read/write blocked even with guessed IDs. | §2, §18, ADR-07 | M | 1 | Pending |
 | REQ-004 | Tenant namespacing helpers for Redis keys, object-storage prefixes, WebSocket channels, event routing and AI retrieval (`t:{tenant_id}:…`), with tests. | §2, §25 | M | 1 | Pending |
 | REQ-005 | Built-in dev identity issuer: tenant-scoped login → RS256 access JWT (≤ 15 min) + rotating refresh token (httpOnly cookie, reuse detection); JWKS endpoint; API validates as an OAuth2 resource server so an external OIDC IdP is a config swap. | §18, ADR-16 | M | 1 | Pending |
@@ -28,7 +28,7 @@ Priority: **M** must-have for the MCD, **S** should-have, **C** could-have.
 | REQ-009 | Platform Administrator has no business authority (cannot propose, approve or execute business actions) — explicit test. | §4 | M | 1 | Pending |
 | REQ-010 | Command infrastructure: consequential mutations only via POST command endpoints with `Idempotency-Key`; each creates an auditable command record; same key + same payload → same result; same key + different payload → 409. | §16, §25 | M | 1 | Pending |
 | REQ-011 | Transactional outbox: state change, event-history row and outbox row commit in one transaction; rollback → no event; poller delivers at-least-once to in-process handlers; outbox-age metric. | §6, ADR-02, ADR-10 | M | 1 | Pending |
-| REQ-012 | Event envelope contract with every §7 field, as JSON Schema in `packages/contracts` (single source for Java validation and generated TS types); `schema_version` on every event. | §7, §19 | M | 1 | Pending |
+| REQ-012 | Event envelope contract with every §7 field, as JSON Schema in `packages/contracts` (single source for Java validation and generated TS types); `schema_version` on every event. | §7, §19 | M | 1 | Complete |
 | REQ-013 | Idempotent consumers (processed-event ledger), per-aggregate monotonic `sequence`, late events accepted and flagged (`occurred_at` < `ingested_at`), no global-order assumption. | §7, ADR-03 | M | 1 | Pending |
 | REQ-014 | Append-only audit log (DB trigger + privileges block UPDATE/DELETE) recording every command and authorization denial with actor_ref, tenant and correlation_id. | §3, §18 | M | 1 | Pending |
 | REQ-015 | `correlation_id` / `causation_id` propagate HTTP → command → events → handlers → logs/traces; responses echo `X-Correlation-Id`. | §17 | M | 1 | Pending |

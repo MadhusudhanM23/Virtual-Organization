@@ -9,16 +9,17 @@ updated: 2026-10-09
 **Milestone:** M1 — Minimum Credible Demonstration (v0.1)
 **Phase:** 1 - Foundation
 **Status:** executing
-**Plan:** Wave 1 (Plans 1.1, 1.2, 1.3) dispatched in parallel
+**Plan:** Wave 1 — Plan 1.1 merged and verified; Plans 1.2 (new agent) and 1.3 (resumed agent) still running
 
 ## Last Action
 
-SPEC finalized; REQUIREMENTS, ROADMAP, ARCHITECTURE, STACK, ADR register and Phase 1 plans 1.1–1.7 written.
-JDK 21 installed. GitHub push working (owner signed in).
+Plan 1.1 merged into main (22 contract tests verified independently). REQ-001, REQ-002, REQ-012 marked Complete.
+Test base image aligned to `postgis/postgis:16-3.5`.
 
 ## Next Steps
 
-1. Merge wave 1 branches; run root `npm install` to create the unified lockfile; push.
+1. Wait for Plans 1.2 and 1.3; merge their branches; run root `npm install` to create the unified lockfile.
+2. GitHub push is blocked: this session cannot sign in to GitHub. Owner must run `git push` once in a normal terminal (7 local commits ahead of origin/main); then pushes work.
 2. Wave 2: Plan 1.4 (tenancy/identity/authz).
 3. Wave 3: Plans 1.5 and 1.6 in parallel; Wave 4: Plan 1.7.
 
