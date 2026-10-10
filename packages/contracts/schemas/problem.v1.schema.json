@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vorg.dev/schemas/problem.v1.json",
+  "title": "Problem",
+  "description": "RFC 9457 problem details (application/problem+json) with the platform's correlation_id and field errors.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "title", "status"],
+  "properties": {
+    "type": {
+      "description": "URI reference identifying the problem type; about:blank when there is nothing more specific.",
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "title": {
+      "description": "Short, human-readable summary of the problem type.",
+      "type": "string"
+    },
+    "status": {
+      "description": "HTTP status code.",
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599
+    },
+    "detail": {
+      "description": "Human-readable explanation specific to this occurrence.",
+      "type": "string"
+    },
+    "instance": {
+      "description": "URI reference identifying this occurrence.",
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "correlation_id": {
+      "description": "Matches the X-Correlation-Id response header.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "errors": {
+      "description": "Field-level validation errors.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "message"],
+        "properties": {
+          "field": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

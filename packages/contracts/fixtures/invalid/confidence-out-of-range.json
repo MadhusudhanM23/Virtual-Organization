@@ -1,0 +1,21 @@
+{
+  "event_id": "0199f3a0-2c3d-7e4f-8a5b-6c7d8e9f0a12",
+  "tenant_id": "0199f3a0-0000-7000-8000-000000000001",
+  "aggregate_type": "INCIDENT",
+  "aggregate_id": "0199f3a0-0000-7000-8000-0000000000d1",
+  "event_type": "INCIDENT_DETECTED",
+  "sequence": 1,
+  "occurred_at": "2026-10-09T10:31:02Z",
+  "ingested_at": "2026-10-09T10:31:02.450Z",
+  "source": "CAMERA",
+  "data_mode": "SYNTHETIC",
+  "actor_type": "DEVICE",
+  "actor_id": "device:cam-07",
+  "location": null,
+  "correlation_id": "0199f3a0-0000-7000-8000-0000000000c2",
+  "causation_id": null,
+  "schema_version": 1,
+  "payload": {},
+  "confidence": 1.5,
+  "observation_status": "UNCONFIRMED"
+}

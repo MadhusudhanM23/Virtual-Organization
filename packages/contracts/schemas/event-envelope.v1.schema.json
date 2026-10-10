@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vorg.dev/schemas/event-envelope.v1.json",
+  "title": "EventEnvelope",
+  "description": "Event envelope v1 (blueprint section 7). The only definition of the event shape; Java validates against it on emit and TypeScript types are generated from it. Every field is defined by section 7; do not add fields.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "tenant_id",
+    "aggregate_type",
+    "aggregate_id",
+    "event_type",
+    "occurred_at",
+    "ingested_at",
+    "source",
+    "data_mode",
+    "actor_type",
+    "actor_id",
+    "correlation_id",
+    "schema_version",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "description": "Globally unique event ID; the idempotency key.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "tenant_id": {
+      "description": "Tenant boundary.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_type": {
+      "description": "Business entity type the event changes or describes, UPPER_SNAKE (e.g. SITE).",
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
+    "aggregate_id": {
+      "description": "Identifier of the aggregate instance.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "description": "Stable semantic name, UPPER_SNAKE: <AGGREGATE>_<PAST_TENSE_VERB> (e.g. FORKLIFT_POSITION_UPDATED).",
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
+    "sequence": {
+      "description": "Per-aggregate monotonic sequence where applicable; null when the source provides none.",
+      "anyOf": [
+        { "type": "integer", "minimum": 1 },
+        { "type": "null" }
+      ]
+    },
+    "occurred_at": {
+      "description": "When it happened (ISO-8601 UTC).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "ingested_at": {
+      "description": "When the platform received it (ISO-8601 UTC). Later than occurred_at for late events.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "description": "Where the event originated.",
+      "type": "string",
+      "enum": ["API", "CAMERA", "DEVICE", "SIMULATION", "IMPORT", "SYSTEM", "HUMAN"]
+    },
+    "data_mode": {
+      "description": "Provenance of the data (ADR-13, ADR-27). UI truth labels are derived from this plus the lens; SIMULATION is deliberately not a data_mode value.",
+      "type": "string",
+      "enum": ["LIVE", "SIMULATED", "SYNTHETIC", "REPLAY", "MIXED"]
+    },
+    "actor_type": {
+      "description": "Kind of actor that caused the event.",
+      "type": "string",
+      "enum": ["HUMAN", "SERVICE", "DEVICE", "AGENT"]
+    },
+    "actor_id": {
+      "description": "Pseudonymous actor reference; never a raw personal identifier.",
+      "type": "string",
+      "minLength": 1
+    },
+    "location": {
+      "description": "Site/zone coordinates or logical location when applicable.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["site_id"],
+          "properties": {
+            "site_id": { "type": "string", "format": "uuid" },
+            "floor_id": {
+              "anyOf": [{ "type": "string", "format": "uuid" }, { "type": "null" }]
+            },
+            "zone_id": {
+              "anyOf": [{ "type": "string", "format": "uuid" }, { "type": "null" }]
+            },
+            "position": {
+              "description": "Site-local right-handed frame in meters: +x east, +y north, +z up.",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["x", "y", "z"],
+                  "properties": {
+                    "x": { "type": "number" },
+                    "y": { "type": "number" },
+                    "z": { "type": "number" }
+                  }
+                },
+                { "type": "null" }
+              ]
+            },
+            "heading_deg": {
+              "description": "Degrees; 0 = +x (east), counter-clockwise positive.",
+              "anyOf": [{ "type": "number" }, { "type": "null" }]
+            }
+          }
+        },
+        { "type": "null" }
+      ]
+    },
+    "correlation_id": {
+      "description": "Traces a workflow.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "causation_id": {
+      "description": "Traces the causal chain; null for root events.",
+      "anyOf": [{ "type": "string", "format": "uuid" }, { "type": "null" }]
+    },
+    "schema_version": {
+      "description": "Contract evolution identifier of the payload schema.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "payload": {
+      "description": "Validated event data. Per-event-type payload schemas are added later (see events/CATALOG.md).",
+      "type": "object"
+    },
+    "confidence": {
+      "description": "For observations: confidence in [0, 1].",
+      "anyOf": [{ "type": "number", "minimum": 0, "maximum": 1 }, { "type": "null" }]
+    },
+    "observation_status": {
+      "description": "For observations: detected/unconfirmed/confirmed state.",
+      "anyOf": [
+        { "type": "string", "enum": ["DETECTED", "UNCONFIRMED", "CONFIRMED", "REJECTED"] },
+        { "type": "null" }
+      ]
+    }
+  }
+}
