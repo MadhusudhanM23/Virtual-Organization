@@ -43,6 +43,8 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.password", () -> APP_PASSWORD);
         // No Redis in the integration base; its health contributor would otherwise report DOWN.
         registry.add("management.health.redis.enabled", () -> "false");
+        // @SpringBootTest disables metric exporters by default; ObservabilityIT needs Prometheus.
+        registry.add("management.prometheus.metrics.export.enabled", () -> "true");
         registry.add("vo.security.permit-prometheus", () -> "true");
         registry.add("management.tracing.sampling.probability", () -> "1.0");
     }
