@@ -94,6 +94,11 @@
       <groupId>com.github.f4b6a3</groupId>
       <artifactId>uuid-creator</artifactId>
     </dependency>
+    <!-- JSON Schema validation of every emitted event envelope against the shared contract (draft 2020-12). -->
+    <dependency>
+      <groupId>com.networknt</groupId>
+      <artifactId>json-schema-validator</artifactId>
+    </dependency>
 
     <!-- Test -->
     <dependency>
@@ -144,6 +149,14 @@
         <targetPath>authz</targetPath>
         <includes>
           <include>permission-matrix.v1.json</include>
+        </includes>
+      </resource>
+      <!-- The event envelope / command ack / problem schemas are the single source; copied, never duplicated. -->
+      <resource>
+        <directory>../../packages/contracts/schemas</directory>
+        <targetPath>contracts/schemas</targetPath>
+        <includes>
+          <include>*.schema.json</include>
         </includes>
       </resource>
     </resources>
