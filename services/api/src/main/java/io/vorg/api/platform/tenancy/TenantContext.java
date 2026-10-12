@@ -29,11 +29,16 @@ public final class TenantContext {
 
     /** Runs {@code action} with {@code tenantId} bound, guaranteeing the context is cleared afterwards. */
     public static <T> T callWith(UUID tenantId, java.util.function.Supplier<T> action) {
+        UUID previous = CURRENT.get();
         set(tenantId);
         try {
             return action.get();
         } finally {
-            clear();
+            if (previous == null) {
+                clear();
+            } else {
+                CURRENT.set(previous);
+            }
         }
     }
 }

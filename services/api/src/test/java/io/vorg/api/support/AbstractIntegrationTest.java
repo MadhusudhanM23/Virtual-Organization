@@ -26,7 +26,14 @@ public abstract class AbstractIntegrationTest {
             .withUsername(OWNER_USER)
             .withPassword(OWNER_PASSWORD);
 
+    protected static final java.nio.file.Path JWT_KEY_PATH;
+
     static {
+        try {
+            JWT_KEY_PATH = java.nio.file.Files.createTempDirectory("vorg-jwt").resolve("test-key.pem");
+        } catch (java.io.IOException ex) {
+            throw new IllegalStateException(ex);
+        }
         POSTGRES.start();
     }
 
@@ -41,6 +48,10 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", () -> "vo_app");
         registry.add("spring.datasource.password", () -> APP_PASSWORD);
+        registry.add("vo.jwt.key-path", () -> JWT_KEY_PATH.toString());
+        registry.add("vo.jwt.generate-if-absent", () -> "true");
+        registry.add("vo.jwt.issuer", () -> "http://localhost:8080");
+        registry.add("vo.auth.cookie-secure", () -> "false");
         // No Redis in the integration base; its health contributor would otherwise report DOWN.
         registry.add("management.health.redis.enabled", () -> "false");
         // @SpringBootTest disables metric exporters by default; ObservabilityIT needs Prometheus.

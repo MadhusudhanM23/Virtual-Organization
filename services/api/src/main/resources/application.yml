@@ -67,3 +67,11 @@ vo:
   security:
     # /actuator/prometheus is unauthenticated only where this is true (local). Production must protect it.
     permit-prometheus: false
+  jwt:
+    # RS256 signing key (PEM, PKCS#8). Must be provisioned in non-local environments; never committed (*.pem ignored).
+    key-path: ${VO_JWT_KEY_PATH:}
+    generate-if-absent: false
+    issuer: ${VO_JWT_ISSUER:http://localhost:8080}
+  auth:
+    # Refresh cookie Secure attribute: true everywhere except local development over plain http.
+    cookie-secure: true
