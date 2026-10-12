@@ -1,0 +1,352 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vorg.dev/schemas/world.v1.json",
+  "title": "World model wire contract v1",
+  "description": "Response shapes of GET /api/twin/world, /api/twin/entities and /api/entities/{id}. snake_case; coordinates are site-local meters (+x east, +y north, +z up); heading in degrees, 0 = east, counter-clockwise positive.",
+  "$defs": {
+    "uuid": { "type": "string", "format": "uuid" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "data_mode": { "enum": ["LIVE", "SIMULATED", "SYNTHETIC", "REPLAY", "MIXED"] },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" }
+      }
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_x", "min_y", "max_x", "max_y"],
+      "properties": {
+        "min_x": { "type": "number" },
+        "min_y": { "type": "number" },
+        "max_x": { "type": "number" },
+        "max_y": { "type": "number" }
+      }
+    },
+    "heading_deg": { "type": "number", "minimum": 0, "exclusiveMaximum": 360 },
+    "world_version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "content_hash", "label", "data_mode", "created_at"],
+      "properties": {
+        "version": { "type": "integer", "minimum": 1 },
+        "content_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "label": { "type": "string" },
+        "data_mode": { "$ref": "#/$defs/data_mode" },
+        "created_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "pose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y",
+        "z",
+        "heading_deg",
+        "occurred_at",
+        "source",
+        "data_mode",
+        "spatial_confidence"
+      ],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "heading_deg": { "$ref": "#/$defs/heading_deg" },
+        "occurred_at": { "$ref": "#/$defs/timestamp" },
+        "source": {
+          "enum": ["API", "CAMERA", "DEVICE", "SIMULATION", "IMPORT", "SYSTEM", "HUMAN"]
+        },
+        "data_mode": { "$ref": "#/$defs/data_mode" },
+        "spatial_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    },
+    "building": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "version", "data_mode"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "name": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 },
+        "data_mode": { "$ref": "#/$defs/data_mode" }
+      }
+    },
+    "floor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "building_id",
+        "name",
+        "level",
+        "elevation_m",
+        "bounds",
+        "version",
+        "data_mode"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "building_id": { "$ref": "#/$defs/uuid" },
+        "name": { "type": "string" },
+        "level": { "type": "integer" },
+        "elevation_m": { "type": "number" },
+        "bounds": { "$ref": "#/$defs/bounds" },
+        "version": { "type": "integer", "minimum": 1 },
+        "data_mode": { "$ref": "#/$defs/data_mode" }
+      }
+    },
+    "zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "floor_id", "name", "zone_type", "bounds", "version", "data_mode"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "floor_id": { "$ref": "#/$defs/uuid" },
+        "name": { "type": "string" },
+        "zone_type": { "enum": ["RECEIVING", "STORAGE", "PICKING", "PACKING", "DISPATCH"] },
+        "bounds": { "$ref": "#/$defs/bounds" },
+        "version": { "type": "integer", "minimum": 1 },
+        "data_mode": { "$ref": "#/$defs/data_mode" }
+      }
+    },
+    "dock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "floor_id",
+        "zone_id",
+        "name",
+        "dock_type",
+        "status",
+        "position",
+        "heading_deg",
+        "width_m",
+        "version",
+        "data_mode"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "floor_id": { "$ref": "#/$defs/uuid" },
+        "zone_id": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
+        "name": { "type": "string" },
+        "dock_type": { "enum": ["INBOUND", "OUTBOUND"] },
+        "status": { "enum": ["AVAILABLE", "OCCUPIED", "CLOSED"] },
+        "position": { "$ref": "#/$defs/position" },
+        "heading_deg": { "$ref": "#/$defs/heading_deg" },
+        "width_m": { "type": "number", "exclusiveMinimum": 0 },
+        "version": { "type": "integer", "minimum": 1 },
+        "data_mode": { "$ref": "#/$defs/data_mode" }
+      }
+    },
+    "rack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "floor_id",
+        "zone_id",
+        "code",
+        "position",
+        "heading_deg",
+        "length_m",
+        "depth_m",
+        "height_m",
+        "levels",
+        "version",
+        "data_mode"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "floor_id": { "$ref": "#/$defs/uuid" },
+        "zone_id": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
+        "code": { "type": "string" },
+        "position": { "$ref": "#/$defs/position" },
+        "heading_deg": { "$ref": "#/$defs/heading_deg" },
+        "length_m": { "type": "number", "exclusiveMinimum": 0 },
+        "depth_m": { "type": "number", "exclusiveMinimum": 0 },
+        "height_m": { "type": "number", "exclusiveMinimum": 0 },
+        "levels": { "type": "integer", "minimum": 1 },
+        "version": { "type": "integer", "minimum": 1 },
+        "data_mode": { "$ref": "#/$defs/data_mode" }
+      }
+    },
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "time_zone", "locale", "currency", "unit_system"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "name": { "type": "string" },
+        "time_zone": { "type": "string" },
+        "locale": { "type": "string" },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "unit_system": { "enum": ["METRIC", "IMPERIAL"] }
+      }
+    },
+    "coordinate_system": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "units",
+        "origin",
+        "x_axis",
+        "y_axis",
+        "z_axis",
+        "heading_zero",
+        "heading_positive",
+        "heading_unit"
+      ],
+      "properties": {
+        "units": { "const": "meters" },
+        "origin": { "type": "string" },
+        "x_axis": { "const": "east" },
+        "y_axis": { "const": "north" },
+        "z_axis": { "const": "up" },
+        "heading_zero": { "const": "east" },
+        "heading_positive": { "const": "counter_clockwise" },
+        "heading_unit": { "const": "degrees" }
+      }
+    },
+    "world_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "site",
+        "world_version",
+        "coordinate_system",
+        "data_mode",
+        "buildings",
+        "floors",
+        "zones",
+        "docks",
+        "racks",
+        "entity_counts"
+      ],
+      "properties": {
+        "site": { "$ref": "#/$defs/site" },
+        "world_version": { "$ref": "#/$defs/world_version" },
+        "coordinate_system": { "$ref": "#/$defs/coordinate_system" },
+        "data_mode": { "$ref": "#/$defs/data_mode" },
+        "buildings": { "type": "array", "items": { "$ref": "#/$defs/building" } },
+        "floors": { "type": "array", "items": { "$ref": "#/$defs/floor" } },
+        "zones": { "type": "array", "items": { "$ref": "#/$defs/zone" } },
+        "docks": { "type": "array", "items": { "$ref": "#/$defs/dock" } },
+        "racks": { "type": "array", "items": { "$ref": "#/$defs/rack" } },
+        "entity_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "FORKLIFT": { "type": "integer", "minimum": 0 },
+            "TRUCK": { "type": "integer", "minimum": 0 },
+            "PALLET": { "type": "integer", "minimum": 0 },
+            "ROBOT": { "type": "integer", "minimum": 0 },
+            "WORKER": { "type": "integer", "minimum": 0 },
+            "CAMERA": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "entity_type",
+        "code",
+        "name",
+        "site_id",
+        "floor_id",
+        "zone_id",
+        "status",
+        "pose",
+        "attributes",
+        "version",
+        "data_mode"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "entity_type": { "enum": ["FORKLIFT", "TRUCK", "PALLET", "ROBOT", "WORKER", "CAMERA"] },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "site_id": { "$ref": "#/$defs/uuid" },
+        "floor_id": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
+        "zone_id": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
+        "status": { "type": "string" },
+        "pose": { "$ref": "#/$defs/pose" },
+        "attributes": { "type": "object" },
+        "version": { "type": "integer", "minimum": 1 },
+        "data_mode": { "$ref": "#/$defs/data_mode" }
+      }
+    },
+    "entity_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "entity_type",
+        "code",
+        "name",
+        "site_id",
+        "floor_id",
+        "zone_id",
+        "status",
+        "pose",
+        "attributes",
+        "version",
+        "data_mode",
+        "floor_name",
+        "zone_name",
+        "external_ids",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "entity_type": { "enum": ["FORKLIFT", "TRUCK", "PALLET", "ROBOT", "WORKER", "CAMERA"] },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "site_id": { "$ref": "#/$defs/uuid" },
+        "floor_id": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
+        "zone_id": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
+        "status": { "type": "string" },
+        "pose": { "$ref": "#/$defs/pose" },
+        "attributes": { "type": "object" },
+        "version": { "type": "integer", "minimum": 1 },
+        "data_mode": { "$ref": "#/$defs/data_mode" },
+        "floor_name": { "type": ["string", "null"] },
+        "zone_name": { "type": ["string", "null"] },
+        "external_ids": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_system", "source_record_id"],
+            "properties": {
+              "source_system": { "type": "string" },
+              "source_record_id": { "type": "string" }
+            }
+          }
+        },
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "updated_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "entity_list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items", "next_cursor"],
+      "properties": {
+        "items": { "type": "array", "items": { "$ref": "#/$defs/entity" } },
+        "next_cursor": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

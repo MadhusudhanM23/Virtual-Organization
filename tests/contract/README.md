@@ -40,3 +40,12 @@ together with the schema change.
 
 Add another `samples.put("<name>.json", factory.create(...))` in `EnvelopeSampleExportTest`, regenerate, and commit.
 Keep ids and timestamps fixed; never use random values.
+
+## World model samples
+
+[`world-samples/`](world-samples) holds responses of the real twin query API (`GET /api/twin/world`,
+`GET /api/twin/entities`, `GET /api/entities/{id}`) for the SYNTHETIC "Bengaluru Warehouse 01" seed.
+`services/api/.../twin/TwinQueryIT` writes them (the seed, ids and timestamps are deterministic, so the output is
+byte-stable) and `packages/twin-schema/test/java-samples.test.ts` validates them against
+[`world.v1.schema.json`](../../packages/twin-schema/schema/world.v1.schema.json). Regenerate with
+`scripts/mvnw.ps1 -B verify` (or `-Dit.test=TwinQueryIT`); a clean `git diff` means nothing drifted.

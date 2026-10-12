@@ -11,8 +11,8 @@ For each scenario, add a page here that states:
 - the exact commands to reproduce it from a clean checkout;
 - which truth label every entity and event carries (table below).
 
-The first scenario pages arrive with Phase 2 (the deterministic "Bengaluru Warehouse 01" seed) and the MCD runbook in
-Phase 10. Demo seed data is never a database migration; it is a deterministic seeder active only in the `local` and
+Scenario pages: [demo tenants](demo-tenants.md), [Bengaluru Warehouse 01 world seed](bengaluru-warehouse-01.md) (Phase 2).
+The MCD runbook arrives in Phase 10. Demo seed data is never a database migration; it is a deterministic seeder active only in the `local` and
 `demo` profiles.
 
 ## Truth labels (ADR-27)
