@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Component;
  * runtime role may only read {@code iam.tenants}; everything else goes through RLS as the runtime role.
  */
 @Component
+@Order(1)
 @Profile({"local", "demo", "test"})
 public class DemoSeeder implements ApplicationRunner {
 

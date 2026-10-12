@@ -25,7 +25,7 @@ class WorldSeedPlanTest {
      * Pinned content hash of seed v1. If this fails the seed changed: that is a new seed version (bump NAMESPACE/LABEL,
      * update docs/scenarios/bengaluru-warehouse-01.md), never a silent edit.
      */
-    static final String GOLDEN_HASH = "9d15dd6f0c2dcf94648b440f0d9e5db400225c77bee2ca6bac11600cdb967af6";
+    static final String GOLDEN_HASH = "4c6527e517a7833345a66720cc85b611571f76c054111d60255c20e6ca420102";
 
     private static WorldSeedPlan plan() {
         return BengaluruWarehouse01.build(TENANT_A, SITE_BLR);
@@ -50,6 +50,23 @@ class WorldSeedPlanTest {
             assertThat(plan().contentHash()).isEqualTo(GOLDEN_HASH);
         } finally {
             Locale.setDefault(before);
+        }
+    }
+
+    @Test
+    void anotherSiteGetsTheSameLayoutWithDisjointIds() {
+        WorldSeedPlan a = plan();
+        WorldSeedPlan b = BengaluruWarehouse01.build(io.vorg.api.platform.identity.seed.DemoIds.TENANT_B,
+                io.vorg.api.platform.identity.seed.DemoIds.SITE_B);
+        assertThat(b.contentHash()).isNotEqualTo(a.contentHash());
+        assertThat(b.entities()).hasSameSizeAs(a.entities());
+        for (int i = 0; i < a.entities().size(); i++) {
+            Entity ea = a.entities().get(i);
+            Entity eb = b.entities().get(i);
+            assertThat(eb.id()).isNotEqualTo(ea.id());
+            assertThat(eb.code()).isEqualTo(ea.code());
+            assertThat(eb.x()).isEqualByComparingTo(ea.x());
+            assertThat(eb.y()).isEqualByComparingTo(ea.y());
         }
     }
 

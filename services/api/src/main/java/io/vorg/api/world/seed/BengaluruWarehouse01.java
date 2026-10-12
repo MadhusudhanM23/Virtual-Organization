@@ -54,13 +54,18 @@ public final class BengaluruWarehouse01 {
     private static final int[] MEZZ_COLS = {8, 20, 32, 44};
     private static final int[] MEZZ_ROWS = {14, 26};
 
-    private BengaluruWarehouse01() {}
+    /** Ids are scoped to the site so the same layout can be seeded for several tenants/sites without collisions. */
+    private final String scope;
 
-    private static String key(String kind, String name) {
-        return NAMESPACE + "/" + kind + "/" + name;
+    private BengaluruWarehouse01(UUID siteId) {
+        this.scope = siteId.toString();
     }
 
-    private static UUID id(String kind, String name) {
+    private String key(String kind, String name) {
+        return NAMESPACE + "/" + scope + "/" + kind + "/" + name;
+    }
+
+    private UUID id(String kind, String name) {
         return SeedIds.of(key(kind, name));
     }
 
@@ -78,8 +83,9 @@ public final class BengaluruWarehouse01 {
         return new Rect(m(minX), m(minY), m(maxX), m(maxY));
     }
 
+    /** Streams depend only on the layout version, never on the site, so every site gets the identical layout. */
     private static SplittableRandom rng(String category) {
-        return new SplittableRandom(SEED ^ SeedIds.of(key("rng", category)).getLeastSignificantBits());
+        return new SplittableRandom(SEED ^ SeedIds.of(NAMESPACE + "/rng/" + category).getLeastSignificantBits());
     }
 
     private static Map<String, Object> attrs(Object... kv) {
@@ -95,7 +101,12 @@ public final class BengaluruWarehouse01 {
         return String.format(java.util.Locale.ROOT, "%0" + width + "d", n);
     }
 
+    /** Builds the seed for a site; pure and deterministic in (tenantId, siteId). */
     public static WorldSeedPlan build(UUID tenantId, UUID siteId) {
+        return new BengaluruWarehouse01(siteId).construct(tenantId, siteId);
+    }
+
+    private WorldSeedPlan construct(UUID tenantId, UUID siteId) {
         Building building = new Building(id("building", "main"), "Main Warehouse Building");
         Floor ground = new Floor(id("floor", "GF"), "Ground floor", 0, m(0), rect(0, 0, 120, 80));
         Floor mezz = new Floor(id("floor", "MZ1"), "Mezzanine", 1, m(5), rect(0, 0, 60, 40));
@@ -156,7 +167,7 @@ public final class BengaluruWarehouse01 {
                 List.copyOf(docks), List.copyOf(racks), List.copyOf(entities), List.copyOf(refs), hash);
     }
 
-    private static void addRacks(List<Rack> out, Floor floor, Zone zone, String prefix, int[] cols, int[] rows,
+    private void addRacks(List<Rack> out, Floor floor, Zone zone, String prefix, int[] cols, int[] rows,
             long z, long heightM, int levels) {
         for (int r = 0; r < rows.length; r++) {
             for (int c = 0; c < cols.length; c++) {
@@ -167,7 +178,7 @@ public final class BengaluruWarehouse01 {
         }
     }
 
-    private static void forklifts(List<Entity> out, Floor ground, Zone a, Zone b) {
+    private void forklifts(List<Entity> out, Floor ground, Zone a, Zone b) {
         SplittableRandom rnd = rng("forklift");
         for (int i = 1; i <= FORKLIFTS; i++) {
             Zone zone = i % 2 == 1 ? a : b;
@@ -182,7 +193,7 @@ public final class BengaluruWarehouse01 {
         }
     }
 
-    private static void workers(List<Entity> out, Floor ground, Zone receiving, Zone packing, Zone picking,
+    private void workers(List<Entity> out, Floor ground, Zone receiving, Zone packing, Zone picking,
             Zone dispatch, Zone storageA) {
         SplittableRandom rnd = rng("worker");
         Zone[] assignment = new Zone[WORKERS];
@@ -216,7 +227,7 @@ public final class BengaluruWarehouse01 {
         }
     }
 
-    private static void trucks(List<Entity> out, List<ExternalRef> refs, Floor ground, Map<String, Dock> docks) {
+    private void trucks(List<Entity> out, List<ExternalRef> refs, Floor ground, Map<String, Dock> docks) {
         record Spot(String dock, String direction, long x, long y, long heading) {}
         Spot[] spots = {
             new Spot("IN-01", "INBOUND", 12, -8, 90),
@@ -242,7 +253,7 @@ public final class BengaluruWarehouse01 {
         }
     }
 
-    private static void pallets(List<Entity> out, List<ExternalRef> refs, Floor ground, List<Rack> racks,
+    private void pallets(List<Entity> out, List<ExternalRef> refs, Floor ground, List<Rack> racks,
             Zone receiving, Zone dispatch) {
         SplittableRandom rnd = rng("pallet");
         List<Rack> groundRacks = racks.stream().filter(r -> r.floorId().equals(ground.id())).toList();
@@ -269,7 +280,7 @@ public final class BengaluruWarehouse01 {
     }
 
     /** 20 staged pallets on a 1.5 m grid (37 columns x 4 rows) inside a zone; unique cells. */
-    private static int stagePallets(List<Entity> out, List<ExternalRef> refs, int n, Floor ground, Zone zone,
+    private int stagePallets(List<Entity> out, List<ExternalRef> refs, int n, Floor ground, Zone zone,
             long firstXcm, long[] rowsCm, SplittableRandom rnd) {
         Set<Integer> cells = new HashSet<>();
         int placed = 0;
@@ -287,7 +298,7 @@ public final class BengaluruWarehouse01 {
         return n;
     }
 
-    private static void addPallet(List<Entity> out, List<ExternalRef> refs, int n, UUID floorId, UUID zoneId,
+    private void addPallet(List<Entity> out, List<ExternalRef> refs, int n, UUID floorId, UUID zoneId,
             String status, Map<String, Object> attributes, BigDecimal x, BigDecimal y, BigDecimal z, long heading) {
         String code = "PAL-" + pad(n, 4);
         UUID eid = id("entity", code);
@@ -297,7 +308,7 @@ public final class BengaluruWarehouse01 {
                 "PALLET"));
     }
 
-    private static void cameras(List<Entity> out, Floor ground, Floor mezz, Zone receiving, Zone dispatch,
+    private void cameras(List<Entity> out, Floor ground, Floor mezz, Zone receiving, Zone dispatch,
             Zone storageA, Zone mezzStorage) {
         record Cam(String code, Floor floor, Zone zone, long x, long y, long z, long heading) {}
         Cam[] cams = {
