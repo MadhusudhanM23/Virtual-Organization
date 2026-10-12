@@ -36,6 +36,13 @@ vo:
     tenant-id: 018f0000-0000-7000-8000-00000000a001
     site-id: 018f0000-0000-7000-8000-00000000a021
     operator-actor-ref: 018f0000-0000-7000-8000-00000000a104
+  # Replay snapshots of every site with a world model (ADR-44): every 5 minutes, kept 7 days; first one 30 s after start.
+  replay:
+    snapshots:
+      enabled: true
+      interval: 5m
+      initial-delay: 30s
+      retention: 7d
   integration:
     simulated:
       # Every 12th batch carries one deliberately invalid inventory record to demonstrate data-quality findings.

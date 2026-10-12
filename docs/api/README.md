@@ -145,6 +145,25 @@ Authorization uses the incident's own site (never client input). Viewing: Execut
 site), Analyst, Safety; Driver/Operator and Platform Administrator get `403`; other tenants' incidents are `404`. Handling
 (`HANDLE_SAFETY_INCIDENT`): Safety and Warehouse Manager (own site) only. Every command and denial is audited.
 
+## Implemented: replay (Phase 5, plan 5.1)
+
+State-delta replay of the **twin-owned** domains (entity poses/floor/zone/status, task and incident lifecycle, recent
+proximity alerts) from snapshots + ordered events. Replay never re-executes commands or side effects and never writes; every
+response and item carries `lens: "REPLAY"` and keeps its original `data_mode`. Semantics (ordering, high-water mark, late
+events, what is reconstructed vs. recorded): [`replay.md`](replay.md). Decisions: ADR-44, ADR-45, ADR-46.
+
+| Endpoint | Auth | Notes |
+|---|---|---|
+| `GET /api/replay/range?site_id=` | `VIEW_OPERATIONAL_STATE` on the whole site | `{lens, site_id, replay_available, earliest_at, latest_at, settled_until, latest_event_at, snapshot_interval, retention, recent_window, snapshot_count, snapshots[{snapshot_id, snapshot_at, trigger, origin, world_version, entity_count, task_count, incident_count, alert_count, size_bytes}]}` (snapshots newest first, at most 500) |
+| `GET /api/replay/state?site_id=&at=[&floor_id=]` | same | reconstructed state at `at` (ISO-8601 UTC, `earliest_at <= at <= now`, else `400`): `{lens, data_mode:"REPLAY", site_id, at, floor_id, reconstructed_from{snapshot_id, snapshot_at, origin, events_read, events_applied, events_ignored, events_skipped}, recorded{recorded_at, replay_treatment:"RECORDED", world_version, docks[]}, entities[] (twin entity shape without version, + lens), tasks{total, by_status, items[]}, incidents{total, by_status, items[]}, alerts[], not_reconstructed[{domain, treatment, note}], state_hash}`; byte-for-byte identical for the same inputs |
+| `GET /api/replay/frames?site_id=&from=&to=[&step_ms=1000][&floor_id=]` | same | playback: `{..., keyframe{at, recorded, entities[], tasks[], incidents[], alerts[], state_hash}, frame_count, frames[{at, entities[{id, floor_id, zone_id, status, pose, lens}], tasks[], incidents[], alerts[], removed{tasks[], incidents[], alerts[]}}], events_applied, next_from}`; frames only where something changed; `step_ms` 100..60000; at most 600 frames / 50 000 events per call, continue from `next_from` |
+| `GET /api/replay/events?site_id=&from=&to=[&scope=replayable or all][&limit=&cursor=]` | same | ascending replay order `(occurred_at, sequence, event_id)`, `from` inclusive, `to` exclusive: `{lens, site_id, from, to, scope, items[{replay_role: RECONSTRUCTED / RECORDED, event: <full envelope>}], next_cursor}`; `scope=all` adds the captured integration events (`MIRROR_RECORD_UPDATED`, `INTEGRATION_FINDING_RECORDED`, `RECORDED`) |
+| `POST /api/replay/snapshots` | `VIEW_OPERATIONAL_STATE` on the site, or Platform Administrator (technical configuration) | command (`Idempotency-Key`); body `{"site_id"}`; on-demand snapshot; result `{snapshot_id, site_id, snapshot_at, origin, entity_count, task_count, incident_count, alert_count, events_applied, size_bytes, state_sha256}` |
+
+Periodic snapshots: `vo.replay.snapshots.enabled` (on in `local`), every `vo.replay.snapshots.interval` (5 min), retention
+`vo.replay.snapshots.retention` (7 days, newest always kept). Driver/Operator and Platform Administrator cannot read replay
+(`403`); other tenants' sites are `404`.
+
 ## Planned query endpoints
 
 | Resource | Endpoint | Purpose |
