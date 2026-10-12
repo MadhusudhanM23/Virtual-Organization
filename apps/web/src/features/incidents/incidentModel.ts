@@ -155,6 +155,11 @@ export function formatDistance(
   return unitSystem === 'imperial' ? `${(m * 3.28084).toFixed(1)} ft` : `${m.toFixed(1)} m`;
 }
 
+/** Demo countdown: seconds left until `dueAt` (never negative), rounded up so 0 means due now. */
+export function secondsLeft(dueAt: number, now: number): number {
+  return Math.max(0, Math.ceil((dueAt - now) / 1000));
+}
+
 export function isIncidentEventType(type: string): boolean {
   return type.startsWith('INCIDENT_');
 }

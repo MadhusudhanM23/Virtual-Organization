@@ -8,6 +8,7 @@ import { t, type MessageId } from '../../i18n';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useReducedMotion } from '../../lib/motion';
 import { useUiStore } from '../../stores/uiStore';
+import { DemoProximityControl } from '../incidents/DemoProximityControl';
 import { LiveStreamStatus } from '../live/ConnectionIndicator';
 import { useAnimatedEntities, useMergedEntities } from '../live/useLiveEntities';
 import { EntityTable } from './EntityTable';
@@ -336,6 +337,7 @@ function ReadyView(p: ReadyProps) {
             ) : null}
           </>
         ) : null}
+        <DemoProximityControl compact className="ml-auto" />
       </div>
 
       {p.incident ? <IncidentBanner overlay={p.incident} onClear={p.onClearIncident} /> : null}

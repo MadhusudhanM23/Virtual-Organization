@@ -8,6 +8,7 @@ import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useSiteFormat } from '../../lib/useSiteFormat';
 import { useUiStore } from '../../stores/uiStore';
 import { LoadState } from '../kpi/parts';
+import { DemoProximityControl } from './DemoProximityControl';
 import {
   fetchIncidents,
   INCIDENT_PAGE_SIZE,
@@ -151,6 +152,7 @@ export default function IncidentsPage() {
             {t('page.incidents.description')}
           </p>
         </div>
+        <DemoProximityControl />
       </header>
 
       <AdvisoryNotice />
