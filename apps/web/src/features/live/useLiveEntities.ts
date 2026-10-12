@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Entity } from '@vo/twin-schema';
 import { useReducedMotion } from '../../lib/motion';
-import { nowMs, poseRegistry } from './poseRegistry';
+import { nowMs, poseRegistry as livePoseRegistry, type PoseRegistry } from './poseRegistry';
 
 /** Frame interval of the animation loop: 30 fps is smooth for a glide and halves the React/WebGL work. */
 const FRAME_MS = 33;
@@ -14,18 +14,18 @@ const MERGE_MS = 1000;
  */
 export function useMergedEntities(base: Entity[]): Entity[] {
   const [tick, setTick] = useState(0);
-  const seen = useRef(poseRegistry.version);
+  const seen = useRef(livePoseRegistry.version);
   useEffect(() => {
     const id = setInterval(() => {
-      if (poseRegistry.version !== seen.current) {
-        seen.current = poseRegistry.version;
+      if (livePoseRegistry.version !== seen.current) {
+        seen.current = livePoseRegistry.version;
         setTick((n) => n + 1);
       }
     }, MERGE_MS);
     return () => clearInterval(id);
   }, []);
   return useMemo(
-    () => (poseRegistry.version === 0 ? base : poseRegistry.merge(base)),
+    () => (livePoseRegistry.version === 0 ? base : livePoseRegistry.merge(base)),
     // `tick` is the invalidation signal for the (non-reactive) registry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [base, tick],
@@ -35,8 +35,13 @@ export function useMergedEntities(base: Entity[]): Entity[] {
 /**
  * Entities with their poses interpolated for drawing. Re-renders its caller at most 30 times a second, and only
  * while something is gliding or a new pose just arrived; with reduced motion a new pose is drawn at once (snap).
+ * `registry` defaults to the live registry; the REPLAY lens passes its own, so live poses never reach a replay scene.
  */
-export function useAnimatedEntities(entities: Entity[]): Entity[] {
+export function useAnimatedEntities(
+  entities: Entity[],
+  registry: PoseRegistry = livePoseRegistry,
+): Entity[] {
+  const poseRegistry = registry;
   const reducedMotion = useReducedMotion();
   const [frame, setFrame] = useState(0);
   const seenVersion = useRef(poseRegistry.version);
@@ -56,7 +61,7 @@ export function useAnimatedEntities(entities: Entity[]): Entity[] {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [reducedMotion]);
+  }, [reducedMotion, poseRegistry]);
 
   return useMemo(() => {
     if (poseRegistry.version === 0) return entities;
@@ -68,5 +73,5 @@ export function useAnimatedEntities(entities: Entity[]): Entity[] {
     });
     // `frame` is the invalidation signal for the (non-reactive) registry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entities, frame]);
+  }, [entities, frame, poseRegistry]);
 }
