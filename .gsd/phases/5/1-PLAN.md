@@ -18,5 +18,7 @@ Requirements: REQ-060, REQ-061, REQ-063, NFR-05. ADRs: ADR-09, ADR-23, ADR-27, A
    snapshot+delta = replay from genesis, ordering ties, no writes during replay, authz/tenancy, timed NFR-05 IT.
 5. **Docs** - `docs/api/replay.md` (semantics), `docs/api/README.md` (endpoints), catalog note.
 
+Tasks 3 and 4 landed as one commit (the replay IT base class serves both the snapshot and the API tests).
+
 Real run: built jar, throwaway PostGIS on 55470, profile `local`, live sim for a few minutes, demo proximity incident,
 curl range/state at several instants; stop everything started.

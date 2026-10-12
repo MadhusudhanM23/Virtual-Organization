@@ -31,4 +31,6 @@ Every event type must be listed here **before** any code emits it. The envelope 
 | `INCIDENT_ESTOP_REQUESTED` | `INCIDENT` | `POST /api/incidents/{id}/estop-request`, `POST /api/safety/emergency-stop-request` | `{ request_id, target_entity_id, target_entity_code, reason, request_status: REQUESTED_ADVISORY, advisory: true, requires_on_site_confirmation: true, delivery: RECORDED_ONLY, advisory_notice, incident_status }`; **advisory only: it never stops a machine or changes the twin** (ADR-05); `source=API`, actor HUMAN | y | 4 |
 
 "Replay-authoritative" follows blueprint section 7: only the listed MVP domains (entity positions, task and incident
-lifecycle, scenario lifecycle, approvals and commands) are rebuilt from events during replay.
+lifecycle, scenario lifecycle, approvals and commands) are rebuilt from events during replay. Phase 5 replay
+(`docs/api/replay.md`, ADR-44..46) reconstructs the `y` rows above and also replays `PROXIMITY_ALERT_RAISED` as raised (recent
+alerts); `MIRROR_RECORD_UPDATED` / `INTEGRATION_FINDING_RECORDED` are only listed as recorded events. Replay emits no events.
