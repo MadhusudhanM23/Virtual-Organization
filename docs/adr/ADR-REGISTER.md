@@ -406,3 +406,70 @@ simulation neither overwrites nor teleports them. The alert and incident derived
 `SIMULATED`), which the UI shows as the data-mode label. Repeated triggers on one pair within the cooldown/merge windows join the
 open incident; other `forklift_code`/`worker_code` give a new incident.
 **Consequences:** the control cannot fabricate an incident without the rule firing; it can only move two twin entities.
+
+### ADR-44 Replay snapshots: genesis from projections, derived chain, storage, cadence, retention — Proposed
+**Context:** REQ-060 needs periodic and on-demand per-site snapshots of the replay-authoritative domains (ADR-09, ADR-23:
+every 5 min, configurable). A snapshot read from the live projections is not exactly consistent with the event history: the
+pose projection lags its events by an outbox poll, row timestamps (`updated_at`, `completed_at`) are not the event times, and
+`numeric(…, 3)` columns round values the events carry.
+**Decision (conservative default):** the **first** snapshot of a site (no earlier snapshot retained) is a *genesis* read from
+the live projections (`world.entities`, `ops.tasks`, `inc.incidents`, `world.docks`, `world.world_versions`, plus the last
+`vo.replay.recent-window` of proximity-alert events) together with each task's/incident's `evt.aggregate_sequences` high-water
+sequence, in one transaction. Every **later** snapshot is *derived*: the pure replay reducer applied to the previous snapshot and
+the events since (ADR-45), so a snapshot is exactly what replay itself computes and "snapshot + deltas" equals "genesis + all
+events" by construction. Recorded context that no event describes (dock states, world version, entity catalog data such as name
+and attributes, newly seeded entities) is refreshed from the tables at every snapshot and is shown in replay as *recorded at
+the snapshot*, not reconstructed. Content: entities (pose, floor, zone, status with their provenance), open tasks and tasks
+terminal within the recent window, incidents not CLOSED or closed within the window, proximity alerts raised within the window,
+docks, world version. Storage: one immutable `rpl.snapshots` row; the state is canonical JSON (fixed field order, sorted by id),
+gzip-compressed (`bytea`), with its SHA-256 and counts; RLS like every tenant table; `vo_app` may insert and delete, never
+update. Cadence `vo.replay.snapshots.interval` (default 5 min; the scheduler is off by default and on in `local`); on demand via
+`POST /api/replay/snapshots` (ADR-46). Retention `vo.replay.snapshots.retention` (default P7D, like the demo event retention);
+the newest snapshot of a site is never pruned. The earliest retained snapshot is the earliest replayable instant.
+**Consequences:** genesis inherits the projections' approximations (pose lag is covered by the ingest overlap of ADR-45;
+genesis task/incident `status_changed_at` is the row's `updated_at`). If a derived chain is ever wrong it stays wrong until the
+snapshots are deleted (a new genesis then starts); the determinism IT compares replay against the live projection to catch drift.
+Mirrored orders/inventory are not in snapshots (they are shown from recorded integration events, ADR-46).
+
+### ADR-45 Replay ordering, high-water mark and late events — Proposed
+**Context:** blueprint section 7: ordering is guaranteed per aggregate only, late events are accepted with `occurred_at` earlier
+than `ingested_at`, cross-aggregate global order is not assumed; ADR-32: replay orders positions by `occurred_at`, not sequence.
+**Decision (conservative default):** replay is **event-time**: the state at T reflects every replay-authoritative event of the
+site with `occurred_at <= T` that is in the history *now* (including events that arrived late). The replay order is
+`(occurred_at, sequence (null first), event_id)`; because the reduced state is a product of independent per-aggregate states,
+only the per-aggregate part of that order can matter, and the reducers make even that order-insensitive: **poses** are a
+per-field lattice keyed by `(occurred_at, sequence)` - a later `occurred_at` wins, on equal `occurred_at` the lower sequence (the
+first ingested) wins, a genesis value wins ties - for pose/zone, floor and status separately; values are rounded to the twin's
+storage precision (3 decimals). **Tasks and incidents** carry the highest applied per-aggregate sequence and the list of skipped
+lower sequences; an event is applied once (sequence above the high-water mark or in the skipped list), and every field update
+is idempotent/commutative (status = `to_status`, counters take the maximum, severity the higher rank, distance the minimum,
+times the latest). **High-water mark:** a snapshot with `as_of` reflects every event with `occurred_at <= as_of` that was
+committed when it was taken (`taken_at`, equal to `as_of` for both triggers). Reconstruction from a snapshot reads events with
+`as_of < occurred_at <= T`, plus **late events** `as_of - late_horizon < occurred_at <= as_of` with
+`ingested_at > taken_at - ingest_overlap`; the guards make re-reading an event already in the snapshot a no-op. Defaults:
+`vo.replay.ingest-overlap` 30 s (covers transactions in flight and the projection lag at genesis), `vo.replay.late-horizon`
+1 h. Replay never writes: no events, no outbox rows, no projection or snapshot changes (except the explicit snapshot command).
+**Consequences:** an instant close to now may still change while late events arrive (`/api/replay/range` reports
+`settled_until = now - ingest_overlap`). A late event older than `late_horizon` before a snapshot is not reflected in
+reconstructions based on that snapshot (it is in `/api/replay/events`); a bitemporal "as known at" query is not offered.
+Replay may show a late pose the live projection never displayed (the projection never moves backwards, ADR-32); at any instant
+after the newer event both agree.
+
+### ADR-46 Replay API: authorization, REPLAY lens, what is reconstructed vs. recorded — Proposed
+**Context:** REQ-061/062 and ADR-27 need replay data that is never mistaken for live data; section 4 lists Replay as viewing
+historical operational state, and the matrix has no separate history action.
+**Decision (conservative default):** `GET /api/replay/range|state|frames|events` require `VIEW_OPERATIONAL_STATE` on the whole
+site (ADR-31 status codes: unknown site or other tenant 404, out of scope 403; denials audited) - the Driver's assignment-only
+view does not cover a site-wide replay and is 403. Every response and every item carries `lens: "REPLAY"` and keeps the
+original `data_mode` (SIMULATED, SYNTHETIC, …) - the lens and the data mode are shown separately (ADR-27); the response
+`data_mode` is `REPLAY`. `reconstructed_from {snapshot_id, snapshot_at, origin, events_applied, events_skipped}` states the
+inputs, `state_hash` (SHA-256 of the canonical reconstructed state) is identical for identical inputs whichever snapshot is
+used. Reconstructed: entity poses/floor/zone/status, task and incident lifecycle state, recent proximity alerts. Recorded (shown
+as captured, never reconstructed): docks and world version (at the base snapshot), and mirrored orders/inventory, which are
+listed only as the captured `MIRROR_RECORD_UPDATED` / `INTEGRATION_FINDING_RECORDED` events (`/api/replay/events?scope=all`,
+item `replay_role: RECORDED`). `POST /api/replay/snapshots` (on-demand snapshot) is a command (Idempotency-Key, audited); it
+changes no business or twin state, so it is allowed to whoever may view the site and, as technical configuration
+(`MANAGE_PLATFORM_CONFIGURATION`), to a Platform Administrator - the same pattern as ADR-43. Frames are bounded: `step_ms`
+100..60000, at most 600 frames and 50 000 events per call with `next_from` for continuation.
+**Consequences:** history is visible to every site viewer, like the live twin and `/api/events`; if the owner wants history
+restricted to `ANALYZE_QUERY` (which excludes nobody but the Driver today) only the policy check changes.
