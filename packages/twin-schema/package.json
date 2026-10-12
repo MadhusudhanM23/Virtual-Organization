@@ -1,0 +1,28 @@
+{
+  "name": "@vo/twin-schema",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "World model contract for the digital twin: site-local coordinate system, world-to-renderer helpers, entity/zone types, truth labels and the world JSON Schema.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema/world.v1.schema.json": "./schema/world.v1.schema.json"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}
