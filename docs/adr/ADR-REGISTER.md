@@ -353,3 +353,19 @@ history-based analytics (series, heatmap, order flow) need `ANALYZE_QUERY` (so D
 menu (`15m`, `1h`, `6h`, `24h`, `7d`). The heatmap bins `*_POSITION_UPDATED` events of one floor into square cells (1..25 m,
 at most 20000 cells); order flow counts SIM-WMS order revisions per status per bucket and shows the current backlog and shipments.
 **Consequences:** each read scans site rows; fine for the MCD volumes, revisit with materialized aggregates if dashboards get slow.
+
+### ADR-41 Proximity rule: pure detector, hysteresis, cooldown, immediate advisory alert — Proposed
+**Context:** REQ-050 needs a worker/forklift proximity rule whose alert is never delayed by confirmation, must not storm, and
+must be reproducible for replay and tests. The blueprint gives no threshold ("demo thresholds are configuration examples").
+**Decision (conservative default):** the rule is a pure class (`ProximityDetector`, no clock, no I/O) driven by an outbox
+consumer (`safety.proximity-rule`) of `FORKLIFT_/WORKER_POSITION_UPDATED`; the alert is a domain event `PROXIMITY_ALERT_RAISED`
+(aggregate `PROXIMITY_ALERT`) emitted in the handler's transaction, so it is committed, fanned out to the WebSocket and listed in
+`/api/events` like any event, and an incident follows from it through a second consumer. Defaults (`vo.safety.proximity.*`, all
+demo examples, not safety limits): threshold 3.0 m planar distance on the same floor, forklift moving at 0.3 m/s or more,
+hysteresis 1.0 m (pair is apart again at 4.0 m), cooldown 20 s of **event time** between alerts of one pair, one `ESCALATION`
+alert (CRITICAL) at 1.5 m, poses older than 10 s relative to the evaluated event are ignored. Pair state changes after an alert
+are committed only after the event is emitted, so a retried delivery re-emits instead of losing the alert. Poses live in memory
+(one per entity); a restart rebuilds them from new events and the age limit prevents stale pairings. The alert's provenance
+derives from its inputs (equal data mode/source: that value; else `MIXED`/`SYSTEM`), actor `svc:proximity-rule`.
+**Consequences:** single-instance rule state (as the MCD live loop); a person standing still next to a parked forklift never
+alerts (no moving forklift); thresholds are configuration, not a safety claim.
