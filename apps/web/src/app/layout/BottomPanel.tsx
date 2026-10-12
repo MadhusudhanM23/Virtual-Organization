@@ -33,7 +33,7 @@ export function BottomPanel() {
       {collapsed ? null : (
         <div className="grid grid-cols-3 gap-4 px-4 pb-4">
           {BOTTOM_PANELS.map((panel) => (
-            <PanelCard key={panel.id} panel={panel} />
+            <PanelCard key={panel.id} panel={panel} scrollBody />
           ))}
         </div>
       )}

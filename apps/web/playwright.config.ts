@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 // built by several concurrent worktree agents on the same machine, each of which may already have a
 // dev server on 5173. `reuseExistingServer: false` plus a private port means this suite always talks
 // to its own server, never to someone else's app.
-const PORT = 5192;
+const PORT = Number(process.env.E2E_PORT ?? 5192);
 const BASE_URL = `http://localhost:${PORT}`;
 
 // The real API the auth suite (e2e/auth.spec.ts) talks to, through the dev server's /api proxy.

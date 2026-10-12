@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { mockKpiApi } from './kpiMock';
 
 /**
  * Network-layer stand-in for the identity API so UI-only suites (the application shell) can run without
@@ -6,6 +7,8 @@ import type { Page } from '@playwright/test';
  * Synthetic data only.
  */
 export async function mockSignedInSession(page: Page): Promise<void> {
+  // The overview and bottom panels poll the KPI endpoints; keep every UI-only suite off the network.
+  await mockKpiApi(page);
   await page.route('**/api/auth/refresh', (route) =>
     route.fulfill({
       status: 200,

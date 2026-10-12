@@ -340,3 +340,16 @@ access token expires the socket is closed with 4401 `token_expired` unless the c
 actor. Delivery is at-most-once per connection; REST is the source of truth after any gap or reconnect.
 **Consequences:** single-node fan-out (in-process); multi-node needs the Redis fan-out cache of ARCHITECTURE.md. Disconnected
 clients miss events and must resync.
+
+### ADR-40 KPI semantic layer: computed on request, definitions in code — Proposed
+**Context:** REQ-048 and the blueprint require every KPI to have a definition, formula, unit, source and provenance, and forbid
+fabricated numbers.
+**Decision (conservative default):** KPI definitions live in code (`KpiRegistry`) next to the pure formulas (`KpiFormulas`), and values
+are computed on every request from stored rows (no KPI snapshot table, no cache), so a definition cannot drift from its
+computation and nothing is stored that could go stale. A KPI value is `null` with a `reason` whenever its source has no rows
+or its denominator is empty (never a made-up zero); counts report a real zero only when the source has records. `data_mode` is
+derived from the input rows (single mode, else `MIXED`, absent without inputs). Current values need `VIEW_OPERATIONAL_STATE`;
+history-based analytics (series, heatmap, order flow) need `ANALYZE_QUERY` (so Driver/Operator get `403`). Windows come from a fixed
+menu (`15m`, `1h`, `6h`, `24h`, `7d`). The heatmap bins `*_POSITION_UPDATED` events of one floor into square cells (1..25 m,
+at most 20000 cells); order flow counts SIM-WMS order revisions per status per bucket and shows the current backlog and shipments.
+**Consequences:** each read scans site rows; fine for the MCD volumes, revisit with materialized aggregates if dashboards get slow.
