@@ -1,6 +1,41 @@
+import type { Entity } from '@vo/twin-schema';
 import type { IncidentOverlay } from '../twin/twinStore';
 import type { ProximityAlert } from './alertModel';
-import type { Incident } from './incidentApi';
+import type { Evidence, Incident } from './incidentApi';
+
+function num(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+/**
+ * The pair as it was at detection: the twin entities placed at their POSE_SNAPSHOT evidence (not where they are now),
+ * so a map shows the recorded evidence and nothing reconstructed.
+ */
+export function pairAtDetection(entities: readonly Entity[], evidence: Evidence | null): Entity[] {
+  const out: Entity[] = [];
+  for (const item of evidence?.items ?? []) {
+    if (item.kind !== 'POSE_SNAPSHOT' || !item.detail) continue;
+    const d = item.detail;
+    const id = typeof d.entity_id === 'string' ? d.entity_id : null;
+    const x = num(d.x);
+    const y = num(d.y);
+    const entity = id ? entities.find((e) => e.id === id) : undefined;
+    if (!entity || x === null || y === null) continue;
+    if (out.some((e) => e.id === entity.id)) continue;
+    out.push({
+      ...entity,
+      pose: {
+        ...entity.pose,
+        x,
+        y,
+        z: num(d.z) ?? entity.pose.z,
+        heading_deg: num(d.heading_deg) ?? entity.pose.heading_deg,
+        occurred_at: item.occurred_at,
+      },
+    });
+  }
+  return out;
+}
 
 /** Twin overlays (marker + pair highlight) from an alert or an incident record. */
 

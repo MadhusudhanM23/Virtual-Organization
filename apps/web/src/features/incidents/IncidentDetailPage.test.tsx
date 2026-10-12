@@ -98,6 +98,7 @@ beforeEach(() => {
         current = incident({ status: 'CONFIRMED', allowed_actions: ['resolve', 'assign', 'estop-request', 'notes'] });
         return json(200, { command_id: 'c', status: 'SUCCEEDED', correlation_id: 'x', result: {} });
       }
+      if (url.startsWith('/api/twin/')) return json(404, { title: 'Not found' });
       if (url.endsWith('/timeline?limit=500')) return json(200, { incident_id: ID, items: [], next_cursor: null });
       if (url.endsWith('/evidence'))
         return json(200, { incident_id: ID, advisory: true, clip_notice: 'No clip.', items: [] });

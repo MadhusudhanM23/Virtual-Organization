@@ -14,6 +14,7 @@ import { Card, EvidenceList, NotesSection, Row, TimelineList } from './DetailSec
 import type { Incident } from './incidentApi';
 import { formatDistance, offeredActions, type LifecycleSpec } from './incidentModel';
 import { overlayFromIncident } from './incidentOverlay';
+import { IncidentSpatialMap } from './IncidentSpatialMap';
 import { AdvisoryNotice, SeverityBadge, StatusBadge } from './parts';
 import { useIncidentDetail } from './useIncidentDetail';
 import { useIncidentPermissions } from './useIncidentPermissions';
@@ -251,6 +252,9 @@ function Detail({
           </Card>
         </div>
         <div className="flex min-w-0 flex-col gap-5">
+          <Card title={t('incident.section.spatial')} testId="incident-spatial">
+            <IncidentSpatialMap incident={incident} evidence={detail.evidence} />
+          </Card>
           <Card title={t('incident.section.timeline')} testId="incident-timeline-card">
             <TimelineList timeline={detail.timeline} />
           </Card>

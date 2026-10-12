@@ -385,6 +385,8 @@ export const messagesEn = {
   'incident.section.actions': 'Actions',
   'incident.section.estop': 'Emergency-stop requests (advisory)',
   'incident.section.spatial': 'Spatial context',
+  'incident.spatial.caption':
+    'Incident location and the forklift and worker at their recorded positions when the alert was raised (pose snapshots).',
   'incident.field.zone': 'Zone',
   'incident.field.position': 'Position (x, y m)',
   'incident.field.minDistance': 'Minimum distance',

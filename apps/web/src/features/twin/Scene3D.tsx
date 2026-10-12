@@ -14,6 +14,7 @@ import type { IncidentOverlay } from './twinStore';
 import {
   desiredPose,
   effectiveMode,
+  incidentFocusPose,
   lerpVec,
   moveFraction,
   overviewPose,
@@ -47,6 +48,8 @@ export interface Scene3DProps {
   onTarget?: (x: number, y: number) => void;
   /** Incident marker and pair highlight (shown when on this floor). */
   incident?: IncidentOverlay | null;
+  /** One-shot cinematic flight to an incident's evidence point. */
+  focusRequest?: { x: number; y: number; z: number; nonce: number } | null;
 }
 
 const scratch = new Object3D();
@@ -411,6 +414,7 @@ function CameraController({
   mode,
   reducedMotion,
   panRequest,
+  focusRequest,
   onTarget,
 }: {
   floor: Floor;
@@ -418,6 +422,7 @@ function CameraController({
   mode: CameraMode;
   reducedMotion: boolean;
   panRequest: Scene3DProps['panRequest'];
+  focusRequest: Scene3DProps['focusRequest'];
   onTarget: ((x: number, y: number) => void) | undefined;
 }) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
@@ -426,6 +431,7 @@ function CameraController({
   const snapNext = useRef(true);
   const reducedRef = useRef(reducedMotion);
   const lastPan = useRef(0);
+  const lastFocus = useRef(0);
 
   useEffect(() => {
     reducedRef.current = reducedMotion;
@@ -439,12 +445,14 @@ function CameraController({
   const sh = selected?.pose.heading_deg;
 
   useEffect(() => {
-    goal.current = desiredPose(mode, {
+    const next = desiredPose(mode, {
       floorBounds: floor.bounds,
       floorElevation: floor.elevation_m,
       selected,
       aspect,
     });
+    // Explore leaves the camera to the user, but must not cancel a pan or incident flight already under way.
+    if (next !== null || live !== 'explore') goal.current = next;
     invalidate();
     // `selected` is represented by its pose fields: a new object with the same pose must not re-fly the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -467,6 +475,24 @@ function CameraController({
     };
     invalidate();
   }, [panRequest, floor.elevation_m, camera, invalidate]);
+
+  // Cinematic incident focus (REQ-053): fly to the evidence point; reduced motion cuts straight to it.
+  useEffect(() => {
+    if (!focusRequest || focusRequest.nonce === lastFocus.current) return;
+    lastFocus.current = focusRequest.nonce;
+    const c = controls.current;
+    if (snapNext.current && c && !reducedRef.current) {
+      // Fresh scene: start the flight from the floor overview instead of cutting to the close shot.
+      const from = overviewPose(floor.bounds, floor.elevation_m, aspect);
+      camera.position.set(from.position[0], from.position[1], from.position[2]);
+      c.target.set(from.target[0], from.target[1], from.target[2]);
+      c.update();
+      snapNext.current = false;
+    }
+    goal.current = incidentFocusPose(focusRequest, floor.elevation_m);
+    invalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest, floor.id]);
 
   useEffect(() => {
     controls.current?.listenToKeyEvents(gl.domElement);
@@ -539,6 +565,7 @@ export default function Scene3D(props: Scene3DProps) {
     panRequest,
     onTarget,
     incident = null,
+    focusRequest = null,
   } = props;
   const overlay = incident && (!incident.floorId || incident.floorId === floor.id) ? incident : null;
   const pair = useMemo(
@@ -579,6 +606,7 @@ export default function Scene3D(props: Scene3DProps) {
         mode={cameraMode}
         reducedMotion={reducedMotion}
         panRequest={panRequest}
+        focusRequest={focusRequest}
         onTarget={onTarget}
       />
     </Canvas>

@@ -354,6 +354,7 @@ function ReadyView(p: ReadyProps) {
         data-testid="twin-viewport"
         data-view={p.view}
         data-camera-mode={p.cameraMode}
+        data-camera-target={p.target ? `${p.target.x.toFixed(1)},${p.target.y.toFixed(1)}` : undefined}
       >
         {p.view === '3d' ? (
           <section
@@ -382,6 +383,7 @@ function ReadyView(p: ReadyProps) {
                   panRequest={p.panRequest}
                   onTarget={p.onTarget}
                   incident={p.incident}
+                  focusRequest={p.focusRequest}
                 />
               </Suspense>
             </SceneBoundary>
