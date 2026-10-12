@@ -41,7 +41,8 @@ export function useTwinData(siteId: string | null): { state: TwinDataState; relo
   let state: TwinDataState;
   if (!siteId) state = { status: 'idle' };
   else if (!settled || settled.key !== key) state = { status: 'loading' };
-  else if (settled.ok) state = { status: 'ready', world: settled.world, entities: settled.entities };
+  else if (settled.ok)
+    state = { status: 'ready', world: settled.world, entities: settled.entities };
   else state = { status: 'error', message: settled.message };
   return { state, reload };
 }

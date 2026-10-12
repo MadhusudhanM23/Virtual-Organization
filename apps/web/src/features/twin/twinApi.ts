@@ -17,7 +17,9 @@ export async function fetchAllEntities(siteId: string): Promise<Entity[]> {
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const qs = new URLSearchParams({ site_id: siteId, limit: String(ENTITY_PAGE_SIZE) });
     if (cursor) qs.set('cursor', cursor);
-    const res: ListResponse<Entity> = await apiFetch<ListResponse<Entity>>(`/twin/entities?${qs.toString()}`);
+    const res: ListResponse<Entity> = await apiFetch<ListResponse<Entity>>(
+      `/twin/entities?${qs.toString()}`,
+    );
     all.push(...res.items);
     cursor = res.next_cursor;
     if (!cursor) break;
