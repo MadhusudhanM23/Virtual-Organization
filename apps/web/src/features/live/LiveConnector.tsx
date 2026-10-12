@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { apiFetch, refreshAccessToken } from '../../lib/api/client';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useUiStore } from '../../stores/uiStore';
+import { useSafetyStore } from '../incidents/safetyStore';
 import { fetchAllEntities } from '../twin/twinApi';
 import { EVENT_GROUP_TYPES, OPERATIONAL_EVENT_TYPES } from './eventsModel';
 import { LiveClient } from './liveClient';
@@ -57,9 +58,11 @@ export function LiveConnector() {
     if (status !== 'authenticated' || !siteId) return undefined;
     const live = useLiveStore.getState();
     live.reset();
+    useSafetyStore.getState().reset();
     poseRegistry.clear();
 
     const resync = () => {
+      useSafetyStore.getState().bumpRevision();
       void loadHistory(siteId, useLiveStore.getState().groups.has('movement'));
       void fetchAllEntities(siteId)
         .then((entities) => {
@@ -82,6 +85,8 @@ export function LiveConnector() {
         if (applied > 0 && first) useLiveStore.getState().notePose(now, first.data_mode);
       } else if (m.type === 'event') {
         useLiveStore.getState().addEvents([m.event]);
+        // Live events only: REST history never raises an alert (it was not "just now").
+        useSafetyStore.getState().ingest(m.event);
       }
     };
 

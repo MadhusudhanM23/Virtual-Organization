@@ -54,6 +54,8 @@ interface RequestOptions {
   auth?: boolean;
   /** Send the CSRF guard header and cookies (login, refresh, logout). */
   cookieCall?: boolean;
+  /** Extra request headers (e.g. `Idempotency-Key` on command endpoints). */
+  headers?: Record<string, string>;
 }
 
 interface Sent {
@@ -64,6 +66,7 @@ interface Sent {
 async function send(path: string, opts: RequestOptions, token: string | null): Promise<Sent> {
   const id = globalThis.crypto.randomUUID();
   const headers: Record<string, string> = {
+    ...opts.headers,
     Accept: 'application/json, application/problem+json',
     'X-Correlation-Id': id,
   };
