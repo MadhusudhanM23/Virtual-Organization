@@ -75,3 +75,6 @@ vo:
   auth:
     # Refresh cookie Secure attribute: true everywhere except local development over plain http.
     cookie-secure: true
+  demo:
+    # Shared password for SYNTHETIC demo users (DemoSeeder; local/demo/test profiles only). Never commit a real value.
+    user-password: ${DEMO_USER_PASSWORD:}
