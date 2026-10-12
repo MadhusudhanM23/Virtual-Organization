@@ -145,9 +145,9 @@ public class WorldSeeder implements ApplicationRunner {
             jdbc.sql("""
                     insert into world.entities (id, tenant_id, site_id, entity_type, code, name, floor_id, zone_id,
                         status, attributes, pose_x, pose_y, pose_z, pose_heading_deg, pose_occurred_at, pose_source,
-                        pose_data_mode, spatial_confidence, data_mode)
+                        pose_data_mode, spatial_confidence, data_mode, created_at, updated_at)
                     values (:id, :t, :s, :type, :code, :name, :f, :zone, :status, cast(:attrs as jsonb), :x, :y, :z,
-                        :h, :at, :src, :dm, :conf, :dm)
+                        :h, :at, :src, :dm, :conf, :dm, :at, :at)
                     on conflict do nothing
                     """).param("id", e.id()).param("t", tenant).param("s", site).param("type", e.type())
                     .param("code", e.code()).param("name", e.name()).param("f", e.floorId())

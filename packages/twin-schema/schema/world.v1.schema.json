@@ -44,14 +44,25 @@
     "pose": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["x", "y", "z", "heading_deg", "occurred_at", "source", "data_mode", "spatial_confidence"],
+      "required": [
+        "x",
+        "y",
+        "z",
+        "heading_deg",
+        "occurred_at",
+        "source",
+        "data_mode",
+        "spatial_confidence"
+      ],
       "properties": {
         "x": { "type": "number" },
         "y": { "type": "number" },
         "z": { "type": "number" },
         "heading_deg": { "$ref": "#/$defs/heading_deg" },
         "occurred_at": { "$ref": "#/$defs/timestamp" },
-        "source": { "enum": ["API", "CAMERA", "DEVICE", "SIMULATION", "IMPORT", "SYSTEM", "HUMAN"] },
+        "source": {
+          "enum": ["API", "CAMERA", "DEVICE", "SIMULATION", "IMPORT", "SYSTEM", "HUMAN"]
+        },
         "data_mode": { "$ref": "#/$defs/data_mode" },
         "spatial_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
       }
@@ -70,7 +81,16 @@
     "floor": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "building_id", "name", "level", "elevation_m", "bounds", "version", "data_mode"],
+      "required": [
+        "id",
+        "building_id",
+        "name",
+        "level",
+        "elevation_m",
+        "bounds",
+        "version",
+        "data_mode"
+      ],
       "properties": {
         "id": { "$ref": "#/$defs/uuid" },
         "building_id": { "$ref": "#/$defs/uuid" },
@@ -99,7 +119,19 @@
     "dock": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "floor_id", "zone_id", "name", "dock_type", "status", "position", "heading_deg", "width_m", "version", "data_mode"],
+      "required": [
+        "id",
+        "floor_id",
+        "zone_id",
+        "name",
+        "dock_type",
+        "status",
+        "position",
+        "heading_deg",
+        "width_m",
+        "version",
+        "data_mode"
+      ],
       "properties": {
         "id": { "$ref": "#/$defs/uuid" },
         "floor_id": { "$ref": "#/$defs/uuid" },
@@ -117,7 +149,20 @@
     "rack": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "floor_id", "zone_id", "code", "position", "heading_deg", "length_m", "depth_m", "height_m", "levels", "version", "data_mode"],
+      "required": [
+        "id",
+        "floor_id",
+        "zone_id",
+        "code",
+        "position",
+        "heading_deg",
+        "length_m",
+        "depth_m",
+        "height_m",
+        "levels",
+        "version",
+        "data_mode"
+      ],
       "properties": {
         "id": { "$ref": "#/$defs/uuid" },
         "floor_id": { "$ref": "#/$defs/uuid" },
@@ -149,7 +194,16 @@
     "coordinate_system": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["units", "origin", "x_axis", "y_axis", "z_axis", "heading_zero", "heading_positive", "heading_unit"],
+      "required": [
+        "units",
+        "origin",
+        "x_axis",
+        "y_axis",
+        "z_axis",
+        "heading_zero",
+        "heading_positive",
+        "heading_unit"
+      ],
       "properties": {
         "units": { "const": "meters" },
         "origin": { "type": "string" },
@@ -164,7 +218,18 @@
     "world_response": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["site", "world_version", "coordinate_system", "data_mode", "buildings", "floors", "zones", "docks", "racks", "entity_counts"],
+      "required": [
+        "site",
+        "world_version",
+        "coordinate_system",
+        "data_mode",
+        "buildings",
+        "floors",
+        "zones",
+        "docks",
+        "racks",
+        "entity_counts"
+      ],
       "properties": {
         "site": { "$ref": "#/$defs/site" },
         "world_version": { "$ref": "#/$defs/world_version" },
@@ -192,7 +257,20 @@
     "entity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "entity_type", "code", "name", "site_id", "floor_id", "zone_id", "status", "pose", "attributes", "version", "data_mode"],
+      "required": [
+        "id",
+        "entity_type",
+        "code",
+        "name",
+        "site_id",
+        "floor_id",
+        "zone_id",
+        "status",
+        "pose",
+        "attributes",
+        "version",
+        "data_mode"
+      ],
       "properties": {
         "id": { "$ref": "#/$defs/uuid" },
         "entity_type": { "enum": ["FORKLIFT", "TRUCK", "PALLET", "ROBOT", "WORKER", "CAMERA"] },
@@ -211,7 +289,25 @@
     "entity_detail": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "entity_type", "code", "name", "site_id", "floor_id", "zone_id", "status", "pose", "attributes", "version", "data_mode", "floor_name", "zone_name", "external_ids", "created_at", "updated_at"],
+      "required": [
+        "id",
+        "entity_type",
+        "code",
+        "name",
+        "site_id",
+        "floor_id",
+        "zone_id",
+        "status",
+        "pose",
+        "attributes",
+        "version",
+        "data_mode",
+        "floor_name",
+        "zone_name",
+        "external_ids",
+        "created_at",
+        "updated_at"
+      ],
       "properties": {
         "id": { "$ref": "#/$defs/uuid" },
         "entity_type": { "enum": ["FORKLIFT", "TRUCK", "PALLET", "ROBOT", "WORKER", "CAMERA"] },

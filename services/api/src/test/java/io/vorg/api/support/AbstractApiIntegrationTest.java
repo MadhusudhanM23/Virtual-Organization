@@ -64,6 +64,15 @@ public abstract class AbstractApiIntegrationTest extends AbstractIntegrationTest
         return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    /** GET with an optional bearer token. */
+    protected HttpResponse<String> get(String path, String bearer) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).GET();
+        if (bearer != null) {
+            b.header("Authorization", "Bearer " + bearer);
+        }
+        return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
     protected JsonNode json(HttpResponse<String> response) {
         return mapper.readTree(response.body());
     }

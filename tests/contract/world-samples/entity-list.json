@@ -1,0 +1,76 @@
+{
+  "items" : [ {
+    "id" : "0924c999-cf9e-746d-a651-147e38e52ee2",
+    "entity_type" : "FORKLIFT",
+    "code" : "FL-06",
+    "name" : "Forklift FL-06",
+    "site_id" : "018f0000-0000-7000-8000-00000000a021",
+    "floor_id" : "65e29c73-fa26-79d0-b274-a54a1610b044",
+    "zone_id" : "31e7b132-cb22-73dc-8e5c-cbbd04aa86b5",
+    "status" : "MOVING",
+    "pose" : {
+      "x" : 87.05,
+      "y" : 49.0,
+      "z" : 0.0,
+      "heading_deg" : 180.0,
+      "occurred_at" : "2026-10-09T00:00:00Z",
+      "source" : "SYSTEM",
+      "data_mode" : "SYNTHETIC",
+      "spatial_confidence" : 1.0
+    },
+    "attributes" : {
+      "synthetic" : true
+    },
+    "version" : 1,
+    "data_mode" : "SYNTHETIC"
+  }, {
+    "id" : "0b5991f7-2cf1-7eff-b7e7-305799549ee8",
+    "entity_type" : "FORKLIFT",
+    "code" : "FL-01",
+    "name" : "Forklift FL-01",
+    "site_id" : "018f0000-0000-7000-8000-00000000a021",
+    "floor_id" : "65e29c73-fa26-79d0-b274-a54a1610b044",
+    "zone_id" : "e4b27b7e-e9ef-7b27-9328-8d7b43615d8a",
+    "status" : "IDLE",
+    "pose" : {
+      "x" : 29.87,
+      "y" : 43.0,
+      "z" : 0.0,
+      "heading_deg" : 180.0,
+      "occurred_at" : "2026-10-09T00:00:00Z",
+      "source" : "SYSTEM",
+      "data_mode" : "SYNTHETIC",
+      "spatial_confidence" : 1.0
+    },
+    "attributes" : {
+      "synthetic" : true
+    },
+    "version" : 1,
+    "data_mode" : "SYNTHETIC"
+  }, {
+    "id" : "164b2dbb-4870-7885-8814-085c9a20b4ae",
+    "entity_type" : "FORKLIFT",
+    "code" : "FL-07",
+    "name" : "Forklift FL-07",
+    "site_id" : "018f0000-0000-7000-8000-00000000a021",
+    "floor_id" : "65e29c73-fa26-79d0-b274-a54a1610b044",
+    "zone_id" : "e4b27b7e-e9ef-7b27-9328-8d7b43615d8a",
+    "status" : "IDLE",
+    "pose" : {
+      "x" : 18.3,
+      "y" : 43.0,
+      "z" : 0.0,
+      "heading_deg" : 180.0,
+      "occurred_at" : "2026-10-09T00:00:00Z",
+      "source" : "SYSTEM",
+      "data_mode" : "SYNTHETIC",
+      "spatial_confidence" : 1.0
+    },
+    "attributes" : {
+      "synthetic" : true
+    },
+    "version" : 1,
+    "data_mode" : "SYNTHETIC"
+  } ],
+  "next_cursor" : "MTY0YjJkYmItNDg3MC03ODg1LTg4MTQtMDg1YzlhMjBiNGFl"
+}
