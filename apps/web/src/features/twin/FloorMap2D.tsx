@@ -3,6 +3,7 @@ import type { Dock, Entity, Floor, Rack, Zone } from '@vo/twin-schema';
 import { t } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { nextSelection } from './mapModel';
+import type { IncidentOverlay } from './twinStore';
 import { DOCK_COLORS, ENTITY_STYLES, ZONE_COLORS, entityColor } from './sceneModel';
 
 export interface FloorMap2DProps {
@@ -20,6 +21,8 @@ export interface FloorMap2DProps {
   cameraTarget?: { x: number; y: number } | null;
   onPanTo?: (x: number, y: number) => void;
   className?: string;
+  /** Incident marker and pair highlight (drawn when on this floor). */
+  incident?: IncidentOverlay | null;
 }
 
 /**
@@ -40,7 +43,10 @@ export function FloorMap2D({
   cameraTarget,
   onPanTo,
   className,
+  incident = null,
 }: FloorMap2DProps) {
+  const overlay = incident && (!incident.floorId || incident.floorId === floor.id) ? incident : null;
+  const pairIds = overlay?.entityIds ?? [];
   const b = floor.bounds;
   const pad = compact ? 1 : 3;
   const viewBox = `${b.min_x - pad} ${-b.max_y - pad} ${b.max_x - b.min_x + pad * 2} ${b.max_y - b.min_y + pad * 2}`;
@@ -170,6 +176,29 @@ export function FloorMap2D({
           )}
         </g>
       ))}
+      {overlay?.location ? (
+        <g
+          data-testid={compact ? 'incident-marker-minimap' : 'incident-marker-2d'}
+          transform={`translate(${overlay.location.x} ${-overlay.location.y})`}
+          pointerEvents="none"
+        >
+          <circle
+            r={compact ? 5 : 3.2}
+            fill="#b42318"
+            fillOpacity={0.14}
+            stroke="#b42318"
+            strokeWidth={compact ? 1 : 0.45}
+            strokeDasharray={compact ? undefined : '1.2 0.6'}
+          />
+          {/* Warning triangle glyph: the marker is not color alone. */}
+          <path
+            d={compact ? 'M0 -3 L2.8 2 L-2.8 2 Z' : 'M0 -1.6 L1.5 1.1 L-1.5 1.1 Z'}
+            fill="#b42318"
+            stroke="#fff"
+            strokeWidth={compact ? 0.4 : 0.15}
+          />
+        </g>
+      ) : null}
       {entities.map((e) => {
         const style = ENTITY_STYLES[e.entity_type];
         const selected = e.id === selectedId;
@@ -197,6 +226,15 @@ export function FloorMap2D({
                 strokeWidth={0.2}
               />
             )}
+            {pairIds.includes(e.id) ? (
+              <circle
+                data-testid="incident-pair-highlight"
+                r={Math.max(w, d) * 0.55 + (compact ? 1.6 : 1)}
+                fill="none"
+                stroke="#e8590c"
+                strokeWidth={compact ? 0.9 : 0.45}
+              />
+            ) : null}
             {selected ? (
               <rect
                 x={-w / 2 - 0.8}
@@ -212,6 +250,26 @@ export function FloorMap2D({
           </g>
         );
       })}
+      {overlay?.location && !compact ? (
+        <text
+          x={overlay.location.x}
+          y={-overlay.location.y - 4}
+          fontSize={1.9}
+          fontWeight={700}
+          textAnchor="middle"
+          fill="#b42318"
+          stroke="#fff"
+          strokeWidth={0.35}
+          paintOrder="stroke"
+          pointerEvents="none"
+        >
+          {t('twin.incident.marker', {
+            severity: overlay.severity,
+            forklift: overlay.forkliftCode ?? '?',
+            worker: overlay.workerCode ?? '?',
+          })}
+        </text>
+      ) : null}
       {compact && cameraTarget ? (
         <g transform={`translate(${cameraTarget.x} ${-cameraTarget.y})`} pointerEvents="none">
           <circle r={2.6} fill="none" stroke="#1f5fd1" strokeWidth={0.9} />

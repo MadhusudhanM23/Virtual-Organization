@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, type ComponentProps, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Box, CircleAlert, Loader } from 'lucide-react';
+import { Link } from 'react-router';
+import { Box, CircleAlert, Loader, TriangleAlert } from 'lucide-react';
 import type { Entity, WorldResponse } from '@vo/twin-schema';
 import { DataModeBadge } from '../../components/DataModeBadge';
 import { EmptyState } from '../../components/EmptyState';
@@ -14,7 +15,7 @@ import { FloorMap2D, type FloorMap2DProps } from './FloorMap2D';
 import { Legend } from './Legend';
 import { countByType, entitiesOnFloor, resolveFloor, sortFloors } from './sceneModel';
 import { CameraToolbar, FloorSwitcher, ViewToggle, type ViewMode } from './TwinControls';
-import { useTwinStore } from './twinStore';
+import { useTwinStore, type IncidentOverlay, type TwinViewState } from './twinStore';
 import { useTwinData } from './useTwinData';
 import { isWebGLAvailable } from './webgl';
 
@@ -96,6 +97,9 @@ export function TwinWorkspace({ titleId, descriptionId, defaultView }: TwinWorks
   const panRequest = useTwinStore((s) => s.panRequest);
   const requestPan = useTwinStore((s) => s.requestPan);
   const setEntities = useTwinStore((s) => s.setEntities);
+  const incident = useTwinStore((s) => s.incident);
+  const clearIncident = useTwinStore((s) => s.clearIncident);
+  const focusRequest = useTwinStore((s) => s.focusRequest);
   const restEntities = state.status === 'ready' ? state.entities : NO_ENTITIES;
   // Newest live pose merged over the REST snapshot (at most once a second); the viewport animates on top of this.
   const loaded = useMergedEntities(restEntities);
@@ -200,7 +204,47 @@ export function TwinWorkspace({ titleId, descriptionId, defaultView }: TwinWorks
       onSceneFailed={() => setSceneFailed(true)}
       sceneFailed={sceneFailed}
       noWebgl={!webgl}
+      incident={incident}
+      onClearIncident={clearIncident}
+      focusRequest={focusRequest}
     />
+  );
+}
+
+/** States that an incident is shown in the twin, with a way back to it and a way to clear it. */
+function IncidentBanner({ overlay, onClear }: { overlay: IncidentOverlay; onClear: () => void }) {
+  return (
+    <div
+      data-testid="twin-incident-banner"
+      className="flex flex-wrap items-center gap-2 rounded-control border border-danger-line bg-danger-bg px-3 py-2 text-sm text-danger-fg"
+    >
+      <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
+      <span className="font-semibold">
+        {t('twin.incident.banner', {
+          severity: overlay.severity,
+          forklift: overlay.forkliftCode ?? '?',
+          worker: overlay.workerCode ?? '?',
+        })}
+      </span>
+      <span className="text-xs">{t('safety.advisory.short')}</span>
+      <span className="ml-auto flex gap-2">
+        {overlay.incidentId ? (
+          <Link
+            to={`/incidents/${overlay.incidentId}`}
+            className="rounded-control border border-danger-line bg-surface px-2.5 py-1 text-xs font-semibold text-ink-900 hover:bg-surface-sunken"
+          >
+            {t('twin.incident.open')}
+          </Link>
+        ) : null}
+        <button
+          type="button"
+          onClick={onClear}
+          className="rounded-control border border-line-strong bg-surface px-2.5 py-1 text-xs font-semibold text-ink-900 hover:bg-surface-sunken"
+        >
+          {t('twin.incident.clear')}
+        </button>
+      </span>
+    </div>
   );
 }
 
@@ -227,6 +271,9 @@ type ReadyProps = {
   onSceneFailed: () => void;
   sceneFailed: boolean;
   noWebgl: boolean;
+  incident: IncidentOverlay | null;
+  onClearIncident: () => void;
+  focusRequest: TwinViewState['focusRequest'];
 };
 
 function ReadyView(p: ReadyProps) {
@@ -291,6 +338,8 @@ function ReadyView(p: ReadyProps) {
         ) : null}
       </div>
 
+      {p.incident ? <IncidentBanner overlay={p.incident} onClear={p.onClearIncident} /> : null}
+
       {p.noWebgl || p.sceneFailed ? (
         <p
           role="status"
@@ -332,6 +381,7 @@ function ReadyView(p: ReadyProps) {
                   reducedMotion={p.reducedMotion}
                   panRequest={p.panRequest}
                   onTarget={p.onTarget}
+                  incident={p.incident}
                 />
               </Suspense>
             </SceneBoundary>
@@ -347,6 +397,7 @@ function ReadyView(p: ReadyProps) {
                 siteName={world.site.name}
                 cameraTarget={p.target}
                 onPanTo={panTo}
+                incident={p.incident}
               />
             </div>
           </section>
@@ -360,6 +411,7 @@ function ReadyView(p: ReadyProps) {
             selectedId={p.selectedId}
             onSelect={p.onSelect}
             siteName={world.site.name}
+            incident={p.incident}
           />
         )}
       </div>

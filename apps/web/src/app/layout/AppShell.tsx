@@ -2,6 +2,7 @@ import { useEffect, type MouseEvent } from 'react';
 import { Outlet } from 'react-router';
 import { BottomPanel } from './BottomPanel';
 import { LiveConnector } from '../../features/live/LiveConnector';
+import { AlertRegion } from '../../features/incidents/AlertRegion';
 import { LensBanner } from '../../components/LensBanner';
 import { PanelDrawer } from './PanelDrawer';
 import { RightPanel } from './RightPanel';
@@ -58,6 +59,7 @@ export function AppShell() {
       <div className="flex min-h-dvh flex-col">
         {skipLink}
         <LiveConnector />
+        <AlertRegion />
         {mobileNavOpen ? <Sidebar variant="drawer" /> : null}
         <TopBar />
         <LensBanner lens={lens} />
@@ -81,6 +83,7 @@ export function AppShell() {
     >
       {skipLink}
       <LiveConnector />
+      <AlertRegion />
       <Sidebar variant="rail" />
       <TopBar />
       <div style={{ gridArea: 'lens' }}>
