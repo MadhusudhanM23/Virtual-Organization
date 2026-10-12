@@ -84,7 +84,11 @@ let refreshInFlight: Promise<string | null> | null = null;
 async function doRefresh(): Promise<string | null> {
   const store = useSessionStore.getState();
   try {
-    const { res } = await send('/auth/refresh', { method: 'POST', auth: false, cookieCall: true }, null);
+    const { res } = await send(
+      '/auth/refresh',
+      { method: 'POST', auth: false, cookieCall: true },
+      null,
+    );
     if (!res.ok) {
       store.clear();
       return null;

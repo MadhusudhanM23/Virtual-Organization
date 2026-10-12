@@ -1,11 +1,24 @@
+import { TwinWorkspace } from './TwinWorkspace';
 import { PlaceholderPage } from '../../components/PlaceholderPage';
 
 export function LiveViewPage() {
-  return <PlaceholderPage itemId="twin-live" />;
+  return (
+    <TwinWorkspace
+      titleId="nav.twin.live"
+      descriptionId="page.twin.live.description"
+      defaultView="3d"
+    />
+  );
 }
 
 export function MapViewPage() {
-  return <PlaceholderPage itemId="twin-map" />;
+  return (
+    <TwinWorkspace
+      titleId="nav.twin.map"
+      descriptionId="page.twin.map.description"
+      defaultView="2d"
+    />
+  );
 }
 
 export function SimulationPage() {

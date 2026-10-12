@@ -1,10 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// A dedicated port (5191, plan 1.6), distinct from the dev port (5173) and plan 1.3's former 5190: this repo is
+// A dedicated port (5192, plan 2.3; 5191 belongs to other worktrees), distinct from the dev port (5173) and plan 1.3's former 5190: this repo is
 // built by several concurrent worktree agents on the same machine, each of which may already have a
 // dev server on 5173. `reuseExistingServer: false` plus a private port means this suite always talks
 // to its own server, never to someone else's app.
-const PORT = 5191;
+const PORT = 5192;
 const BASE_URL = `http://localhost:${PORT}`;
 
 // The real API the auth suite (e2e/auth.spec.ts) talks to, through the dev server's /api proxy.

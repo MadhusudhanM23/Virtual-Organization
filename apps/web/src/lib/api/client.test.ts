@@ -81,7 +81,10 @@ describe('apiFetch', () => {
 
   it('a failed refresh clears the session', async () => {
     useSessionStore.setState({ accessToken: 'old', status: 'authenticated', me: ME });
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json({ title: 'Unauthorized' }, 401))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(json({ title: 'Unauthorized' }, 401))),
+    );
     await expect(apiFetch('/me')).rejects.toBeInstanceOf(ApiError);
     const s = useSessionStore.getState();
     expect(s.status).toBe('anonymous');
