@@ -1,0 +1,31 @@
+# KPI semantic layer
+
+Every KPI has one definition in the registry (`services/api/.../kpi/KpiRegistry.java`), served by
+`GET /api/kpis/definitions`: id, name, description, formula, unit, grain (always `site` in the MCD), source tables,
+data-mode rule, freshness and the minimum data needed to compute it. Values are computed on each request from stored rows,
+never cached or invented (ADR-40).
+
+**Rules.** `data_mode` of a value = the single `data_mode` of its input rows, `MIXED` when they differ, absent when there
+are no inputs. A value is `null` with a `reason` ("insufficient data") when the source has no rows or the denominator is
+empty. `sample_size` is the number of input rows; `as_of` is the newest input timestamp. Windowed KPIs use a trailing window
+that ends at `computed_at`.
+
+| id | Unit | Formula | Source |
+|---|---|---|---|
+| `tasks_open` | tasks | count(status in ASSIGNED, ACCEPTED, PAUSED) | `ops.tasks` |
+| `tasks_in_progress` | tasks | count(status = STARTED) | `ops.tasks` |
+| `tasks_completed` | tasks | count(COMPLETED, completed_at in window) | `ops.tasks` |
+| `tasks_failed` | tasks | count(FAILED, updated_at in window) | `ops.tasks` |
+| `task_cycle_time_avg` | min | mean(completed_at - started_at) of tasks completed in window | `ops.tasks` |
+| `dock_utilization` | % | 100 * OCCUPIED docks / docks not CLOSED | `world.docks` |
+| `forklift_utilization` | % | 100 * forklifts MOVING or LOADING / forklifts | `world.entities` |
+| `trucks_waiting` / `trucks_docked` | trucks | count(status = WAITING / DOCKED) | `world.entities` |
+| `pallets_stored` / `pallets_staged` | pallets | count(status = STORED / STAGED) | `world.entities` |
+| `integration_findings_open` | findings | count(status = OPEN) | `integ.findings` |
+| `orders_open` | orders | mirrored ORDER records whose latest status is RELEASED or IN_PROGRESS | `integ.mirror_records` |
+| `orders_completed` | orders | order revisions with status COMPLETED ingested in window | `integ.mirror_revisions` |
+| `event_throughput` | events/min | events at the site in window / window minutes | `evt.events` |
+
+Series (`/api/kpis/{id}/series`) exist for windowed KPIs only (`tasks_completed`, `tasks_failed`, `task_cycle_time_avg`,
+`orders_completed`, `event_throughput`); state KPIs have no stored history and answer `422`. Buckets: 15m/1m, 1h/5m,
+6h/30m, 24h/1h, 7d/6h.

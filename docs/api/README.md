@@ -98,6 +98,20 @@ with `FAILED` and `CANCELLED` as other terminal states ([ADR-35](../adr/ADR-REGI
 Entity poses (`GET /api/twin/entities`, `GET /api/entities/{id}`) are updated from the position events: `pose.source`
 `SIMULATION`, `pose.data_mode` `SIMULATED`, `version` increasing with each applied pose.
 
+## Implemented: KPIs and analytics (Phase 3, plan 3.6)
+
+Site-scoped GETs (`site_id` required, ADR-31 status codes). `window` is one of `15m`, `1h`, `6h`, `24h` (default), `7d`
+(`400` otherwise). KPI definitions and formulas: [`docs/api/kpis.md`](kpis.md). Values are computed on request from stored
+rows; a KPI that cannot be computed has `value: null` and a `reason` (never an invented number).
+
+| Endpoint | Auth | Returns |
+|---|---|---|
+| `GET /api/kpis/definitions` | authenticated | `{items, windows, default_window}`; each item has `id, name, category, description, formula, unit, grain, source_tables, data_mode (rule), freshness, windowed, series_supported, minimum_data` |
+| `GET /api/kpis?site_id=&window=` | `VIEW_OPERATIONAL_STATE` | `{site_id, computed_at, window, items[]}`; item: `id, name, unit, value, reason, computed_at, as_of, window (windowed KPIs), data_mode, source, sample_size` |
+| `GET /api/kpis/{id}/series?site_id=&window=` | `ANALYZE_QUERY` | bucketed `points[{start,end,value,sample_size}]`, `bucket_seconds`, `data_mode`, `sample_size`, `reason`; `422` for point-in-time KPIs, `404` unknown KPI |
+| `GET /api/analytics/heatmap?site_id=&floor_id=&window=&cell_size=&entity_type=` | `ANALYZE_QUERY` | grid `cols, rows, cell_size_m` and non-empty `cells[{col,row,min_x,min_y,max_x,max_y,count,entities}]` from position events; `floor_id` defaults to the lowest floor, `cell_size` 1..25 m (default 5), optional `entity_type`; `data_mode` is derived from the events (SIMULATED for the simulator) |
+| `GET /api/analytics/order-flow?site_id=&window=` | `ANALYZE_QUERY` | `buckets[{start,end,inbound{released,in_progress,completed},outbound{...}}]` from SIM-WMS order revisions, `backlog[{order_type,status,count}]`, `shipments[{direction,state,count}]` (SIM-TMS), `data_mode`, `reason` |
+
 ## Planned query endpoints
 
 | Resource | Endpoint | Purpose |
