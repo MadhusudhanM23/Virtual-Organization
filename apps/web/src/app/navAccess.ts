@@ -1,4 +1,4 @@
-import { canUse } from '../features/auth/permissionMatrix';
+import { canUse, canViewIncidents } from '../features/auth/permissionMatrix';
 import { NAV_ENTRIES, type NavEntry } from './navigation';
 
 /**
@@ -8,10 +8,11 @@ import { NAV_ENTRIES, type NavEntry } from './navigation';
  *
  * Each nav item id maps to the matrix action that gates it (`null`: every signed-in role).
  */
-const REQUIRED_ACTION: Record<string, string | null> = {
+const REQUIRED_ACTION: Record<string, string | null | ((roles: readonly string[]) => boolean)> = {
   overview: null,
   organization: 'ANALYZE_QUERY',
   operations: 'ANALYZE_QUERY',
+  incidents: canViewIncidents,
   'twin-live': 'VIEW_OPERATIONAL_STATE',
   'twin-map': 'VIEW_OPERATIONAL_STATE',
   'twin-simulation': 'CREATE_SIMULATION',
@@ -30,6 +31,7 @@ const REQUIRED_ACTION: Record<string, string | null> = {
 export function canSeeNavItem(roles: readonly string[], itemId: string): boolean {
   if (!(itemId in REQUIRED_ACTION)) return false; // unknown sections stay hidden until classified
   const action = REQUIRED_ACTION[itemId];
+  if (typeof action === 'function') return action(roles);
   return action === null || action === undefined || canUse(roles, action);
 }
 

@@ -193,7 +193,8 @@ export const fetchIncidents = (
   siteId: string,
   filters: IncidentFilters,
   cursor: string | null = null,
-) => apiFetch<IncidentPage>(incidentListQuery(siteId, filters, cursor));
+  limit = INCIDENT_PAGE_SIZE,
+) => apiFetch<IncidentPage>(incidentListQuery(siteId, filters, cursor, limit));
 
 export const fetchIncident = (id: string) => apiFetch<Incident>(`/incidents/${enc(id)}`);
 

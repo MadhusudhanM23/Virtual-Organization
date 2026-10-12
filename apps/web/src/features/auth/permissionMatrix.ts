@@ -21,6 +21,15 @@ export function roleLabel(role: RoleName | string): string {
   return matrix.roles.find((r) => r.role === role)?.label ?? role;
 }
 
+/**
+ * Incident views (docs/api/README.md): VIEW_OPERATIONAL_STATE with a plain ALLOW. Driver/Operator (policy-limited to
+ * their own tasks) and Platform Administrator (technical metadata only) get 403 from the incident API.
+ */
+export function canViewIncidents(roles: readonly string[]): boolean {
+  const row = matrix.actions.find((a) => a.action === 'VIEW_OPERATIONAL_STATE');
+  return roles.some((role) => row?.decisions[role] === 'ALLOW');
+}
+
 /** True if any of the roles can use `action` (union of roles). ADMIN_TECH counts as not usable. */
 export function canUse(roles: readonly string[], action: string): boolean {
   const row = matrix.actions.find((a) => a.action === action);

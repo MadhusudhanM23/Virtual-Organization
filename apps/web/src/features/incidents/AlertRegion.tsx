@@ -4,6 +4,7 @@ import { Crosshair, ExternalLink, OctagonAlert, TriangleAlert, X } from 'lucide-
 import { DataModeBadge } from '../../components/DataModeBadge';
 import { t } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { useSiteFormat } from '../../lib/useSiteFormat';
 import { useTwinStore } from '../twin/twinStore';
 import type { ProximityAlert } from './alertModel';
 import { formatDistance, SEVERITY_LABEL } from './incidentModel';
@@ -25,6 +26,7 @@ export interface AlertToastProps {
 
 /** One proximity alert. Severity is text + icon + border weight, never color alone. */
 export function AlertToast({ alert, onView, onFocus, onDismiss }: AlertToastProps) {
+  const units = useSiteFormat().unitSystem;
   const critical = alert.severity === 'CRITICAL';
   const Icon = critical ? OctagonAlert : TriangleAlert;
   const forklift = alert.forkliftCode ?? '?';
@@ -51,7 +53,7 @@ export function AlertToast({ alert, onView, onFocus, onDismiss }: AlertToastProp
             {t('alert.pair', { forklift, worker })}
             {' · '}
             <span className="font-semibold">
-              {t('alert.distance', { distance: formatDistance(alert.distanceM) })}
+              {t('alert.distance', { distance: formatDistance(alert.distanceM, units) })}
             </span>
           </p>
         </div>

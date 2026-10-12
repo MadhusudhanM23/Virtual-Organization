@@ -146,8 +146,13 @@ export function commandErrorMessage(error: unknown): { id: MessageId; detail: st
   return { id: 'incident.error.network', detail: null };
 }
 
-export function formatDistance(m: number | null | undefined): string {
-  return typeof m === 'number' && Number.isFinite(m) ? `${m.toFixed(1)} m` : '-';
+/** Short proximity distances keep one decimal (the site formatter rounds meters to whole numbers). */
+export function formatDistance(
+  m: number | null | undefined,
+  unitSystem: 'metric' | 'imperial' = 'metric',
+): string {
+  if (typeof m !== 'number' || !Number.isFinite(m)) return '-';
+  return unitSystem === 'imperial' ? `${(m * 3.28084).toFixed(1)} ft` : `${m.toFixed(1)} m`;
 }
 
 export function isIncidentEventType(type: string): boolean {
