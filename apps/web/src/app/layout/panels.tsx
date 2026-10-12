@@ -22,13 +22,24 @@ export function PanelEmpty({ panel }: { panel: PanelDefinition }) {
 }
 
 /** A titled card holding one panel; the heading names its section for assistive technology. */
-export function PanelCard({ panel }: { panel: PanelDefinition }) {
+export function PanelCard({
+  panel,
+  scrollBody = false,
+}: {
+  panel: PanelDefinition;
+  /** Cap the card height and scroll its body (bottom row, so data panels never crowd the main area). */
+  scrollBody?: boolean;
+}) {
   const headingId = `panel-heading-${panel.id}`;
   const Icon = panel.icon;
   return (
     <section
       aria-labelledby={headingId}
-      className="flex min-w-0 flex-col rounded-card border border-line bg-surface shadow-card"
+      className={
+        scrollBody
+          ? 'flex max-h-64 min-w-0 flex-col rounded-card border border-line bg-surface shadow-card'
+          : 'flex min-w-0 flex-col rounded-card border border-line bg-surface shadow-card'
+      }
     >
       <h2
         id={headingId}
@@ -37,7 +48,20 @@ export function PanelCard({ panel }: { panel: PanelDefinition }) {
         <Icon aria-hidden="true" className="size-4 text-accent-600" />
         {t(panel.titleId)}
       </h2>
-      <PanelEmpty panel={panel} />
+      {scrollBody ? (
+        <div
+          role="group"
+          aria-labelledby={headingId}
+          // A scrollable region must be keyboard focusable (axe: scrollable-region-focusable).
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          tabIndex={0}
+          className="min-h-0 flex-1 overflow-y-auto"
+        >
+          <PanelEmpty panel={panel} />
+        </div>
+      ) : (
+        <PanelEmpty panel={panel} />
+      )}
     </section>
   );
 }

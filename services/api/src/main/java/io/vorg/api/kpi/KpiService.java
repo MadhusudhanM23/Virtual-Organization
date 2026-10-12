@@ -100,7 +100,7 @@ public class KpiService {
                     : start.plusSeconds(w.bucketSeconds());
             points.add(new Point(start, end, bucketValue(kpiId, sums[i], counts[i], w, sourceHasRows), counts[i]));
         }
-        String reason = total == 0 ? (sourceHasRows ? "no samples in the window; zero counts are real, averages are not computable"
+        String reason = total == 0 ? (sourceHasRows ? "no samples in the window"
                 : "no source records for this site") : null;
         if (total == 0 && !sourceHasRows) {
             points = points.stream().map(p -> new Point(p.start(), p.end(), null, 0)).toList();

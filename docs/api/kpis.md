@@ -29,3 +29,7 @@ that ends at `computed_at`.
 Series (`/api/kpis/{id}/series`) exist for windowed KPIs only (`tasks_completed`, `tasks_failed`, `task_cycle_time_avg`,
 `orders_completed`, `event_throughput`); state KPIs have no stored history and answer `422`. Buckets: 15m/1m, 1h/5m,
 6h/30m, 24h/1h, 7d/6h.
+
+**Known limits (MCD).** `dock_utilization` reads `world.docks.status`, which the movement simulation does not update, so
+it can disagree with `trucks_docked` (truck entities do change status as they move). Position history for the heatmap exists
+only where position events were recorded (the simulated movement source); an idle site shows "no position events".

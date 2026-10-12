@@ -54,3 +54,9 @@ export function flowSeries(flow: OrderFlow, stage: FlowStageKey) {
 export function errorKind(error: unknown): 'forbidden' | 'other' {
   return error instanceof ApiError && error.status === 403 ? 'forbidden' : 'other';
 }
+
+/** "IN_PROGRESS" -> "In progress": enum codes from the API shown as plain words. */
+export function humanize(code: string): string {
+  const words = code.toLowerCase().replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}

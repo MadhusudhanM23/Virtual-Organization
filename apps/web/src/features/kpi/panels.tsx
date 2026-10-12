@@ -12,7 +12,14 @@ import {
   fetchSeries,
   type KpiDefinition,
 } from './kpiApi';
-import { FLOW_STAGES, busiestCells, flowSeries, heatOpacity, type FlowStageKey } from './kpiModel';
+import {
+  FLOW_STAGES,
+  busiestCells,
+  flowSeries,
+  heatOpacity,
+  humanize,
+  type FlowStageKey,
+} from './kpiModel';
 import { Footnote, LoadState, TimeBars, WindowSelect } from './parts';
 import { ANALYTICS_REFRESH_MS, usePolled } from './usePolled';
 
@@ -321,7 +328,7 @@ export function OrderFlowPanel() {
               .filter((r) => r.status !== 'COMPLETED')
               .map((r) => (
                 <li key={`${r.order_type}-${r.status}`} className="tabular-nums">
-                  {`${r.order_type} ${r.status}: ${fmt.number(r.count)}`}
+                  {`${humanize(r.order_type)}, ${humanize(r.status).toLowerCase()}: ${fmt.number(r.count)}`}
                 </li>
               ))}
           </ul>
@@ -331,7 +338,7 @@ export function OrderFlowPanel() {
           <ul className="text-ink-700">
             {flow.shipments.map((r) => (
               <li key={`${r.direction}-${r.state}`} className="tabular-nums">
-                {`${r.direction} ${r.state}: ${fmt.number(r.count)}`}
+                {`${humanize(r.direction)}, ${humanize(r.state).toLowerCase()}: ${fmt.number(r.count)}`}
               </li>
             ))}
           </ul>
