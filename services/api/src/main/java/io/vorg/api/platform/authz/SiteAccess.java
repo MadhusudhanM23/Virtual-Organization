@@ -30,6 +30,15 @@ public class SiteAccess {
         throw denied(decision);
     }
 
+    /** Like {@link #requireView(Subject, UUID)} with a request context (e.g. the actor a resource is assigned to). */
+    public void requireView(Subject subject, UUID siteId, PolicyContext context) {
+        Decision decision = policy.authorizeAudited(subject, Action.VIEW_OPERATIONAL_STATE,
+                ResourceRef.site(subject.tenantId(), siteId), context, null);
+        if (!decision.allowed()) {
+            throw denied(decision);
+        }
+    }
+
     /** Non-throwing variant for callers that can fall back to a narrower visibility (e.g. own assignments). */
     public Decision check(Subject subject, UUID siteId, Action action, PolicyContext context) {
         return policy.authorize(subject, action, ResourceRef.site(subject.tenantId(), siteId), context);

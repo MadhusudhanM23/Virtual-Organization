@@ -62,6 +62,7 @@ public class MovementSourceRunner {
     private static final int PRUNE_EVERY_TICKS = 3600;
     private static final Duration LEDGER_RETENTION = Duration.ofHours(1);
     private static final int DEFAULT_TASK_DWELL_SECONDS = 8;
+    private static final int TARGET_REFRESH_TICKS = 5;
 
     /** Snapshot of the runner for the status endpoint and the control command result. */
     public record Status(boolean configured, boolean running, long tickIntervalMs, double timeScale, long tick,
@@ -298,6 +299,9 @@ public class MovementSourceRunner {
     }
 
     private void redirectToTasks() {
+        if (tick % TARGET_REFRESH_TICKS != 1) {
+            return; // the task query is cheap but needless every second
+        }
         MovementTargetProvider provider = targets.getIfAvailable(() -> MovementTargetProvider.NONE);
         for (MovementTargetProvider.Target t : provider.activeTargets(live.tenantId(), live.siteId())) {
             if (!t.key().equals(dispatchedTargets.get(t.entityId()))) {

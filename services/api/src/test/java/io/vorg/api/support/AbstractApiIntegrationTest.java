@@ -54,7 +54,7 @@ public abstract class AbstractApiIntegrationTest extends AbstractIntegrationTest
     protected HttpResponse<String> post(String path, String bearer, String json, String... headers) throws Exception {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(json));
+                .POST(HttpRequest.BodyPublishers.ofString(json == null ? "" : json));
         if (bearer != null) {
             b.header("Authorization", "Bearer " + bearer);
         }
