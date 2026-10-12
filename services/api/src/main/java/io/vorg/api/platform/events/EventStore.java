@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class EventStore {
 
-    static final String SELECT_COLUMNS = """
+    public static final String SELECT_COLUMNS = """
             event_id, tenant_id, aggregate_type, aggregate_id, event_type, sequence, occurred_at, ingested_at, source,
             data_mode, actor_type, actor_id, location::text as location, correlation_id, causation_id, schema_version,
             payload::text as payload, confidence, observation_status

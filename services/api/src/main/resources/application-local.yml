@@ -25,3 +25,7 @@ vo:
     generate-if-absent: true
   auth:
     cookie-secure: false
+  outbox:
+    datasource:
+      url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:virtual_org}
+      password: ${VO_OUTBOX_DB_PASSWORD:vo_outbox_dev_password}
