@@ -2,11 +2,14 @@ import type { PanelDefinition } from './panelDefinitions';
 import { EmptyState } from '../../components/EmptyState';
 import { t } from '../../i18n';
 import { ConnectedInspector } from '../../features/twin/Inspector';
+import { ConnectedEventsPanel } from '../../features/live/EventsPanel';
 
 /** Body of a panel: always an empty state until real (seeded/simulated) data exists. */
 export function PanelEmpty({ panel }: { panel: PanelDefinition }) {
   // The inspector is live since Plan 2.4: it shows the entity selected in the twin views.
   if (panel.id === 'inspector') return <ConnectedInspector />;
+  // The events feed is live since Plan 3.5 (REST history + WebSocket).
+  if (panel.id === 'events') return <ConnectedEventsPanel />;
   return (
     <EmptyState
       compact
