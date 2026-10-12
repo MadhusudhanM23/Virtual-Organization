@@ -136,8 +136,9 @@ export function EntityTable({
               return (
                 <tr
                   key={e.id}
+                  onClick={() => onSelect(e.id)}
                   data-selected={selected ? 'true' : undefined}
-                  className={cn('border-t border-line', selected && 'bg-accent-50')}
+                  className={cn('cursor-pointer border-t border-line hover:bg-surface-sunken', selected && 'bg-accent-50')}
                 >
                   <td className="px-3 py-1.5">
                     <span
@@ -150,7 +151,10 @@ export function EntityTable({
                   <td className="px-3 py-1.5 font-mono text-xs">
                     <button
                       type="button"
-                      onClick={() => onSelect(e.id)}
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        onSelect(e.id);
+                      }}
                       aria-pressed={selected}
                       aria-label={t('twin.table.select', { code: e.code })}
                       className="rounded px-1 font-semibold text-accent-700 underline-offset-2 hover:underline"

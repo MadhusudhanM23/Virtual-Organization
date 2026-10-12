@@ -186,7 +186,7 @@ export const messagesEn = {
   'twin.camera.needsSelection': 'Select an entity first',
   'twin.camera.reduced': 'Reduced motion is on: the camera cuts instead of flying.',
   'twin.legend.title': 'Legend',
-  'twin.legend.entities': 'Entities (click to show or hide)',
+  'twin.legend.entities': 'Entities on this floor (click to show or hide)',
   'twin.legend.status': 'Status',
   'twin.legend.status.active': 'Active: full color',
   'twin.legend.status.idle': 'Idle or stored: muted',

@@ -45,6 +45,14 @@ test.describe('Twin: Live View and Map View', () => {
     await page.screenshot({ path: 'test-results/twin-live-3d.png' });
   });
 
+  test('clicking anywhere on a table row (not only the code button) selects it', async ({ page }) => {
+    await openLive(page);
+    const cell = page.locator('tbody tr').first().locator('td').nth(2);
+    const name = (await cell.innerText()).trim();
+    await cell.click();
+    await expect(page.getByTestId('twin-inspector').getByText(name).first()).toBeVisible();
+  });
+
   test('selecting from the table fills the inspector with provenance and external IDs', async ({ page }) => {
     await openLive(page);
     const first = entityFixtures[0]!;
