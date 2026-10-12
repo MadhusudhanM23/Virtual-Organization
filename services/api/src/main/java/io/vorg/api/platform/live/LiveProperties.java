@@ -24,7 +24,8 @@ public record LiveProperties(
         UUID siteId,
         UUID operatorActorRef,
         @DefaultValue Sync sync,
-        @DefaultValue Movement movement) {
+        @DefaultValue Movement movement,
+        @DefaultValue Ws ws) {
 
     public record Sync(@DefaultValue("15s") Duration interval) {}
 
@@ -36,4 +37,19 @@ public record LiveProperties(
             @DefaultValue("5.0") double minTurnDeg,
             @DefaultValue("20261012") long seed,
             @DefaultValue("true") boolean autostart) {}
+
+    /**
+     * WebSocket hub {@code /ws/live}: the first message must authenticate within {@code auth-timeout}; the server
+     * pings every {@code heartbeat} and closes a socket silent for {@code idle-timeout}; queued output is flushed
+     * every {@code flush-interval} with poses coalesced to the latest per entity; at most {@code max-queued-events}
+     * non-pose events wait per socket before the oldest are dropped (and a {@code gap} message is sent).
+     */
+    public record Ws(
+            @DefaultValue("5s") Duration authTimeout,
+            @DefaultValue("15s") Duration heartbeat,
+            @DefaultValue("45s") Duration idleTimeout,
+            @DefaultValue("100ms") Duration flushInterval,
+            @DefaultValue("200") int maxQueuedEvents,
+            @DefaultValue("8") int maxSubscriptions,
+            @DefaultValue("http://localhost:*,http://127.0.0.1:*") String allowedOrigins) {}
 }

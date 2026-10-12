@@ -13,3 +13,6 @@ requirements: [REQ-045]
 9. Docs (docs/api, docs/scenarios, event catalog, Proposed ADRs) and a real-run evidence capture.
 
 The live events panel (UI) is out of scope for this backend half.
+
+## UI half (executed in branch phase-3b-live-ui)
+10. Live events panel: REST history + WebSocket feed, type filters, pause, click-to-focus, aria-live polite, tests (Vitest + e2e).
