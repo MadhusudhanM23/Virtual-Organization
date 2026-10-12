@@ -1,4 +1,5 @@
-import { Bell, Building2, FlaskConical, Menu, Search, WifiOff, Zap, ZapOff } from 'lucide-react';
+import { Bell, FlaskConical, Menu, Search, WifiOff, Zap, ZapOff } from 'lucide-react';
+import { SiteSwitcher } from '../../features/org/SiteSwitcher';
 import { UserMenu } from '../../features/auth/UserMenu';
 import { StatusPill } from '../../components/StatusPill';
 import { t } from '../../i18n';
@@ -37,22 +38,7 @@ export function TopBar() {
         <Menu aria-hidden="true" className="size-5" />
       </button>
 
-      {/* Organization / site context slot (filled by the org+site switcher, Plan 1.6 / Phase 2). */}
-      <div
-        className="topbar-context flex min-w-0 items-center gap-2.5"
-        role="group"
-        aria-label={t('topbar.context.label')}
-      >
-        <span
-          aria-hidden="true"
-          className="hidden size-9 shrink-0 place-items-center rounded-control bg-surface-sunken text-ink-600 sm:grid"
-        >
-          <Building2 className="size-[1.125rem]" strokeWidth={1.75} />
-        </span>
-        <span className="truncate text-sm font-medium text-ink-600">
-          {t('topbar.context.none')}
-        </span>
-      </div>
+      <SiteSwitcher />
 
       <div className="topbar-search relative min-w-0 md:mx-auto md:w-full md:max-w-xl">
         <Search
