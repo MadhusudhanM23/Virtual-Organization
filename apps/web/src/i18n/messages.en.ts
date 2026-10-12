@@ -45,7 +45,6 @@ export const messagesEn = {
   'topbar.notifications': 'Notifications',
   'topbar.notifications.none': 'No notifications',
   'topbar.user': 'User menu',
-  'topbar.user.hint': 'Available after sign-in',
   'topbar.motion.label': 'Reduce motion',
 
   // Panels
@@ -134,6 +133,30 @@ export const messagesEn = {
   'page.notFound.title': 'Page not found',
   'page.notFound.description': 'This address does not match any section of the application.',
   'page.notFound.back': 'Go to Overview',
+  // Authentication and session
+  'auth.login.title': 'Sign in',
+  'auth.login.subtitle': 'Sign in to your organization workspace.',
+  'auth.login.tenant': 'Organization (tenant)',
+  'auth.login.email': 'Email',
+  'auth.login.password': 'Password',
+  'auth.login.submit': 'Sign in',
+  'auth.login.submitting': 'Signing in…',
+  'auth.login.summary': 'Sign-in could not be completed',
+  'auth.login.required': 'Enter your organization, email and password.',
+  'auth.login.failed': 'Sign-in failed. Check your organization, email and password and try again.',
+  'auth.login.tooMany': 'Too many attempts. Wait a minute and try again.',
+  'auth.login.unavailable': 'The service is not reachable right now. Try again shortly.',
+  'auth.loading': 'Restoring your session…',
+  'auth.demoChip': 'DEMO tenant — synthetic data',
+  'auth.userMenu.signedInAs': 'Signed in as',
+  'auth.userMenu.tenant': 'Organization',
+  'auth.userMenu.roles': 'Roles',
+  'auth.userMenu.signOut': 'Sign out',
+
+  // Site switcher
+  'site.switcher.label': 'Site',
+  'site.switcher.none': 'No site available',
+  'site.switcher.localTime': 'Local time at the selected site',
 } as const;
 
 export type MessageId = keyof typeof messagesEn;

@@ -1,10 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// A dedicated port, distinct from the normal dev port (5173, apps/web/vite.config.ts): this repo is
+// A dedicated port (5191, plan 1.6), distinct from the dev port (5173) and plan 1.3's former 5190: this repo is
 // built by several concurrent worktree agents on the same machine, each of which may already have a
 // dev server on 5173. `reuseExistingServer: false` plus a private port means this suite always talks
 // to its own server, never to someone else's app.
-const PORT = 5190;
+const PORT = 5191;
 const BASE_URL = `http://localhost:${PORT}`;
 
 // Chromium only (plan 1.3 task 4: save disk — Firefox/WebKit are not installed in CI images for this repo).

@@ -1,8 +1,10 @@
-import { Bell, Building2, Menu, Search, User, WifiOff, Zap, ZapOff } from 'lucide-react';
+import { Bell, Building2, FlaskConical, Menu, Search, WifiOff, Zap, ZapOff } from 'lucide-react';
+import { UserMenu } from '../../features/auth/UserMenu';
 import { StatusPill } from '../../components/StatusPill';
 import { t } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { useReducedMotion } from '../../lib/motion';
+import { useSessionStore } from '../../stores/sessionStore';
 import { useUiStore } from '../../stores/uiStore';
 
 const ICON_BUTTON =
@@ -17,6 +19,7 @@ export function TopBar() {
   const setMobileNavOpen = useUiStore((s) => s.setMobileNavOpen);
   const toggleReducedMotion = useUiStore((s) => s.toggleReducedMotion);
   const reducedMotion = useReducedMotion();
+  const demoMode = useSessionStore((s) => s.me?.tenant.demo_mode ?? false);
 
   return (
     <header
@@ -71,6 +74,11 @@ export function TopBar() {
         role="group"
         aria-label={t('topbar.status.label')}
       >
+        {demoMode ? (
+          <StatusPill tone="warning" icon={FlaskConical}>
+            <span className="max-sm:sr-only">{t('auth.demoChip')}</span>
+          </StatusPill>
+        ) : null}
         <StatusPill tone="neutral" icon={WifiOff}>
           {/* Text stays in the accessibility tree; below 640 px only the icon is drawn. */}
           <span className="max-sm:sr-only">{t('topbar.status.noConnection')}</span>
@@ -103,18 +111,7 @@ export function TopBar() {
         >
           <Bell aria-hidden="true" className="size-[1.125rem]" />
         </button>
-        {/* User menu slot: inert until sign-in exists (Plan 1.6). */}
-        <button
-          type="button"
-          aria-disabled="true"
-          className={cn(ICON_BUTTON, 'cursor-not-allowed')}
-          aria-label={t('topbar.user')}
-          title={`${t('topbar.user')} — ${t('topbar.user.hint')}`}
-        >
-          <span className="grid size-8 place-items-center rounded-full bg-navy-900 text-accent-400">
-            <User aria-hidden="true" className="size-4" />
-          </span>
-        </button>
+        <UserMenu />
       </div>
     </header>
   );
