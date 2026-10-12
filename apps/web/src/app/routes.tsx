@@ -1,5 +1,7 @@
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { AppShell } from './layout/AppShell';
+import LoginPage from '../features/auth/LoginPage';
+import { RequireAuth } from '../features/auth/RequireAuth';
 import { DEFAULT_PATH } from './navigation';
 import AnalyticsPage from '../features/analytics';
 import AssetsPage from '../features/assets';
@@ -18,9 +20,14 @@ import { LiveViewPage, MapViewPage, ReplayPage, SimulationPage } from '../featur
 
 /** Route table, exported separately so tests can mount it in a memory router. */
 export const routeObjects: RouteObject[] = [
+  { path: '/login', element: <LoginPage /> },
   {
     path: '/',
-    element: <AppShell />,
+    element: (
+      <RequireAuth>
+        <AppShell />
+      </RequireAuth>
+    ),
     children: [
       { index: true, element: <Navigate to={DEFAULT_PATH} replace /> },
       { path: 'overview', element: <OverviewPage /> },

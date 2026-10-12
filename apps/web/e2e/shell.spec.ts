@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { mockSignedInSession } from './support/mockApi';
 
 /**
  * Smoke, landmark, keyboard and accessibility coverage for the application shell
@@ -29,7 +30,11 @@ async function tabThroughSidebarLinkNames(page: Page): Promise<string[]> {
 
 test.describe('Application shell', () => {
   test.beforeEach(async ({ page }) => {
+    // The shell is behind sign-in (Plan 1.6); a mocked session keeps this suite independent of the API.
+    await mockSignedInSession(page);
     await page.goto('/');
+    // The session is restored asynchronously; wait for the shell before interacting.
+    await expect(page.getByRole('banner')).toBeVisible();
   });
 
   test('loads and exposes the expected landmarks', async ({ page }) => {

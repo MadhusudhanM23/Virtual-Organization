@@ -1,9 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { NavLink } from 'react-router';
 import { ArrowLeftRight, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
-import { NAV_ENTRIES, type NavItem } from '../navigation';
+import { visibleNavEntries } from '../navAccess';
+import type { NavItem } from '../navigation';
 import { t } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { useSessionStore } from '../../stores/sessionStore';
 import { useUiStore } from '../../stores/uiStore';
 
 function Brand({ collapsed }: { collapsed: boolean }) {
@@ -98,6 +100,12 @@ export function Sidebar({ variant }: SidebarProps) {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const setMobileNavOpen = useUiStore((s) => s.setMobileNavOpen);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  // UX only: hides sections the signed-in roles can never use. The API enforces access (ADR-06).
+  const meRoles = useSessionStore((s) => s.me?.roles);
+  const entries = useMemo(
+    () => visibleNavEntries((meRoles ?? []).map((r) => r.role)),
+    [meRoles],
+  );
 
   const isDrawer = variant === 'drawer';
   const collapsed = !isDrawer && sidebarCollapsed;
@@ -159,7 +167,7 @@ export function Sidebar({ variant }: SidebarProps) {
         </div>
 
         <ul className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-3">
-          {NAV_ENTRIES.map((entry) => {
+          {entries.map((entry) => {
             if (entry.kind === 'item') {
               return (
                 <NavLinkItem
