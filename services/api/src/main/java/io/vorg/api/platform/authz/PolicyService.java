@@ -1,5 +1,7 @@
 package io.vorg.api.platform.authz;
 
+import io.vorg.api.platform.audit.AuditEntry;
+import io.vorg.api.platform.audit.AuditService;
 import io.vorg.api.platform.identity.Role;
 import io.vorg.api.platform.identity.RoleAssignment;
 import io.vorg.api.platform.identity.Subject;
@@ -21,15 +23,41 @@ public class PolicyService {
 
     private final PermissionMatrix matrix;
     private final SiteLookup sites;
+    private final AuditService audit;
 
     @Autowired
-    public PolicyService(SiteLookup sites) {
-        this(PermissionMatrix.loadFromClasspath(), sites);
+    public PolicyService(SiteLookup sites, AuditService audit) {
+        this(PermissionMatrix.loadFromClasspath(), sites, audit);
     }
 
+    /** Pure evaluation only (no audit sink); used by unit tests. */
     PolicyService(PermissionMatrix matrix, SiteLookup sites) {
+        this(matrix, sites, null);
+    }
+
+    private PolicyService(PermissionMatrix matrix, SiteLookup sites, AuditService audit) {
         this.matrix = matrix;
         this.sites = sites;
+        this.audit = audit;
+    }
+
+    /**
+     * {@link #authorize} plus an append-only audit row for every denial (decision DENIED, with actor, action,
+     * resource, reason, and the request's correlation id). Controllers and the command gateway use this form; the
+     * plain {@code authorize} stays side-effect free for visibility filtering, where "not visible" is not a denial
+     * worth auditing. Allowed outcomes are audited by the caller together with the thing that was allowed.
+     */
+    public Decision authorizeAudited(Subject subject, Action action, ResourceRef resource, PolicyContext ctx,
+            UUID commandId) {
+        Decision decision = authorize(subject, action, resource, ctx);
+        if (!decision.allowed() && audit != null && subject != null) {
+            audit.record(new AuditEntry(subject.tenantId(), subject.actorRef().toString(), "HUMAN",
+                    action == null ? "UNKNOWN" : action.name(),
+                    resource == null || resource.kind() == null ? "UNKNOWN" : resource.kind().name(),
+                    resource == null ? null : resource.siteId(), AuditEntry.Decision.DENIED,
+                    decision.code() + ": " + decision.reason(), commandId, null, null));
+        }
+        return decision;
     }
 
     public Decision authorize(Subject subject, Action action, ResourceRef resource, PolicyContext ctx) {

@@ -15,7 +15,7 @@ Every event type must be listed here **before** any code emits it. The envelope 
 
 | event_type | aggregate_type | Emitted by | Payload summary | Replay-authoritative | Phase |
 |---|---|---|---|---|---|
-| `SITE_SETTINGS_UPDATED` | `SITE` | API, site settings command (Plan 1.5) | Payload schema defined in Plan 1.5 | n | 1 |
+| `SITE_SETTINGS_UPDATED` | `SITE` | API, site settings command (Plan 1.5) | `{ changed_fields: string[], new_values: { <field>: value } }`; fields are `time_zone`, `locale`, `currency`, `unit_system`; `source=HUMAN`, `data_mode=LIVE`, sequenced per site | n | 1 |
 
 "Replay-authoritative" follows blueprint section 7: only the listed MVP domains (entity positions, task and incident
 lifecycle, scenario lifecycle, approvals and commands) are rebuilt from events during replay.

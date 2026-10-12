@@ -1,0 +1,30 @@
+{
+  "event_id" : "0199f3a0-0000-7000-8000-000000000103",
+  "tenant_id" : "0199f3a0-0000-7000-8000-000000000001",
+  "aggregate_type" : "INCIDENT",
+  "aggregate_id" : "0199f3a0-0000-7000-8000-0000000000e1",
+  "event_type" : "INCIDENT_DETECTED",
+  "sequence" : 1,
+  "occurred_at" : "2026-10-09T09:00:00.010Z",
+  "ingested_at" : "2026-10-09T09:00:00.010Z",
+  "source" : "CAMERA",
+  "data_mode" : "SIMULATED",
+  "actor_type" : "SERVICE",
+  "actor_id" : "svc:vision-sim",
+  "location" : {
+    "site_id" : "0199f3a0-0000-7000-8000-0000000000a1",
+    "floor_id" : null,
+    "zone_id" : null,
+    "position" : null,
+    "heading_deg" : null
+  },
+  "correlation_id" : "0199f3a0-0000-7000-8000-0000000000c4",
+  "causation_id" : "0199f3a0-0000-7000-8000-0000000000d1",
+  "schema_version" : 1,
+  "payload" : {
+    "kind" : "NEAR_MISS",
+    "severity" : "HIGH"
+  },
+  "confidence" : 0.87,
+  "observation_status" : "UNCONFIRMED"
+}

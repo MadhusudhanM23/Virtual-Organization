@@ -48,6 +48,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return response;
     }
 
+    @ExceptionHandler(ApiProblemException.class)
+    ResponseEntity<Object> apiProblem(ApiProblemException ex, WebRequest request) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
+        pd.setTitle(ex.title());
+        if (!ex.errors().isEmpty()) {
+            pd.setProperty("errors", ex.errors().stream()
+                    .map(e -> Map.of("field", e.field(), "message", e.message())).toList());
+        }
+        return handleExceptionInternal(ex, pd, new HttpHeaders(), ex.status(), request);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<Object> accessDenied(AccessDeniedException ex, WebRequest request) {
         return problem(ex, HttpStatus.FORBIDDEN, "Forbidden", "Access is denied.", request);

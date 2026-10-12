@@ -28,6 +28,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <archunit.version>1.5.1</archunit.version>
     <uuid-creator.version>6.1.1</uuid-creator.version>
+    <json-schema-validator.version>3.0.8</json-schema-validator.version>
   </properties>
 
   <dependencyManagement>
@@ -41,6 +42,11 @@
         <groupId>com.github.f4b6a3</groupId>
         <artifactId>uuid-creator</artifactId>
         <version>${uuid-creator.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.networknt</groupId>
+        <artifactId>json-schema-validator</artifactId>
+        <version>${json-schema-validator.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

@@ -48,6 +48,11 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", () -> "vo_app");
         registry.add("spring.datasource.password", () -> APP_PASSWORD);
+        // The outbox publisher connects as vo_outbox (BYPASSRLS); tests drive the poller manually (no scheduler).
+        registry.add("vo.outbox.datasource.url", POSTGRES::getJdbcUrl);
+        registry.add("vo.outbox.datasource.username", () -> "vo_outbox");
+        registry.add("vo.outbox.datasource.password", () -> OUTBOX_PASSWORD);
+        registry.add("vo.outbox.poller.enabled", () -> "false");
         registry.add("vo.jwt.key-path", () -> JWT_KEY_PATH.toString());
         registry.add("vo.jwt.generate-if-absent", () -> "true");
         registry.add("vo.jwt.issuer", () -> "http://localhost:8080");

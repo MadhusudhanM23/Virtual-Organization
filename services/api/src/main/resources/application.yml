@@ -78,3 +78,22 @@ vo:
   demo:
     # Shared password for SYNTHETIC demo users (DemoSeeder; local/demo/test profiles only). Never commit a real value.
     user-password: ${DEMO_USER_PASSWORD:}
+  events:
+    # Events with occurred_at older than this are still accepted but flagged (MDC late_event, vo_events_late_total).
+    late-skew: PT5M
+    partitions:
+      days-ahead: 7
+      cron: "0 15 * * * *"
+  outbox:
+    # Publisher connection: vo_outbox (BYPASSRLS, evt schema only); never the runtime vo_app pool.
+    datasource:
+      url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      username: vo_outbox
+      password: ${VO_OUTBOX_DB_PASSWORD}
+    poller:
+      enabled: true
+    poll-interval: 200ms
+    batch-size: 50
+    max-attempts: 8
+    backoff-base: PT1S
+    backoff-max: PT5M

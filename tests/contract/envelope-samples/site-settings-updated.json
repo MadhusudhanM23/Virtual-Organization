@@ -1,0 +1,33 @@
+{
+  "event_id" : "0199f3a0-0000-7000-8000-000000000101",
+  "tenant_id" : "0199f3a0-0000-7000-8000-000000000001",
+  "aggregate_type" : "SITE",
+  "aggregate_id" : "0199f3a0-0000-7000-8000-0000000000a1",
+  "event_type" : "SITE_SETTINGS_UPDATED",
+  "sequence" : 3,
+  "occurred_at" : "2026-10-09T09:00:00.010Z",
+  "ingested_at" : "2026-10-09T09:00:00.010Z",
+  "source" : "HUMAN",
+  "data_mode" : "LIVE",
+  "actor_type" : "HUMAN",
+  "actor_id" : "018f0000-0000-7000-8000-00000000a107",
+  "location" : {
+    "site_id" : "0199f3a0-0000-7000-8000-0000000000a1",
+    "floor_id" : null,
+    "zone_id" : null,
+    "position" : null,
+    "heading_deg" : null
+  },
+  "correlation_id" : "0199f3a0-0000-7000-8000-0000000000c4",
+  "causation_id" : null,
+  "schema_version" : 1,
+  "payload" : {
+    "changed_fields" : [ "locale", "currency" ],
+    "new_values" : {
+      "currency" : "GBP",
+      "locale" : "en-GB"
+    }
+  },
+  "confidence" : null,
+  "observation_status" : null
+}
