@@ -37,6 +37,9 @@
 | 26 | Procedural 3D assets | Accepted |
 | 27 | Data mode vs. truth label mapping | Accepted (default, owner may change) |
 | 28 | Persistence style and DB roles | Accepted |
+| 29 | World seed identity and versioning | Proposed |
+| 30 | Twin entity storage and pose semantics | Proposed |
+| 31 | Twin query status codes and scope filtering | Proposed |
 
 ---
 
@@ -220,3 +223,35 @@ The **lens** (LIVE/REPLAY/SIMULATE) and the **data mode** are displayed separate
   reset on release; absent context ⇒ RLS returns nothing.
 - IDs: UUIDv7 generated in the application. Timestamps: `timestamptz`, UTC.
 - Flyway migrations named `V{phase}_{plan}_{seq}__{description}.sql`; applied migrations are never edited.
+
+### ADR-29 World seed identity and versioning — Proposed
+**Context:** REQ-024 requires a reproducible SYNTHETIC seed, but ADR-28 says ids are application-generated UUIDv7 and
+two tenants must be able to hold the same layout.
+**Decision (conservative default):** seeded ids are name-based UUIDs shaped as version 7 (SHA-256 of
+`namespace/site_id/kind/name`), so they are stable across runs and machines, unique per site, and indistinguishable in
+shape from runtime ids. A seed has a version namespace (`vorg-seed/bengaluru-warehouse-01/v1`) and a content hash stored in
+`world.world_versions`. The seeder never overwrites a site that already has world version 1; a different seed version is
+applied by resetting the demo database. Runtime world edits (later phases) bump `world_versions.version` through commands.
+**Consequences:** the pinned hash in `WorldSeedPlanTest` must change with any seed edit, together with a new namespace.
+The owner may replace this with an explicit upgrade-in-place of demo data if that is ever needed.
+
+### ADR-30 Twin entity storage and pose semantics — Proposed
+**Context:** blueprint section 10 defines pose = position + orientation + timestamp + provenance + spatial confidence;
+Phase 3 will stream pose updates as events (ADR-23).
+**Decision (conservative default):** assets (forklift, truck, pallet, robot), pseudonymous people (worker) and cameras live
+in one table `world.entities` with the *current* pose in columns and type-specific data in `attributes jsonb`; pose history
+is not stored there (it is the position event stream, ADR-23/ADR-09). Structural objects (building, floor, zone, dock, rack)
+have their own tables. `z` is an absolute elevation (a floor's slab `elevation_m` is the z of its floor level), so the
+renderer needs no floor offsets. Every row carries `data_mode` (section 7 enum, ADR-27); seeded poses use source `SYSTEM`
+with `spatial_confidence = 1.0` (exact by construction, not a measurement).
+**Consequences:** adding an entity type needs a CHECK change. Revisit if per-type columns or PostGIS geometry become
+necessary (the PostGIS image is already in use).
+
+### ADR-31 Twin query status codes and scope filtering — Proposed
+**Context:** query endpoints must be tenant- and scope-authorized without leaking existence across tenants.
+**Decision (conservative default):** `site_id` and entity ids are authorized through the policy engine with
+`VIEW_OPERATIONAL_STATE` (denials audited). Unknown site or a site of another tenant: `404`. Known site outside the caller's
+role or scope (including Platform Administrator and Driver/Operator): `403`. A known site without a world model: `404`.
+An entity of another tenant: `404` (RLS hides it); an entity in an out-of-scope site: `403`.
+**Consequences:** a caller can tell "exists but not yours" from "unknown" only within its own tenant. Revisit if masking
+out-of-scope existence entirely (always 404) is preferred.

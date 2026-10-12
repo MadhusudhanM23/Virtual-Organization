@@ -19,6 +19,36 @@ Binding conventions for the HTTP API (copied from [`.gsd/ARCHITECTURE.md`](../..
 - `tenant_id` is never accepted from a request body or query; it comes from the token.
 - AI has no special write API; it uses the same commands and policies as any user.
 
+## Implemented: world and entity queries (Phase 2)
+
+All are `GET`, require a bearer token, and authorize `VIEW_OPERATIONAL_STATE` on the site through the policy engine
+(denials are audited). The tenant comes from the token; `site_id` selects the site. Shapes are defined by
+[`world.v1.schema.json`](../../packages/twin-schema/schema/world.v1.schema.json) (TypeScript types in
+`@vo/twin-schema`), and real responses are committed in
+[`tests/contract/world-samples`](../../tests/contract/world-samples). Coordinates are site-local meters (+x east,
++y north, +z up), headings degrees (0 = east, counter-clockwise positive).
+
+| Endpoint | Query parameters | Response |
+|---|---|---|
+| `GET /api/twin/world` | `site_id` (required) | site, `world_version`, `coordinate_system`, overall `data_mode`, `buildings`, `floors`, `zones`, `docks`, `racks`, `entity_counts` (coarse: no entities) |
+| `GET /api/twin/world/version` | `site_id` | latest `{version, content_hash, label, data_mode, created_at}` |
+| `GET /api/twin/floors` | `site_id` | `{items, next_cursor: null}` |
+| `GET /api/twin/zones` | `site_id`, `floor_id`, `zone_type` | `{items, next_cursor: null}` |
+| `GET /api/twin/docks` | `site_id`, `floor_id` | `{items, next_cursor: null}` |
+| `GET /api/twin/racks` | `site_id`, `floor_id`, `zone_id`, `bbox`, `limit`, `cursor` | `{items, next_cursor}` |
+| `GET /api/twin/entities` | `site_id`, `type` (comma list), `floor_id`, `zone_id`, `bbox`, `limit`, `cursor` | `{items, next_cursor}` of entities with pose and provenance |
+| `GET /api/entities/{id}` | | entity detail: pose, `version`, `data_mode`, floor and zone names, `external_ids` (canonical mappings) |
+
+- `type`: `FORKLIFT`, `TRUCK`, `PALLET`, `ROBOT`, `WORKER`, `CAMERA` (case-insensitive).
+- `bbox`: `min_x,min_y,max_x,max_y` in meters, inclusive, applied to the entity pose (or rack center).
+- `limit` 1..500 (default 200); `cursor` is the opaque `next_cursor` of the previous page; ordering is by `id`.
+- Status codes: `400` invalid parameter (problem+json with `errors[]`), `401` no token, `403` the caller's role or scope
+  does not cover the site (this includes Platform Administrator and Driver/Operator), `404` unknown site, a site of
+  another tenant, an entity that does not exist, or a site without a world model.
+
+The seeded data behind these endpoints is documented in
+[`docs/scenarios/bengaluru-warehouse-01.md`](../scenarios/bengaluru-warehouse-01.md).
+
 ## Planned query endpoints
 
 | Resource | Endpoint | Purpose |
