@@ -1,0 +1,34 @@
+{
+  "event_id" : "0199f3a0-0000-7000-8000-000000000102",
+  "tenant_id" : "0199f3a0-0000-7000-8000-000000000001",
+  "aggregate_type" : "FORKLIFT",
+  "aggregate_id" : "0199f3a0-0000-7000-8000-0000000000f1",
+  "event_type" : "FORKLIFT_POSITION_UPDATED",
+  "sequence" : null,
+  "occurred_at" : "2026-10-09T09:00:00Z",
+  "ingested_at" : "2026-10-09T09:00:00.010Z",
+  "source" : "DEVICE",
+  "data_mode" : "SYNTHETIC",
+  "actor_type" : "DEVICE",
+  "actor_id" : "dev:forklift-07",
+  "location" : {
+    "site_id" : "0199f3a0-0000-7000-8000-0000000000a1",
+    "floor_id" : null,
+    "zone_id" : "0199f3a0-0000-7000-8000-0000000000b2",
+    "position" : {
+      "x" : 12.5,
+      "y" : 40.25,
+      "z" : 0.0
+    },
+    "heading_deg" : 90.0
+  },
+  "correlation_id" : "0199f3a0-0000-7000-8000-0000000000c4",
+  "causation_id" : null,
+  "schema_version" : 1,
+  "payload" : {
+    "load_state" : "LOADED",
+    "speed_mps" : 1.5
+  },
+  "confidence" : null,
+  "observation_status" : null
+}

@@ -1,0 +1,26 @@
+{
+  "event_id" : "0199f3a0-0000-7000-8000-000000000104",
+  "tenant_id" : "0199f3a0-0000-7000-8000-000000000001",
+  "aggregate_type" : "SITE",
+  "aggregate_id" : "0199f3a0-0000-7000-8000-0000000000a1",
+  "event_type" : "SITE_SETTINGS_UPDATED",
+  "sequence" : 2,
+  "occurred_at" : "2026-10-01T00:00:00Z",
+  "ingested_at" : "2026-10-09T09:00:00.010Z",
+  "source" : "IMPORT",
+  "data_mode" : "REPLAY",
+  "actor_type" : "SERVICE",
+  "actor_id" : "svc:replay",
+  "location" : null,
+  "correlation_id" : "0199f3a0-0000-7000-8000-0000000000c4",
+  "causation_id" : null,
+  "schema_version" : 1,
+  "payload" : {
+    "changed_fields" : [ "time_zone" ],
+    "new_values" : {
+      "time_zone" : "Asia/Kolkata"
+    }
+  },
+  "confidence" : null,
+  "observation_status" : null
+}

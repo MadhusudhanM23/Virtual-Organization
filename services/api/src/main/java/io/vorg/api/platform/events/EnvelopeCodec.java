@@ -2,6 +2,7 @@ package io.vorg.api.platform.events;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 /** The one serializer for envelopes: snake_case, ISO-8601 UTC instants, independent of the web mapper settings. */
@@ -9,6 +10,8 @@ public final class EnvelopeCodec {
 
     private final JsonMapper mapper = JsonMapper.builder()
             .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+            // Deterministic output (map keys sorted) so payloads and the committed contract samples are byte-stable.
+            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
             .build();
 
     public JsonNode toTree(Object value) {
