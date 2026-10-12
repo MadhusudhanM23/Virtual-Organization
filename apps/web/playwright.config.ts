@@ -13,6 +13,8 @@ const API_ORIGIN = process.env.E2E_API_ORIGIN ?? 'http://localhost:8080';
 // Chromium only (plan 1.3 task 4: save disk — Firefox/WebKit are not installed in CI images for this repo).
 export default defineConfig({
   testDir: './e2e',
+  // The mocked-WebSocket live suite has its own config and port (playwright.live.config.ts, 5193).
+  testIgnore: /live.spec.ts/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

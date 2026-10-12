@@ -323,3 +323,20 @@ exact: event type list, aggregate type, aggregate id, data mode list, source, an
 `to` exclusive). Results are newest first by `(occurred_at, event_id)` with an opaque keyset cursor (stable under concurrent
 writes) and `limit` 1..500. Items are the full event envelope, so provenance is never trimmed.
 **Consequences:** deep history scans are bounded by the partitioned `occurred_at` index; add `from` for old data.
+
+### ADR-37 Live WebSocket hub: authentication, authorization, delivery — Proposed
+**Context:** REQ-040..048 need a push channel for position and domain events; browsers cannot set an Authorization header on a
+WebSocket, and a token in the URL leaks into logs and proxies.
+**Decision (conservative default):** one endpoint `/ws/live`. The HTTP upgrade is unauthenticated (origin-restricted via
+`vo.live.ws.allowed-origins`); the **first client message must be `auth` with the access JWT** within 5 s, otherwise the socket is
+closed (4408). No token is ever in the URL or in a log line. Each `subscribe` (site, optional floor, bbox, entity types, event
+types) is authorized with `VIEW_OPERATIONAL_STATE` on the site through the policy engine (ADR-31 semantics: unknown or
+other-tenant site is `not_found`, out-of-scope is `forbidden`, as an `error` message, the socket stays open) and re-checked every
+30 s and on `reauth`. Fan-out is from an outbox handler (`live.fanout`), so clients see only committed events; the tenant of the
+event must equal the tenant of the socket before any subscription is consulted. Position events are **coalesced to the latest
+per entity** and flushed every 100 ms; discrete events are queued up to 200 per socket, overflow drops the oldest and sends a
+`gap` message so the client resyncs through the REST API. The server pings every 15 s; a silent socket (45 s) is closed. When the
+access token expires the socket is closed with 4401 `token_expired` unless the client sent `reauth` with a fresh token of the same
+actor. Delivery is at-most-once per connection; REST is the source of truth after any gap or reconnect.
+**Consequences:** single-node fan-out (in-process); multi-node needs the Redis fan-out cache of ARCHITECTURE.md. Disconnected
+clients miss events and must resync.

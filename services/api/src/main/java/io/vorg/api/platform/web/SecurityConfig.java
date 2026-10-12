@@ -34,6 +34,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll();
+                    auth.requestMatchers("/ws/live").permitAll(); // token is verified in the first message (ADR-37)
                     auth.requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
                             "/.well-known/jwks.json").permitAll();
                     if (permitPrometheus) {
