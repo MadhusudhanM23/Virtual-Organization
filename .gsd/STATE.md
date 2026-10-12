@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-09
+updated: 2026-10-12
 ---
 
 # Project State
@@ -9,18 +9,19 @@ updated: 2026-10-09
 **Milestone:** M1 — Minimum Credible Demonstration (v0.1)
 **Phase:** 1 - Foundation
 **Status:** executing
-**Plan:** Wave 1 — Plan 1.1 merged and verified; Plans 1.2 (new agent) and 1.3 (resumed agent) still running
+**Plan:** Wave 1 complete — Plans 1.1, 1.2 and 1.3 merged and verified. Starting Wave 2.
 
 ## Last Action
 
-Plan 1.1 merged into main (22 contract tests verified independently). REQ-001, REQ-002, REQ-012 marked Complete.
-Test base image aligned to `postgis/postgis:16-3.5`.
+Plan 1.3 (web app shell & design system foundation) merged into main. Verified independently at the repo root:
+build, typecheck, lint, 29/29 Vitest unit tests, and 6/6 Playwright e2e tests (landmarks, skip link, full sidebar
+tab order, 390px responsive drawer, reduced-motion emulation, axe-core 0 serious/critical violations) all green.
+Root `npm install` run — unified root `package-lock.json` now committed. REQ-017 marked Complete.
 
 ## Next Steps
 
-1. Wait for Plans 1.2 and 1.3; merge their branches; run root `npm install` to create the unified lockfile.
-2. GitHub push is blocked: this session cannot sign in to GitHub. Owner must run `git push` once in a normal terminal (7 local commits ahead of origin/main); then pushes work.
-2. Wave 2: Plan 1.4 (tenancy/identity/authz).
+1. GitHub push is blocked: this session cannot sign in to GitHub. Owner must run `git push` once in a normal terminal (local commits ahead of origin/main); then pushes work.
+2. Wave 2: Plan 1.4 (tenancy/identity/authz) — write the plan and dispatch an executor.
 3. Wave 3: Plans 1.5 and 1.6 in parallel; Wave 4: Plan 1.7.
 
 ## Active Decisions

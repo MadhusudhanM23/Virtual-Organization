@@ -33,7 +33,7 @@ Priority: **M** must-have for the MCD, **S** should-have, **C** could-have.
 | REQ-014 | Append-only audit log (DB trigger + privileges block UPDATE/DELETE) recording every command and authorization denial with actor_ref, tenant and correlation_id. | §3, §18 | M | 1 | Pending |
 | REQ-015 | `correlation_id` / `causation_id` propagate HTTP → command → events → handlers → logs/traces; responses echo `X-Correlation-Id`. | §17 | M | 1 | In Progress (HTTP + logs done in 1.2; events in 1.5) |
 | REQ-016 | Observability baseline: OpenTelemetry tracing, Prometheus metrics (API latency, outbox age/lag), structured JSON logs with tenant_id and correlation_id, never secrets/tokens. | §17 | M | 1 | In Progress (metrics, logs done in 1.2; outbox metrics in 1.5) |
-| REQ-017 | Web app shell matching the §15 hierarchy and the concept layout (sidebar, top org/status bar, center twin, right inspector/camera/AI, bottom analytics/timeline), DataMode badge + Lens banner components, site time-zone/locale formatting, no fabricated numbers. | §5, §15 | M | 1 | Pending |
+| REQ-017 | Web app shell matching the §15 hierarchy and the concept layout (sidebar, top org/status bar, center twin, right inspector/camera/AI, bottom analytics/timeline), DataMode badge + Lens banner components, site time-zone/locale formatting, no fabricated numbers. | §5, §15 | M | 1 | Complete |
 | REQ-018 | Login UI, in-memory access token with silent refresh, role-aware navigation (UX only; server enforces), org/site switcher. | §4, §18 | M | 1 | Pending |
 | REQ-019 | CI on GitHub Actions: Java build + tests (Testcontainers), web lint/typecheck/test/build, contract tests. | §20, §21 | M | 1 | Pending |
 
@@ -204,7 +204,7 @@ Filled in as plans are written and verified (`plan id → requirements → tests
 |-------------|-------|------------------|--------|
 | REQ-001, REQ-002, REQ-012 | 1.1 | compose health, contract schema tests | — |
 | REQ-015, REQ-016 | 1.2, 1.5 | correlation filter test, /actuator/prometheus | — |
-| REQ-017 | 1.3 | Vitest + Playwright smoke + axe | — |
+| REQ-017 | 1.3 | Vitest (29/29) + Playwright smoke + axe (0 serious/critical) | Verified |
 | REQ-003–REQ-009 | 1.4 | RLS isolation tests, matrix test, login curl | — |
 | REQ-010, REQ-011, REQ-013, REQ-014 | 1.5 | outbox/idempotency/audit integration tests | — |
 | REQ-018 | 1.6 | Playwright login/role e2e | — |
