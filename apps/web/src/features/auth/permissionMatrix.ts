@@ -15,13 +15,7 @@ interface MatrixFile {
 const matrix = matrixJson as unknown as MatrixFile;
 
 /** Decisions under which a role can use an action in some form (anything but DENY or technical-only). */
-const USABLE = new Set([
-  'ALLOW',
-  'ALLOW_SUBJECT_TO_POLICY',
-  'GATED',
-  'ASSIGNED_ONLY',
-  'LIMITED',
-]);
+const USABLE = new Set(['ALLOW', 'ALLOW_SUBJECT_TO_POLICY', 'GATED', 'ASSIGNED_ONLY', 'LIMITED']);
 
 export function roleLabel(role: RoleName | string): string {
   return matrix.roles.find((r) => r.role === role)?.label ?? role;

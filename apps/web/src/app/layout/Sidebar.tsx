@@ -102,10 +102,7 @@ export function Sidebar({ variant }: SidebarProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   // UX only: hides sections the signed-in roles can never use. The API enforces access (ADR-06).
   const meRoles = useSessionStore((s) => s.me?.roles);
-  const entries = useMemo(
-    () => visibleNavEntries((meRoles ?? []).map((r) => r.role)),
-    [meRoles],
-  );
+  const entries = useMemo(() => visibleNavEntries((meRoles ?? []).map((r) => r.role)), [meRoles]);
 
   const isDrawer = variant === 'drawer';
   const collapsed = !isDrawer && sidebarCollapsed;

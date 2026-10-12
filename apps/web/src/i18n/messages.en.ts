@@ -170,9 +170,11 @@ export const messagesEn = {
   'twin.view.label': 'View',
   'twin.view.3d': '3D',
   'twin.view.2d': '2D map',
-  'twin.webgl.unavailable': '3D is not available in this browser (WebGL is off). Showing the 2D map.',
-  'twin.scene.label': '3D view of {site}, {floor}. Use the entity table below for a text alternative.',
-  'twin.scene.keys': 'Arrow keys pan, Page Up/Down zoom when the 3D view has focus.',
+  'twin.webgl.unavailable':
+    '3D is not available in this browser (WebGL is off). Showing the 2D map.',
+  'twin.scene.label':
+    '3D view of {site}, {floor}. Use the entity table below for a text alternative.',
+  'twin.scene.keys': 'Arrow keys pan the camera when the 3D view has focus.',
   'twin.map.label': '2D map of {site}, {floor}',
   'twin.floor.label': 'Floor',
   'twin.floor.elevation': '{level} (elevation {meters} m)',
