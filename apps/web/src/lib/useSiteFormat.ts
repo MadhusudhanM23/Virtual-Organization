@@ -3,7 +3,9 @@ import { useUiStore } from '../stores/uiStore';
 import {
   formatCurrency,
   formatDateTime,
+  formatDateTimeSeconds,
   formatDistance,
+  formatTimeSeconds,
   formatNumber,
   type UnitSystem,
 } from './format';
@@ -19,6 +21,10 @@ export interface SiteFormat {
   currency: string | null;
   unitSystem: UnitSystem;
   dateTime: (isoUtc: string) => string;
+  /** With seconds (replay time). */
+  dateTimeSeconds: (isoUtc: string) => string;
+  /** Time of day with seconds. */
+  timeSeconds: (isoUtc: string) => string;
   number: (value: number, options?: Intl.NumberFormatOptions) => string;
   /** Null when the site has no currency configured. */
   money: (amount: number) => string | null;
@@ -40,6 +46,8 @@ export function useSiteFormat(): SiteFormat {
       currency,
       unitSystem,
       dateTime: (isoUtc) => formatDateTime(isoUtc, { timeZone, locale }),
+      dateTimeSeconds: (isoUtc) => formatDateTimeSeconds(isoUtc, { timeZone, locale }),
+      timeSeconds: (isoUtc) => formatTimeSeconds(isoUtc, { timeZone, locale }),
       number: (value, options) => formatNumber(value, locale, options),
       money: (amount) => (currency ? formatCurrency(amount, currency, locale) : null),
       distance: (meters) => formatDistance(meters, unitSystem, locale),

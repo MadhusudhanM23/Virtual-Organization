@@ -55,7 +55,7 @@ export function AlertToast({ alert, compact = false, onView, onFocus, onDismiss 
           </p>
           <p className="text-sm text-ink-900">
             {t('alert.pair', { forklift, worker })}
-            {' · '}
+            {' Â· '}
             <span className="font-semibold">
               {t('alert.distance', { distance: formatDistance(alert.distanceM, units) })}
             </span>
@@ -130,7 +130,10 @@ export function AlertRegion() {
   };
   const onFocus = (a: ProximityAlert) => {
     focusIncident(overlayFromAlert(a));
-    if (!location.pathname.startsWith('/twin/')) void navigate('/twin/live');
+    // Focus is a live action: from Replay (historical playback) it returns to the live twin.
+    if (!location.pathname.startsWith('/twin/') || location.pathname.startsWith('/twin/replay')) {
+      void navigate('/twin/live');
+    }
   };
   const onDismiss = (a: ProximityAlert) => dismiss(a.key);
 

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { WorldResponse } from '@vo/twin-schema';
 import type {
   NotReconstructed,
   ReconstructedFrom,
@@ -47,8 +48,16 @@ export interface ReplayState {
   cameraPath: CameraPath;
   /** One-shot camera flight to an incident (camera path "incidents"). */
   incidentFocus: { incident: ReplayIncident; nonce: number } | null;
+  /** World model of the site (static structure; names for floors and zones in the inspector). */
+  world: WorldResponse | null;
+  /** Incident shown in the scene (marker + pair); null = the newest open one. */
+  pinnedIncidentId: string | null;
+  /** One-shot camera flight request to a world point (meters). */
+  focusRequest: { x: number; y: number; z: number; nonce: number } | null;
 
   setCameraPath: (path: CameraPath) => void;
+  /** Pins an incident and requests the camera flight to its recorded position. */
+  focusIncident: (incident: ReplayIncident) => void;
   reset: () => void;
 }
 
@@ -69,11 +78,21 @@ export const initialReplayState = {
   advancedByFrames: false,
   cameraPath: 'off' as CameraPath,
   incidentFocus: null,
+  world: null as WorldResponse | null,
+  pinnedIncidentId: null as string | null,
+  focusRequest: null as ReplayState['focusRequest'],
 };
 
 /** Replay UI state. Memory only; reset when the replay route unmounts or the site changes. */
 export const useReplayStore = create<ReplayState>()((set) => ({
   ...initialReplayState,
   setCameraPath: (cameraPath) => set({ cameraPath }),
+  focusIncident: (incident) =>
+    set((s) => ({
+      pinnedIncidentId: incident.id,
+      focusRequest: incident.position
+        ? { ...incident.position, nonce: (s.focusRequest?.nonce ?? 0) + 1 }
+        : s.focusRequest,
+    })),
   reset: () => set(initialReplayState),
 }));

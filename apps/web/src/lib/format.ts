@@ -37,6 +37,30 @@ export function formatDateTime(isoUtc: string, { timeZone, locale }: DateTimeOpt
   }).format(parseInstant(isoUtc));
 }
 
+/** Like {@link formatDateTime} with seconds, e.g. "12 Oct 2026, 15:04:07 GMT+5:30" (replay time, event times). */
+export function formatDateTimeSeconds(isoUtc: string, { timeZone, locale }: DateTimeOptions): string {
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone,
+    timeZoneName: 'short',
+  }).format(parseInstant(isoUtc));
+}
+
+/** Time of day with seconds in the site's time zone, e.g. "15:04:07" (compact lists). */
+export function formatTimeSeconds(isoUtc: string, { timeZone, locale }: DateTimeOptions): string {
+  return new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone,
+  }).format(parseInstant(isoUtc));
+}
+
 export function formatNumber(
   value: number,
   locale: string,

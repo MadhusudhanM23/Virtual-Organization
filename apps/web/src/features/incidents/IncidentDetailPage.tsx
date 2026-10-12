@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Crosshair, OctagonX, ShieldAlert, UserPlus } from 'lucide-react';
+import { ArrowLeft, Crosshair, History, OctagonX, ShieldAlert, UserPlus } from 'lucide-react';
 import { DataModeBadge } from '../../components/DataModeBadge';
 import { EmptyState } from '../../components/EmptyState';
 import { t } from '../../i18n';
@@ -8,6 +8,7 @@ import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useSiteFormat } from '../../lib/useSiteFormat';
 import { LoadState } from '../kpi/parts';
 import { useTwinStore } from '../twin/twinStore';
+import { incidentReplayStart, replayHref } from '../replay/timelineModel';
 import { BUTTON_DANGER, BUTTON_PRIMARY, BUTTON_SECONDARY } from './commandKit';
 import { AssignDialog, LifecycleDialog } from './CommandDialogs';
 import { EstopDialog } from './EstopDialog';
@@ -43,7 +44,7 @@ function EstopHistory({ incident }: { incident: Incident }) {
           <p className="mt-1 text-ink-900">{r.reason}</p>
           <p className="mt-1 text-xs text-ink-600">
             {r.machine_stopped ? String(r.machine_stopped) : t('estop.history.machineNo')}
-            {r.requires_on_site_confirmation ? ` · ${t('estop.result.onSite')}` : ''}
+            {r.requires_on_site_confirmation ? ` Â· ${t('estop.result.onSite')}` : ''}
           </p>
         </li>
       ))}
@@ -140,6 +141,8 @@ function Detail({
   const [done, setDone] = useState<string | null>(null);
   const offered = offeredActions(incident.allowed_actions, perms.canHandle, perms.canEstop);
   const anyAction = offered.lifecycle.length > 0 || offered.assign || offered.estop;
+  // Replay opens 30 s before detection (clamped to the replayable range on the replay page).
+  const replayStart = incidentReplayStart(incident.detected_at, null);
 
   const afterCommand = async (message: string) => {
     setOpen(null);
@@ -165,10 +168,18 @@ function Detail({
           <h1 className="min-w-0 text-2xl font-semibold tracking-tight text-ink-900">
             {incident.title}
           </h1>
-          <button type="button" onClick={focus} className={BUTTON_PRIMARY}>
-            <Crosshair aria-hidden="true" className="size-4" />
-            {t('incident.focus')}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {replayStart !== null ? (
+              <Link to={replayHref(replayStart, incident.id)} className={BUTTON_SECONDARY} data-testid="incident-replay">
+                <History aria-hidden="true" className="size-4" />
+                {t('incident.replay')}
+              </Link>
+            ) : null}
+            <button type="button" onClick={focus} className={BUTTON_PRIMARY}>
+              <Crosshair aria-hidden="true" className="size-4" />
+              {t('incident.focus')}
+            </button>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2" data-testid="incident-badges">
           <SeverityBadge severity={incident.severity} />

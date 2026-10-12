@@ -112,7 +112,8 @@ export class ReplayEngine {
 
   /** Loads the replayable range; then seeks to `initialAt` (clamped) or to the start of the range. */
   async load(siteId: string, initialAt?: (bounds: TimeRange) => number): Promise<void> {
-    this.store.setState({ ...initialReplayState, siteId, rangeStatus: 'loading' });
+    const { world, cameraPath } = this.s;
+    this.store.setState({ ...initialReplayState, world, cameraPath, siteId, rangeStatus: 'loading' });
     let range: ReplayRange;
     try {
       range = await this.api.range(siteId);
@@ -298,10 +299,10 @@ export class ReplayEngine {
     this.registry.apply(items, wallMs, this.reduced());
     const patch: Partial<ReplayState> = { scene: next, advancedByFrames: true };
     const first = changes.newIncidents[0];
-    if (first && this.s.cameraPath === 'incidents') {
-      patch.incidentFocus = { incident: first, nonce: (this.s.incidentFocus?.nonce ?? 0) + 1 };
-    }
+    const fly = first && this.s.cameraPath === 'incidents';
+    if (fly) patch.incidentFocus = { incident: first, nonce: (this.s.incidentFocus?.nonce ?? 0) + 1 };
     this.store.setState(patch);
+    if (fly && first) this.s.focusIncident(first);
   }
 
   /** Buffered frames and coverage (tests). */

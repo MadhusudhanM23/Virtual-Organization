@@ -4,9 +4,17 @@ import { t } from '../../i18n';
 import { ConnectedInspector } from '../../features/twin/Inspector';
 import { ConnectedEventsPanel } from '../../features/live/EventsPanel';
 import { HeatmapPanel, OrderFlowPanel, PerformancePanel } from '../../features/kpi/panels';
+import { ConnectedReplayInspector } from '../../features/replay/ReplayInspector';
+import { useUiStore } from '../../stores/uiStore';
 
 /** Body of a panel: always an empty state until real (seeded/simulated) data exists. */
 export function PanelEmpty({ panel }: { panel: PanelDefinition }) {
+  const lens = useUiStore((s) => s.lens);
+  // REPLAY lens: the inspector shows the replayed entity; the live feed is not mixed into historical playback.
+  if (lens === 'REPLAY' && panel.id === 'inspector') return <ConnectedReplayInspector />;
+  if (lens === 'REPLAY' && panel.id === 'events') {
+    return <p className="p-4 text-sm text-ink-600">{t('replay.events.panel')}</p>;
+  }
   // The inspector is live since Plan 2.4: it shows the entity selected in the twin views.
   if (panel.id === 'inspector') return <ConnectedInspector />;
   // The events feed is live since Plan 3.5 (REST history + WebSocket).

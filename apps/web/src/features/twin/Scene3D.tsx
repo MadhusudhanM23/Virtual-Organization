@@ -50,6 +50,8 @@ export interface Scene3DProps {
   incident?: IncidentOverlay | null;
   /** One-shot cinematic flight to an incident's evidence point. */
   focusRequest?: { x: number; y: number; z: number; nonce: number } | null;
+  /** Scene background; the REPLAY lens tints it so playback never looks like the live view. */
+  background?: string;
 }
 
 const scratch = new Object3D();
@@ -566,6 +568,7 @@ export default function Scene3D(props: Scene3DProps) {
     onTarget,
     incident = null,
     focusRequest = null,
+    background = '#eaeff7',
   } = props;
   const overlay = incident && (!incident.floorId || incident.floorId === floor.id) ? incident : null;
   const pair = useMemo(
@@ -591,7 +594,7 @@ export default function Scene3D(props: Scene3DProps) {
       onPointerMissed={() => onSelect(null)}
       data-testid="twin-canvas"
     >
-      <color attach="background" args={['#eaeff7']} />
+      <color attach="background" args={[background]} />
       <Lights />
       <Structure world={world} floor={floor} />
       <EntityLayers entities={entities} onSelect={onSelect} />
