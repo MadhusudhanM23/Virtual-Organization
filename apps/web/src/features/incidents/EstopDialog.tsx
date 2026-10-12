@@ -161,7 +161,7 @@ export function EstopDialog({ incident, onClose, onRecorded, onConflict }: Estop
       ) : (
         <div className="flex flex-col gap-4" data-testid="estop-result">
           <p role="status" className="text-sm font-semibold text-ink-900">
-            {t('estop.result.title')}
+            {t('estop.result.summary')}
           </p>
           <dl>
             <Row label={t('estop.result.status')}>

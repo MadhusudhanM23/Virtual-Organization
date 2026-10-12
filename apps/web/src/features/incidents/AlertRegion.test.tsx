@@ -51,8 +51,10 @@ describe('AlertRegion', () => {
   it('puts CRITICAL alerts in the assertive alert region with text severity, distance and codes', () => {
     renderRegion();
     act(() => useSafetyStore.getState().ingest(alertEvent('e1', 'CRITICAL')));
-    const region = screen.getByRole('alert', { name: 'Critical safety alerts' });
-    const toast = within(region).getByTestId('proximity-alert');
+    const region = screen.getByTestId('alert-region-critical');
+    expect(region).toHaveAttribute('aria-live', 'assertive');
+    const toast = within(region).getByRole('alert', { name: 'Critical safety alerts' });
+    expect(toast).toHaveAttribute('data-testid', 'proximity-alert');
     expect(toast).toHaveTextContent('Proximity alert: CRITICAL');
     expect(toast).toHaveTextContent('Forklift FL-01 and worker W-03');
     expect(toast).toHaveTextContent('1.3 m apart');

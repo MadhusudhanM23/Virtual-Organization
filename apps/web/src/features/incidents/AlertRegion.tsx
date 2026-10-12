@@ -33,6 +33,8 @@ export function AlertToast({ alert, onView, onFocus, onDismiss }: AlertToastProp
   const worker = alert.workerCode ?? '?';
   return (
     <div
+      role={critical ? 'alert' : undefined}
+      aria-label={critical ? t('alert.region.critical') : undefined}
       data-testid="proximity-alert"
       data-severity={alert.severity}
       className={cn(
@@ -136,7 +138,8 @@ export function AlertRegion() {
       data-testid="alert-region"
       className="pointer-events-none fixed top-20 right-4 z-40 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2"
     >
-      <div role="alert" aria-label={t('alert.region.critical')} className="flex flex-col gap-2">
+      {/* Persistent assertive region (so insertions are announced); each CRITICAL toast is itself role="alert". */}
+      <div aria-live="assertive" data-testid="alert-region-critical" className="flex flex-col gap-2">
         {critical.map(render)}
       </div>
       <div

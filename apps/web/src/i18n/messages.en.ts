@@ -484,6 +484,8 @@ export const messagesEn = {
   'estop.confirmRequired': 'Tick the box to confirm you understand.',
   'estop.submit': 'Record advisory request',
   'estop.result.title': 'Request recorded (advisory)',
+  'estop.result.summary':
+    'The request is recorded for on-site personnel to act on. No machine was stopped by this platform.',
   'estop.result.status': 'Request status',
   'estop.result.machine': 'Machine stopped',
   'estop.result.machineNo': 'No. This platform does not stop machines.',
