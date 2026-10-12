@@ -369,3 +369,23 @@ are committed only after the event is emitted, so a retried delivery re-emits in
 derives from its inputs (equal data mode/source: that value; else `MIXED`/`SYSTEM`), actor `svc:proximity-rule`.
 **Consequences:** single-instance rule state (as the MCD live loop); a person standing still next to a parked forklift never
 alerts (no moving forklift); thresholds are configuration, not a safety claim.
+
+### ADR-42 Incident aggregate: ADR-18 states, alert merge, advisory emergency-stop request — Proposed
+**Context:** REQ-050/051/054 need an incident created from alerts, a lifecycle, evidence and an emergency-stop request, and
+the requested commands (acknowledge, assign, notes, resolve, false-positive, estop-request) do not name the ADR-18 states.
+**Decision (conservative default):** the lifecycle is exactly ADR-18 (`DETECTED -> UNCONFIRMED` automatic, then `CONFIRMED` |
+`REJECTED`, `CONFIRMED -> RESOLVED -> CLOSED`, `REJECTED -> CLOSED`); the API verbs map onto it: **acknowledge = confirm**,
+**false-positive = reject**, plus `resolve` and `close`; `assign` and `notes` are non-state events (allowed while the incident is
+open for assignment, until CLOSED for notes). Illegal transitions are 409; repeating an applied transition is an idempotent
+no-op. Lifecycle, assignment and notes need `HANDLE_SAFETY_INCIDENT` on the incident's site (ADR-20); the emergency-stop
+request needs `EMERGENCY_STOP_REQUEST` (Safety within scope, Warehouse Manager Limited to the own site, ADR-21). Viewing needs
+`VIEW_OPERATIONAL_STATE`. An alert for a pair with an open incident (DETECTED/UNCONFIRMED/CONFIRMED) whose last alert is within
+15 min of event time joins it (alert count, maximum severity, minimum distance, evidence, timeline); otherwise a new incident
+opens. Evidence is links to events, pose snapshots and a camera reference with a focus target; the clip is always
+`NOT_AVAILABLE` (camera feeds are placeholders until Phase 7; nothing is fabricated). The emergency-stop request is an
+**advisory record**: an `INCIDENT_ESTOP_REQUESTED` event, an `inc.estop_requests` row and an audit entry; the result states
+`machine_stopped=false` and `requires_on_site_confirmation=true`; no external control-system stub is connected
+(`delivery=RECORDED_ONLY`) and the simulated forklift is not affected. The REQ-054 path `POST /api/safety/emergency-stop-request`
+takes an `incident_id`; stand-alone requests without an incident are not modeled in Phase 4.
+**Consequences:** a long-running open incident keeps absorbing alerts of its pair for 15 min after each alert; a later alert opens
+a new one. A real control-system integration needs its own ADR and a delivery-status lifecycle.
