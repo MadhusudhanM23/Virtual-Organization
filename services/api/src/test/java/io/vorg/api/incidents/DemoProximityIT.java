@@ -92,7 +92,7 @@ class DemoProximityIT extends AbstractIncidentIT {
         assertThat(plan.get("demo_control").asBoolean()).isTrue();
         assertThat(plan.get("label").asString()).startsWith("DEMO CONTROL");
         assertThat(plan.get("data_mode").asString()).isEqualTo("SYNTHETIC");
-        assertThat(plan.get("steps").asInt()).isEqualTo(5);
+        assertThat(plan.get("steps").asInt()).isEqualTo(6);
         assertThat(plan.get("forklift").get("code").asString()).isEqualTo("FL-08");
 
         // the injected observations are labeled per ADR-19 and attributed to the requesting user
@@ -101,7 +101,7 @@ class DemoProximityIT extends AbstractIncidentIT {
                 from evt.events where payload->>'observation_id' like 'demo-prox-%' and payload->>'entity_code' in
                 ('FL-08', 'W-029')
                 """);
-        assertThat(positions).hasSize(10);
+        assertThat(positions).hasSize(12);
         assertThat(positions).allSatisfy(e -> {
             assertThat(e.get("source")).isEqualTo("SYSTEM");
             assertThat(e.get("data_mode")).isEqualTo("SYNTHETIC");
@@ -179,7 +179,7 @@ class DemoProximityIT extends AbstractIncidentIT {
         assertThat(again.statusCode()).isEqualTo(200);
         assertThat(json(again).get("command_id").asString()).isEqualTo(json(first).get("command_id").asString());
         assertThat(ownerCount("select count(*) from evt.events where payload->>'observation_id' like 'demo-prox-%'"
-                + " and payload->>'entity_code' = 'W-028'")).isEqualTo(5);
+                + " and payload->>'entity_code' = 'W-028'")).isEqualTo(6);
 
         // validation
         assertThat(post("/api/demo/incidents/proximity", wm, body("FL-10", "W-028")).statusCode()).isEqualTo(400);

@@ -33,7 +33,7 @@ import org.springframework.stereotype.Service;
  * Demo control for MCD step 5 (REQ-055, ADR-19, ADR-43): deterministically stages a worker/forklift proximity situation
  * by sending position observations through the same ingest path as every other position source. The worker stays where it
  * is; a forklift approaches it along a straight line from 12 m away (9, 6, 4 m, then the final distance, default 2.0 m)
- * in 1 s steps, so the normal proximity rule fires the alert and the incident follows - nothing is written to the
+ * in 1 s steps and then stops, so the normal proximity rule fires the alert and the incident follows - nothing is written to the
  * alert/incident tables directly. Injected observations are labeled {@code SYNTHETIC} / {@code SYSTEM}, source system
  * {@code SIM-DEMO}, with the requesting user as actor (ADR-19), and the pair is held out of the movement simulation for a
  * while so the staged poses are not overwritten. Only tenants with {@code demo_mode} may use it.
@@ -117,16 +117,19 @@ public class ProximityDemoService {
         String run = Long.toString(Math.abs(Ids.newId().getLeastSignificantBits()), 36);
         Duration interval = props.demo().stepInterval();
         boolean synchronous = interval.isZero();
-        Instant base = clock.instant().truncatedTo(ChronoUnit.MILLIS).minusSeconds(distances.length);
+        Instant base = clock.instant().truncatedTo(ChronoUnit.MILLIS).minusSeconds(distances.length + 1L);
         int firstAlertStep = -1;
-        for (int i = 0; i < distances.length; i++) {
-            if (firstAlertStep < 0 && distances[i] <= threshold) {
+        int total = distances.length + 1; // the forklift stops after the last approach step
+        for (int i = 0; i < total; i++) {
+            double stepDistance = distances[Math.min(i, distances.length - 1)];
+            boolean stop = i == distances.length;
+            if (firstAlertStep < 0 && stepDistance <= threshold) {
                 firstAlertStep = i;
             }
             final int step = i;
-            double fx = worker.x() + direction[0] * distances[i];
-            double fy = worker.y() + direction[1] * distances[i];
-            double speed = i < distances.length - 1 ? 2.0 : 1.0;
+            double fx = worker.x() + direction[0] * stepDistance;
+            double fy = worker.y() + direction[1] * stepDistance;
+            double speed = stop ? 0.0 : i < distances.length - 1 ? 2.0 : 1.0;
             if (synchronous) {
                 send(tenantId, siteId, source, run, step, base.plusSeconds(step + 1L), forklift, worker, fx, fy,
                         heading, speed);
@@ -150,13 +153,13 @@ public class ProximityDemoService {
         plan.put("site_id", siteId.toString());
         plan.put("forklift", Map.of("entity_id", forklift.id().toString(), "code", forklift.code()));
         plan.put("worker", Map.of("entity_id", worker.id().toString(), "code", worker.code()));
-        plan.put("steps", distances.length);
+        plan.put("steps", total);
         plan.put("distances_m", java.util.Arrays.stream(distances).boxed().toList());
         plan.put("final_distance_m", finalM);
         plan.put("threshold_m", threshold);
         plan.put("step_interval_ms", interval.toMillis());
         plan.put("completes", synchronous ? "synchronously" : "within "
-                + (interval.toMillis() * (distances.length - 1)) + " ms");
+                + (interval.toMillis() * (total - 1)) + " ms");
         plan.put("expected_alert_after_ms", synchronous ? 0 : interval.toMillis() * Math.max(0, firstAlertStep));
         plan.put("data_mode", DataMode.SYNTHETIC.name());
         plan.put("source", EventSource.SYSTEM.name());
@@ -172,7 +175,7 @@ public class ProximityDemoService {
                 new Observation("demo-prox-" + run + "-" + step + "-w", worker.id(), at, worker.x(), worker.y(),
                         worker.z(), 0.0, 0.0, "WORKING", 1.0),
                 new Observation("demo-prox-" + run + "-" + step + "-f", forklift.id(), at, fx, fy, forklift.z(),
-                        heading, speed, "MOVING", 1.0)));
+                        heading, speed, speed > 0 ? "MOVING" : "IDLE", 1.0)));
     }
 
     /** The first compass direction from the worker whose start point (12 m away) is inside the floor's bounds. */
