@@ -1,0 +1,98 @@
+@import '@fontsource-variable/inter';
+@import 'tailwindcss';
+@import './tokens.css';
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* One consistent, always-visible keyboard focus indicator (never removed without replacement). */
+  :focus-visible {
+    outline: 2px solid var(--color-accent-500);
+    outline-offset: 2px;
+    border-radius: 0.375rem;
+  }
+
+  .on-navy :focus-visible {
+    outline-color: var(--color-accent-400);
+  }
+}
+
+/* Reduced motion: honoured from the OS preference and from the in-app toggle (html[data-motion]). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html[data-motion='reduced'] *,
+html[data-motion='reduced'] *::before,
+html[data-motion='reduced'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/*
+ * Top bar grid. Narrow: row 1 = menu, context, actions; row 2 = search, status.
+ * Wide (>= 768 px): a single row = context, search, status, actions.
+ */
+.topbar {
+  display: grid;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'menu context actions'
+    'search search status';
+}
+.topbar-menu {
+  grid-area: menu;
+}
+.topbar-context {
+  grid-area: context;
+}
+.topbar-search {
+  grid-area: search;
+}
+.topbar-status {
+  grid-area: status;
+}
+.topbar-actions {
+  grid-area: actions;
+}
+@media (min-width: 48rem) {
+  .topbar {
+    grid-template-columns: minmax(0, 16rem) minmax(0, 1fr) auto auto;
+    grid-template-areas: 'context search status actions';
+    gap: 0.75rem 1rem;
+  }
+}
+
+/* Subtle blueprint grid used behind the (future) digital-twin stage. */
+.stage-grid {
+  background-color: var(--color-surface);
+  background-image:
+    linear-gradient(to right, rgb(36 70 117 / 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(36 70 117 / 0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+}

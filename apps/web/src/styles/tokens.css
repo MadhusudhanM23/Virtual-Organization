@@ -1,0 +1,93 @@
+/*
+ * Design tokens (BLUEPRINT §15). Consumed by Tailwind v4 through @theme, so every token is also a
+ * utility: --color-navy-900 -> bg-navy-900, --color-ink-600 -> text-ink-600, etc.
+ *
+ * Contrast notes (WCAG 2.2 AA, text >= 4.5:1): every *-fg token is paired with its *-bg token and
+ * has been checked at >= 5:1. Status and lens meaning is always carried by text + icon as well as color.
+ */
+@theme {
+  /* Typography */
+  --font-sans:
+    'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  /* Deep navy chrome (sidebar) */
+  --color-navy-950: #071324;
+  --color-navy-900: #0b1b34;
+  --color-navy-800: #102849;
+  --color-navy-700: #17335d;
+  --color-navy-600: #244675;
+  --color-navy-line: #1c3256;
+  --color-navy-text: #b4c0d4;
+  --color-navy-muted: #8da0bd;
+
+  /* Light canvas and surfaces */
+  --color-canvas: #f3f5f9;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #eef1f6;
+  --color-line: #dfe5ee;
+  --color-line-strong: #c9d2e0;
+
+  /* Ink (text) */
+  --color-ink-900: #0f1b2d;
+  --color-ink-700: #2b3a52;
+  --color-ink-600: #44546b;
+  --color-ink-500: #5a6a80;
+  --color-ink-400: #8493a8; /* decorative icons only, never body text */
+
+  /* Accent */
+  --color-accent-50: #eaf1fe;
+  --color-accent-100: #d6e4fd;
+  --color-accent-400: #8bb8ff;
+  --color-accent-500: #3b82f0;
+  --color-accent-600: #1f5fd1;
+  --color-accent-700: #1a4fb0;
+
+  /* Status (info / success / warning / danger) */
+  --color-info-fg: #1a4fb0;
+  --color-info-bg: #eaf1fe;
+  --color-info-line: #a9c6fa;
+  --color-success-fg: #0b6b3a;
+  --color-success-bg: #e3f6ea;
+  --color-success-line: #86d4a3;
+  --color-warning-fg: #7a4a00;
+  --color-warning-bg: #fff1d6;
+  --color-warning-line: #f2c35b;
+  --color-danger-fg: #b42318;
+  --color-danger-bg: #fdecea;
+  --color-danger-line: #f4a79f;
+  --color-neutral-fg: #3f4e66;
+  --color-neutral-bg: #edf0f5;
+  --color-neutral-line: #c3ccdb;
+
+  /* Lenses (ADR-27): LIVE = green, REPLAY = amber, SIMULATE = indigo */
+  --color-lens-live-fg: #0b6b3a;
+  --color-lens-live-bg: #e3f6ea;
+  --color-lens-live-line: #86d4a3;
+  --color-lens-live-solid: #16a34a;
+  --color-lens-replay-fg: #7a4a00;
+  --color-lens-replay-bg: #fff1d6;
+  --color-lens-replay-line: #f2c35b;
+  --color-lens-replay-solid: #d97706;
+  --color-lens-simulate-fg: #4338ca;
+  --color-lens-simulate-bg: #ecebff;
+  --color-lens-simulate-line: #a5a0f5;
+  --color-lens-simulate-solid: #5b4fe0;
+
+  /* Data modes (ADR-27) — distinct from lens colors; always paired with text + icon */
+  --color-mode-simulated-fg: #0e6574;
+  --color-mode-simulated-bg: #e0f4f7;
+  --color-mode-simulated-line: #8fd0da;
+  --color-mode-synthetic-fg: #3f4e66;
+  --color-mode-synthetic-bg: #edf0f5;
+  --color-mode-synthetic-line: #9aa8bf;
+  --color-mode-mixed-fg: #86198f;
+  --color-mode-mixed-bg: #fbeefc;
+  --color-mode-mixed-line: #e3a6e8;
+
+  /* Shape and depth */
+  --radius-card: 0.875rem;
+  --radius-control: 0.625rem;
+  --shadow-card: 0 1px 2px rgb(15 27 45 / 0.04), 0 1px 3px rgb(15 27 45 / 0.06);
+  --shadow-float: 0 12px 32px rgb(7 19 36 / 0.22);
+}
