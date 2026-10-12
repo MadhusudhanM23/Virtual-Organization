@@ -99,6 +99,17 @@ public abstract class AbstractApiIntegrationTest extends AbstractIntegrationTest
         }
     }
 
+    /** Runs an update as the owner role and returns the affected row count. */
+    protected int ownerUpdate(String sql, Object... args) throws Exception {
+        try (Connection owner = POSTGRES.createConnection("");
+                PreparedStatement ps = owner.prepareStatement(sql)) {
+            for (int i = 0; i < args.length; i++) {
+                ps.setObject(i + 1, args[i]);
+            }
+            return ps.executeUpdate();
+        }
+    }
+
     protected long ownerCount(String sql, Object... args) throws Exception {
         return ((Number) ownerQuery(sql, args).get(0).values().iterator().next()).longValue();
     }
