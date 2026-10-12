@@ -1,4 +1,5 @@
-import { Bell, FlaskConical, Menu, Search, WifiOff, Zap, ZapOff } from 'lucide-react';
+import { Bell, FlaskConical, Menu, Search, Zap, ZapOff } from 'lucide-react';
+import { ConnectionIndicator } from '../../features/live/ConnectionIndicator';
 import { SiteSwitcher } from '../../features/org/SiteSwitcher';
 import { UserMenu } from '../../features/auth/UserMenu';
 import { StatusPill } from '../../components/StatusPill';
@@ -65,10 +66,7 @@ export function TopBar() {
             <span className="max-sm:sr-only">{t('auth.demoChip')}</span>
           </StatusPill>
         ) : null}
-        <StatusPill tone="neutral" icon={WifiOff}>
-          {/* Text stays in the accessibility tree; below 640 px only the icon is drawn. */}
-          <span className="max-sm:sr-only">{t('topbar.status.noConnection')}</span>
-        </StatusPill>
+        <ConnectionIndicator />
       </div>
 
       <div className="topbar-actions flex items-center gap-1">

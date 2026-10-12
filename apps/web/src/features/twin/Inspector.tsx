@@ -8,6 +8,8 @@ import { useUiStore } from '../../stores/uiStore';
 import { ENTITY_STYLES } from './sceneModel';
 import { useTwinStore } from './twinStore';
 import { fetchEntityDetail } from './twinApi';
+import { formatAge } from '../live/formatAge';
+import { useNow } from '../live/useNow';
 
 type DetailState =
   { id: string; status: 'ok'; detail: EntityDetail } | { id: string; status: 'failed' };
@@ -26,6 +28,7 @@ export function InspectorBody({ entity, onClear }: { entity: Entity | null; onCl
   const fmt = useSiteFormat();
   const lens = useUiStore((s) => s.lens);
   const [settled, setSettled] = useState<DetailState | null>(null);
+  const now = useNow();
   const id = entity?.id ?? null;
 
   useEffect(() => {
@@ -99,6 +102,13 @@ export function InspectorBody({ entity, onClear }: { entity: Entity | null; onCl
             </Row>
             <Row label={t('twin.inspector.heading')}>{entity.pose.heading_deg.toFixed(0)} deg</Row>
             <Row label={t('twin.inspector.poseTime')}>{fmt.dateTime(entity.pose.occurred_at)}</Row>
+            <Row label={t('live.inspector.lastUpdate')}>
+              <span data-testid="inspector-age">
+                {t('live.freshness.updated', {
+                  age: formatAge(now - Date.parse(entity.pose.occurred_at)),
+                })}
+              </span>
+            </Row>
             <Row label={t('twin.inspector.poseSource')}>
               <span className="mr-2">{entity.pose.source}</span>
               <DataModeBadge dataMode={entity.pose.data_mode} lens={lens} />

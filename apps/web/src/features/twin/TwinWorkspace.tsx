@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Component, lazy, Suspense, type ComponentProps, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Box, CircleAlert, Loader } from 'lucide-react';
 import type { Entity, WorldResponse } from '@vo/twin-schema';
 import { DataModeBadge } from '../../components/DataModeBadge';
@@ -7,8 +7,10 @@ import { t, type MessageId } from '../../i18n';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useReducedMotion } from '../../lib/motion';
 import { useUiStore } from '../../stores/uiStore';
+import { LiveStreamStatus } from '../live/ConnectionIndicator';
+import { useAnimatedEntities, useMergedEntities } from '../live/useLiveEntities';
 import { EntityTable } from './EntityTable';
-import { FloorMap2D } from './FloorMap2D';
+import { FloorMap2D, type FloorMap2DProps } from './FloorMap2D';
 import { Legend } from './Legend';
 import { countByType, entitiesOnFloor, resolveFloor, sortFloors } from './sceneModel';
 import { CameraToolbar, FloorSwitcher, ViewToggle, type ViewMode } from './TwinControls';
@@ -18,6 +20,21 @@ import { isWebGLAvailable } from './webgl';
 
 // three.js is the bulk of the bundle: load it only when a 3D view is actually shown.
 const Scene3D = lazy(() => import('./Scene3D'));
+type Scene3DProps = ComponentProps<typeof Scene3D>;
+
+/** The scene with live poses interpolated; only this subtree re-renders at animation rate. */
+function AnimatedScene3D(props: Scene3DProps) {
+  const entities = useAnimatedEntities(props.entities);
+  const selected = props.selected
+    ? (entities.find((e) => e.id === props.selected?.id) ?? props.selected)
+    : null;
+  return <Scene3D {...props} entities={entities} selected={selected} />;
+}
+
+function AnimatedFloorMap2D(props: FloorMap2DProps) {
+  const entities = useAnimatedEntities(props.entities);
+  return <FloorMap2D {...props} entities={entities} />;
+}
 
 interface BoundaryProps {
   onError: () => void;
@@ -45,6 +62,8 @@ function StatusBlock({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+const NO_ENTITIES: Entity[] = [];
 
 export interface TwinWorkspaceProps {
   titleId: MessageId;
@@ -77,9 +96,11 @@ export function TwinWorkspace({ titleId, descriptionId, defaultView }: TwinWorks
   const panRequest = useTwinStore((s) => s.panRequest);
   const requestPan = useTwinStore((s) => s.requestPan);
   const setEntities = useTwinStore((s) => s.setEntities);
-  const loaded = state.status === 'ready' ? state.entities : null;
+  const restEntities = state.status === 'ready' ? state.entities : NO_ENTITIES;
+  // Newest live pose merged over the REST snapshot (at most once a second); the viewport animates on top of this.
+  const loaded = useMergedEntities(restEntities);
   useEffect(() => {
-    setEntities(loaded ?? []);
+    setEntities(loaded);
   }, [loaded, setEntities]);
 
   const header = (world: WorldResponse | null) => (
@@ -95,6 +116,7 @@ export function TwinWorkspace({ titleId, descriptionId, defaultView }: TwinWorks
           <span className="text-xs text-ink-600">
             {t('twin.world.version', { version: world.world_version.version })}
           </span>
+          <LiveStreamStatus />
         </div>
       ) : null}
     </header>
@@ -151,7 +173,7 @@ export function TwinWorkspace({ titleId, descriptionId, defaultView }: TwinWorks
     <ReadyView
       header={header}
       world={state.world}
-      entities={state.entities}
+      entities={loaded}
       view={sceneFailed || !webgl ? '2d' : view}
       onView={(v) => {
         setSceneFailed(false);
@@ -300,7 +322,7 @@ function ReadyView(p: ReadyProps) {
                   </p>
                 }
               >
-                <Scene3D
+                <AnimatedScene3D
                   world={world}
                   floor={floor}
                   entities={visible}
@@ -314,7 +336,7 @@ function ReadyView(p: ReadyProps) {
               </Suspense>
             </SceneBoundary>
             <div className="absolute right-3 bottom-3 z-10 h-36 w-52 overflow-hidden rounded-control border border-line-strong bg-surface shadow-float">
-              <FloorMap2D
+              <AnimatedFloorMap2D
                 compact
                 floor={floor}
                 zones={world.zones}
@@ -329,7 +351,7 @@ function ReadyView(p: ReadyProps) {
             </div>
           </section>
         ) : (
-          <FloorMap2D
+          <AnimatedFloorMap2D
             floor={floor}
             zones={world.zones}
             racks={world.racks}
