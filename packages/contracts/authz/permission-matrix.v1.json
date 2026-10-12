@@ -1,0 +1,207 @@
+{
+  "$comment": "Single source of truth for the authorization matrix (BLUEPRINT section 4, plus ADR-20 incident handling). Consumed by the Java policy engine (classpath resource authz/permission-matrix.v1.json) and by the UI for hints only; UI hiding is never a control (ADR-06).",
+  "version": 1,
+  "decision_codes": {
+    "ALLOW": "R: allowed within scope",
+    "ALLOW_SUBJECT_TO_POLICY": "R*: allowed within scope but callers must apply approval-class policy",
+    "GATED": "Gate: permitted only as part of the formal approval workflow",
+    "ASSIGNED_ONLY": "Assigned only: current authenticated assignment",
+    "LIMITED": "Limited: Warehouse Manager, own warehouse only (ADR-21)",
+    "DENY": "No: not allowed",
+    "ADMIN_TECH": "Admin-tech: platform/technical resources only, never business data"
+  },
+  "roles": [
+    {
+      "role": "EXECUTIVE",
+      "label": "Executive",
+      "scope": "Global org",
+      "allowed_scope_types": [
+        "ORG"
+      ],
+      "source": "§4"
+    },
+    {
+      "role": "REGIONAL_MANAGER",
+      "label": "Regional Manager",
+      "scope": "Region",
+      "allowed_scope_types": [
+        "REGION"
+      ],
+      "source": "§4"
+    },
+    {
+      "role": "WAREHOUSE_MANAGER",
+      "label": "Warehouse Manager",
+      "scope": "Warehouse",
+      "allowed_scope_types": [
+        "SITE"
+      ],
+      "source": "§4"
+    },
+    {
+      "role": "DRIVER_OPERATOR",
+      "label": "Driver / Operator",
+      "scope": "Assigned tasks/assets",
+      "allowed_scope_types": [
+        "ASSIGNED"
+      ],
+      "source": "§4"
+    },
+    {
+      "role": "ANALYST",
+      "label": "Analyst",
+      "scope": "Assigned org scope",
+      "allowed_scope_types": [
+        "ORG"
+      ],
+      "source": "§4"
+    },
+    {
+      "role": "SAFETY_COMPLIANCE",
+      "label": "Safety / Compliance",
+      "scope": "Assigned sites/org",
+      "allowed_scope_types": [
+        "SITE",
+        "ORG"
+      ],
+      "source": "§4"
+    },
+    {
+      "role": "PLATFORM_ADMIN",
+      "label": "Platform Administrator",
+      "scope": "Platform/tenant configuration",
+      "allowed_scope_types": [
+        "ORG"
+      ],
+      "source": "§4"
+    }
+  ],
+  "actions": [
+    {
+      "action": "VIEW_OPERATIONAL_STATE",
+      "label": "View operational state",
+      "source": "§4",
+      "decisions": {
+        "EXECUTIVE": "ALLOW",
+        "REGIONAL_MANAGER": "ALLOW",
+        "WAREHOUSE_MANAGER": "ALLOW",
+        "DRIVER_OPERATOR": "ALLOW_SUBJECT_TO_POLICY",
+        "ANALYST": "ALLOW",
+        "SAFETY_COMPLIANCE": "ALLOW",
+        "PLATFORM_ADMIN": "ADMIN_TECH"
+      }
+    },
+    {
+      "action": "ANALYZE_QUERY",
+      "label": "Analyze / query",
+      "source": "§4",
+      "decisions": {
+        "EXECUTIVE": "ALLOW",
+        "REGIONAL_MANAGER": "ALLOW",
+        "WAREHOUSE_MANAGER": "ALLOW",
+        "DRIVER_OPERATOR": "DENY",
+        "ANALYST": "ALLOW",
+        "SAFETY_COMPLIANCE": "ALLOW",
+        "PLATFORM_ADMIN": "DENY"
+      }
+    },
+    {
+      "action": "CREATE_SIMULATION",
+      "label": "Create simulation",
+      "source": "§4",
+      "decisions": {
+        "EXECUTIVE": "ALLOW",
+        "REGIONAL_MANAGER": "ALLOW",
+        "WAREHOUSE_MANAGER": "ALLOW",
+        "DRIVER_OPERATOR": "DENY",
+        "ANALYST": "ALLOW",
+        "SAFETY_COMPLIANCE": "ALLOW",
+        "PLATFORM_ADMIN": "DENY"
+      }
+    },
+    {
+      "action": "PROPOSE_RECOMMENDATION",
+      "label": "Propose recommendation",
+      "source": "§4",
+      "decisions": {
+        "EXECUTIVE": "ALLOW",
+        "REGIONAL_MANAGER": "ALLOW",
+        "WAREHOUSE_MANAGER": "ALLOW",
+        "DRIVER_OPERATOR": "DENY",
+        "ANALYST": "ALLOW",
+        "SAFETY_COMPLIANCE": "ALLOW",
+        "PLATFORM_ADMIN": "DENY"
+      }
+    },
+    {
+      "action": "APPROVE_CONSEQUENTIAL_ACTION",
+      "label": "Approve consequential action",
+      "source": "§4",
+      "decisions": {
+        "EXECUTIVE": "ALLOW_SUBJECT_TO_POLICY",
+        "REGIONAL_MANAGER": "ALLOW_SUBJECT_TO_POLICY",
+        "WAREHOUSE_MANAGER": "ALLOW",
+        "DRIVER_OPERATOR": "DENY",
+        "ANALYST": "DENY",
+        "SAFETY_COMPLIANCE": "ALLOW_SUBJECT_TO_POLICY",
+        "PLATFORM_ADMIN": "DENY"
+      }
+    },
+    {
+      "action": "EXECUTE_STANDARD_COMMAND",
+      "label": "Execute standard command",
+      "source": "§4",
+      "decisions": {
+        "EXECUTIVE": "GATED",
+        "REGIONAL_MANAGER": "GATED",
+        "WAREHOUSE_MANAGER": "ALLOW",
+        "DRIVER_OPERATOR": "ASSIGNED_ONLY",
+        "ANALYST": "DENY",
+        "SAFETY_COMPLIANCE": "GATED",
+        "PLATFORM_ADMIN": "DENY"
+      }
+    },
+    {
+      "action": "EMERGENCY_STOP_REQUEST",
+      "label": "Emergency stop request",
+      "source": "§4",
+      "decisions": {
+        "EXECUTIVE": "DENY",
+        "REGIONAL_MANAGER": "DENY",
+        "WAREHOUSE_MANAGER": "LIMITED",
+        "DRIVER_OPERATOR": "DENY",
+        "ANALYST": "DENY",
+        "SAFETY_COMPLIANCE": "ALLOW",
+        "PLATFORM_ADMIN": "DENY"
+      }
+    },
+    {
+      "action": "MANAGE_PLATFORM_CONFIGURATION",
+      "label": "Manage platform configuration",
+      "source": "§4",
+      "decisions": {
+        "EXECUTIVE": "DENY",
+        "REGIONAL_MANAGER": "DENY",
+        "WAREHOUSE_MANAGER": "DENY",
+        "DRIVER_OPERATOR": "DENY",
+        "ANALYST": "DENY",
+        "SAFETY_COMPLIANCE": "DENY",
+        "PLATFORM_ADMIN": "ALLOW"
+      }
+    },
+    {
+      "action": "HANDLE_SAFETY_INCIDENT",
+      "label": "Handle safety incident (confirm/reject/resolve/close)",
+      "source": "ADR-20",
+      "decisions": {
+        "EXECUTIVE": "DENY",
+        "REGIONAL_MANAGER": "DENY",
+        "WAREHOUSE_MANAGER": "ALLOW",
+        "DRIVER_OPERATOR": "DENY",
+        "ANALYST": "DENY",
+        "SAFETY_COMPLIANCE": "ALLOW",
+        "PLATFORM_ADMIN": "DENY"
+      }
+    }
+  ]
+}
