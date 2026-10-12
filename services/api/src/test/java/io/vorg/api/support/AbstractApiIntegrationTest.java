@@ -54,7 +54,7 @@ public abstract class AbstractApiIntegrationTest extends AbstractIntegrationTest
     protected HttpResponse<String> post(String path, String bearer, String json, String... headers) throws Exception {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(json));
+                .POST(HttpRequest.BodyPublishers.ofString(json == null ? "" : json));
         if (bearer != null) {
             b.header("Authorization", "Bearer " + bearer);
         }
@@ -96,6 +96,17 @@ public abstract class AbstractApiIntegrationTest extends AbstractIntegrationTest
                 }
                 return rows;
             }
+        }
+    }
+
+    /** Runs an update as the owner role and returns the affected row count. */
+    protected int ownerUpdate(String sql, Object... args) throws Exception {
+        try (Connection owner = POSTGRES.createConnection("");
+                PreparedStatement ps = owner.prepareStatement(sql)) {
+            for (int i = 0; i < args.length; i++) {
+                ps.setObject(i + 1, args[i]);
+            }
+            return ps.executeUpdate();
         }
     }
 

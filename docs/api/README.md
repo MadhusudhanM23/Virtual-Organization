@@ -49,6 +49,55 @@ All are `GET`, require a bearer token, and authorize `VIEW_OPERATIONAL_STATE` on
 The seeded data behind these endpoints is documented in
 [`docs/scenarios/bengaluru-warehouse-01.md`](../scenarios/bengaluru-warehouse-01.md).
 
+## Implemented: live operations (Phase 3 backend)
+
+All endpoints need a bearer token; the tenant comes from the token. Lists share `{items, next_cursor}` with keyset
+pagination (`?limit=1..500&cursor=`, newest first; an invalid cursor or limit is `400`). Status codes follow ADR-31
+(`404` unknown site or other tenant, `403` known site outside the role or scope). Everything produced by the simulated
+sources is labeled `data_mode: SIMULATED` with its `source_system` (see
+[`docs/scenarios/live-operations.md`](../scenarios/live-operations.md)).
+
+### Events
+
+| Endpoint | Query parameters | Response |
+|---|---|---|
+| `GET /api/events` | `site_id` (required), `event_type` (comma list), `aggregate_type`, `aggregate_id` (entity or task id), `data_mode` (comma list), `source`, `from` (inclusive) / `to` (exclusive) on `occurred_at` (ISO-8601 UTC), `limit`, `cursor` | `{items, next_cursor}` of full event envelopes ([`event-envelope.v1`](../../packages/contracts/schemas/event-envelope.v1.schema.json)): `event_id`, `aggregate_type/id`, `event_type`, `sequence`, `occurred_at`, `ingested_at`, `source`, `data_mode`, `actor_type`, `actor_id`, `location`, `correlation_id`, `causation_id`, `payload`, `confidence` |
+
+Authorization: `VIEW_OPERATIONAL_STATE` on the site (Warehouse Manager, Regional Manager, Executive, Analyst, Safety; not
+Driver/Operator or Platform Administrator). Event types are catalogued in
+[`packages/contracts/events/CATALOG.md`](../../packages/contracts/events/CATALOG.md).
+
+### Tasks
+
+| Endpoint | Notes |
+|---|---|
+| `GET /api/tasks?site_id=` | filters `status` (comma list), `type` (PICK, PUTAWAY, DOCK), `mine=true`, `limit`, `cursor`. A Driver/Operator always gets only the tasks assigned to them |
+| `GET /api/tasks/{id}` | task with `from`/`to` places, assignee (`assigned_entity_code`, `assigned_actor_ref`), `source_system`/`source_record_id`, `allowed_transitions`, `issues` |
+| `POST /api/tasks/{id}/accept`, `start`, `pause`, `resume`, `complete`, `fail`, `cancel` | command; body optional `{"reason": "..."}` (required for `fail`); `Idempotency-Key` required; `200` with the command ack and `result {task_id, previous_status, status, changed, version, event_id, sequence}`; illegal transition `409`; a repeated transition returns `changed: false` |
+| `POST /api/tasks/{id}/issues` | body `{"issue_type": BLOCKED, DAMAGED_GOODS, WRONG_LOCATION, EQUIPMENT_FAULT, SAFETY_CONCERN or OTHER, "description": "..."}`; records a `TASK_ISSUE_REPORTED` event and never changes the task status; `409` on a closed task |
+
+Commands use `EXECUTE_STANDARD_COMMAND` on the task's site: allowed for a Warehouse Manager of the site and for a
+Driver/Operator on tasks assigned to them; denied (and audited) for Analyst, Executive, Regional Manager, Safety and
+Platform Administrator. `cancel` is manager-only. Lifecycle: `ASSIGNED -> ACCEPTED -> STARTED <-> PAUSED -> COMPLETED`,
+with `FAILED` and `CANCELLED` as other terminal states ([ADR-35](../adr/ADR-REGISTER.md)).
+
+### Integration mirrors
+
+| Endpoint | Query parameters | Response |
+|---|---|---|
+| `GET /api/integration/records` | `site_id`, `kind` (ORDER, INVENTORY, SHIPMENT, TASK), `source_system` (`SIM-WMS`, `SIM-TMS`), `limit`, `cursor` | labeled mirrors: `source_record_id`, `source_version`, `source_updated_at`, `revisions`, `data_mode`, `payload` |
+| `GET /api/integration/findings` | `site_id`, `type` (DATA_QUALITY, STALE_VERSION, VERSION_CONFLICT, RECONCILIATION_DIFF), `status`, `limit`, `cursor` | reconciliation differences and data-quality failures with `severity` and `detail` |
+
+### Movement source (simulated)
+
+| Endpoint | Notes |
+|---|---|
+| `GET /api/simulation/movement?site_id=` | status: `running`, `tick_interval_ms`, `time_scale`, `tick`, `entities`, `observations_emitted`, `events_per_second` (last minute), `emit_every_ticks`, `seed`, `source_system: SIM-MOVEMENT`, `data_mode: SIMULATED` |
+| `POST /api/simulation/movement/control` | command (Platform Administrator, `MANAGE_PLATFORM_CONFIGURATION`, `Idempotency-Key`); body `{"site_id", "action": START\|STOP\|CONFIGURE\|STEP, "tick_interval_ms": 100..60000, "time_scale": 0.1..20, "steps": 1..600}` |
+
+Entity poses (`GET /api/twin/entities`, `GET /api/entities/{id}`) are updated from the position events: `pose.source`
+`SIMULATION`, `pose.data_mode` `SIMULATED`, `version` increasing with each applied pose.
+
 ## Planned query endpoints
 
 | Resource | Endpoint | Purpose |
@@ -56,7 +105,6 @@ The seeded data behind these endpoints is documented in
 | Organizations | `GET /api/organizations` | Organization and scope metadata |
 | World state | `GET /api/twin/world` | Current normalized twin state within authorized scope |
 | Entities | `GET /api/entities/{id}` | Canonical entity inspector |
-| Events | `GET /api/events` | Filtered operational history |
 | Incidents | `GET /api/incidents/{id}` | Incident timeline and evidence |
 | Scenarios | `GET /api/scenarios/{id}` | Scenario definition and results |
 | Simulations | `GET /api/simulations/{id}` | Simulation outputs and metrics |
@@ -68,8 +116,6 @@ The seeded data behind these endpoints is documented in
 
 | Command | Endpoint | Rule |
 |---|---|---|
-| Complete task | `POST /api/tasks/{id}/complete` | Only assigned/authorized actor; idempotent |
-| Report issue | `POST /api/tasks/{id}/issues` | Creates incident/issue event; does not silently close the task |
 | Create scenario | `POST /api/scenarios` | Clones baseline and accepts scenario changes |
 | Approve proposal | `POST /api/approvals/{id}/approve` | Checks scope, separation of duties and expiry |
 | Execute proposal | `POST /api/recommendations/{id}/execute` | Checks baseline entity versions and policy versions |

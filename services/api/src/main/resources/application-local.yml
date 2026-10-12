@@ -29,3 +29,14 @@ vo:
     datasource:
       url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:virtual_org}
       password: ${VO_OUTBOX_DB_PASSWORD:vo_outbox_dev_password}
+  # Live (simulated) operations for the demo tenant's Bengaluru site: SIM-WMS/SIM-TMS sync every 15 s and the movement
+  # source ticking every second (see LiveProperties for the rate-control settings). Off in every other profile.
+  live:
+    enabled: true
+    tenant-id: 018f0000-0000-7000-8000-00000000a001
+    site-id: 018f0000-0000-7000-8000-00000000a021
+    operator-actor-ref: 018f0000-0000-7000-8000-00000000a104
+  integration:
+    simulated:
+      # Every 12th batch carries one deliberately invalid inventory record to demonstrate data-quality findings.
+      fault-every: 12

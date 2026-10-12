@@ -255,3 +255,71 @@ role or scope (including Platform Administrator and Driver/Operator): `403`. A k
 An entity of another tenant: `404` (RLS hides it); an entity in an out-of-scope site: `403`.
 **Consequences:** a caller can tell "exists but not yours" from "unknown" only within its own tenant. Revisit if masking
 out-of-scope existence entirely (always 404) is preferred.
+
+### ADR-32 Observation ingestion, late and duplicate observations, pose projection — Proposed
+**Context:** REQ-042 requires one ingestion path (simulated movement now, vision later) that emits position state-delta
+events with per-aggregate sequence and keeps the entity pose projection current without flooding the database.
+**Decision (conservative default):** observations enter through `ObservationIngestService` (never directly into
+`world.entities`). Per batch and transaction: invalid observations are rejected; several observations of one entity collapse
+to the latest by `occurred_at` (counted, not stored); `(source_system, observation_id)` is recorded in
+`world.observation_ledger` so a re-delivered observation produces no second event; each remaining observation becomes one
+`<ENTITY_TYPE>_POSITION_UPDATED` event. A *late* observation (not newer than the newest pose time known at ingest) is still
+recorded, because history is truthful, and flagged `payload.late = true`; the sequence follows arrival order,
+`occurred_at` carries event time. The pose projection is an outbox consumer (`twin.pose-projection`) that updates
+`world.entities` only when `pose_occurred_at < event.occurred_at` and bumps the entity version, so a late or re-delivered
+event can never move a pose backwards. The ledger is pruned after one hour (the event history is the system of record).
+The simulated pose carries `spatial_confidence = 1.0` (exact by construction of the simulation, ADR-30).
+**Consequences:** projected poses lag events by one outbox poll (about 200 ms). Replay (Phase 5) must order position events
+by `occurred_at`, not by sequence, when it reconstructs a pose. A public HTTP ingestion endpoint is deliberately not
+provided in Phase 3 (no human role may assert device positions); Phase 7 adds a service-actor path on the same service.
+
+### ADR-33 Live simulated-operations loop: configuration, rates and ownership — Proposed
+**Context:** simulated adapters and the movement source must run continuously for the demo, at a controllable rate, without
+turning the event store into a firehose.
+**Decision (conservative default):** an in-process loop per API instance, off unless `vo.live.enabled=true` with a configured
+tenant and site (the `local` profile enables it for the demo site; tests and every other profile leave it off).
+Adapter sync: one batch per `vo.live.sync.interval` (15 s). Movement: tick every `tick-interval` (1 s) with a fixed
+simulated `dt = tick-interval x time-scale` (so a seed is reproducible regardless of scheduler jitter); an entity is published
+at most every `emit-every-ticks` (4) ticks and only if it moved `min-move-m` (0.5 m), turned `min-turn-deg` (5 degrees),
+changed status or came to rest, which bounds the load to 46 / 4 = 11.5 events per second (typically 6 to 9). The rate is
+changed at runtime by a Platform-Administrator command (`MANAGE_PLATFORM_CONFIGURATION`, Idempotency-Key, audited).
+**Consequences:** single-writer assumption (one API instance owns the loop; a multi-instance deployment needs leader
+election first). About 0.6 million position events a day at demo scale: size the partition retention (ADR-23) accordingly.
+
+### ADR-34 Integration mirrors, versions and findings — Proposed
+**Context:** REQ-041 requires mirrors that are labeled and never silently overwritten, with reconciliation differences and
+data-quality failures surfaced.
+**Decision (conservative default):** each adapter record is stored in `integ.mirror_records` with `source_system`,
+`source_record_id`, `source_version`, `source_updated_at`, `data_mode` and a content hash; every applied version is kept in
+`integ.mirror_revisions` (append-only). A newer version is applied; the same version with the same hash is a duplicate; the
+same version with different content (`VERSION_CONFLICT`) and an older version (`STALE_VERSION`) leave the mirror unchanged;
+structurally invalid records are rejected (`DATA_QUALITY`); shipments reporting a truck at a dock that the twin does not show
+`OCCUPIED` yield `RECONCILIATION_DIFF`. Findings are unique per (record, version, type) and announced as
+`INTEGRATION_FINDING_RECORDED` events. Source systems are named `SIM-WMS` and `SIM-TMS` (REQ-040); the Phase 2 seed's
+canonical-id mappings keep their original `SIM_WMS`/`SIM_TMS` spelling (a migration of old seed rows is not worth the risk).
+Adapter cursors are persisted per site and source so a restart resumes instead of replaying.
+**Consequences:** findings have no resolve workflow yet (status stays `OPEN`); that belongs with the incident lifecycle.
+
+### ADR-35 Task lifecycle, assignment and authorization — Proposed
+**Context:** REQ-043 defines the task states and the complete/issue commands; the permission matrix gives
+`EXECUTE_STANDARD_COMMAND` to Warehouse Manager (site) and Driver/Operator (assigned only).
+**Decision (conservative default):** tasks are created ASSIGNED by a source record (SIM-WMS) and move only through
+`accept, start, pause, resume, complete, fail, cancel` commands following a fixed state machine (complete requires a started
+task; terminal states are final; a repeat of an applied transition is an idempotent no-op; an illegal one is 409; `fail`
+requires a reason). Every command is a gateway command (Idempotency-Key, audit) authorized with `EXECUTE_STANDARD_COMMAND`
+on the task's site, with the assignee as policy context, so a Driver/Operator can work only tasks assigned to them and a
+Warehouse Manager any task of their site; `cancel` carries no assignment context, so it is manager-only. Issues
+(`POST /api/tasks/{id}/issues`) record a `TASK_ISSUE_REPORTED` event and a row but never change the task status, and are
+rejected on closed tasks. Adapter tasks are assigned to the forklift named by the source and, when
+`vo.live.operator-actor-ref` is set, to that demo operator. Task events keep the task's data mode (SIMULATED) with source API
+and the commanding human as actor.
+**Consequences:** nothing closes simulated tasks automatically, so open tasks accumulate unless operated through the API.
+
+### ADR-36 Events API scope and pagination — Proposed
+**Context:** REQ-045 needs a filtered, paginated, scope-enforced event history that keeps provenance.
+**Decision (conservative default):** `GET /api/events` is site-scoped (`site_id` required, `VIEW_OPERATIONAL_STATE`, ADR-31
+status codes); an event belongs to a site by `location.site_id`, so events without a site location are not listed. Filters are
+exact: event type list, aggregate type, aggregate id, data mode list, source, and an `occurred_at` window (`from` inclusive,
+`to` exclusive). Results are newest first by `(occurred_at, event_id)` with an opaque keyset cursor (stable under concurrent
+writes) and `limit` 1..500. Items are the full event envelope, so provenance is never trimmed.
+**Consequences:** deep history scans are bounded by the partitioned `occurred_at` index; add `from` for old data.
