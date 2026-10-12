@@ -7,6 +7,9 @@ import { defineConfig, devices } from '@playwright/test';
 const PORT = 5191;
 const BASE_URL = `http://localhost:${PORT}`;
 
+// The real API the auth suite (e2e/auth.spec.ts) talks to, through the dev server's /api proxy.
+const API_ORIGIN = process.env.E2E_API_ORIGIN ?? 'http://localhost:8080';
+
 // Chromium only (plan 1.3 task 4: save disk — Firefox/WebKit are not installed in CI images for this repo).
 export default defineConfig({
   testDir: './e2e',
@@ -28,6 +31,7 @@ export default defineConfig({
     command: `npm run dev -- --port ${PORT} --strictPort`,
     url: BASE_URL,
     reuseExistingServer: false,
+    env: { VITE_API_ORIGIN: API_ORIGIN },
     timeout: 60_000,
   },
 });
