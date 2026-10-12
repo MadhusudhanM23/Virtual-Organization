@@ -1,6 +1,7 @@
 import { useEffect, type MouseEvent } from 'react';
 import { Outlet } from 'react-router';
 import { BottomPanel } from './BottomPanel';
+import { LensBanner } from '../../components/LensBanner';
 import { PanelDrawer } from './PanelDrawer';
 import { RightPanel } from './RightPanel';
 import { Sidebar } from './Sidebar';
@@ -26,6 +27,7 @@ export function AppShell() {
   const isDesktop = useIsDesktop();
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const rightPanelCollapsed = useUiStore((s) => s.rightPanelCollapsed);
+  const lens = useUiStore((s) => s.lens);
   const mobileNavOpen = useUiStore((s) => s.mobileNavOpen);
   const setMobileNavOpen = useUiStore((s) => s.setMobileNavOpen);
   useReducedMotionEffects();
@@ -56,6 +58,7 @@ export function AppShell() {
         {skipLink}
         {mobileNavOpen ? <Sidebar variant="drawer" /> : null}
         <TopBar />
+        <LensBanner lens={lens} />
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 pb-16 outline-none">
           <Outlet />
         </main>
@@ -69,13 +72,17 @@ export function AppShell() {
       className="grid h-dvh overflow-hidden"
       style={{
         gridTemplateColumns: `${sidebarCollapsed ? SIDEBAR_WIDTH.collapsed : SIDEBAR_WIDTH.expanded} minmax(0, 1fr) ${rightPanelCollapsed ? RIGHT_WIDTH.collapsed : RIGHT_WIDTH.expanded}`,
-        gridTemplateRows: 'auto minmax(0, 1fr) auto',
-        gridTemplateAreas: '"nav header header" "nav main aside" "nav bottom aside"',
+        gridTemplateRows: 'auto auto minmax(0, 1fr) auto',
+        gridTemplateAreas:
+          '"nav header header" "nav lens lens" "nav main aside" "nav bottom aside"',
       }}
     >
       {skipLink}
       <Sidebar variant="rail" />
       <TopBar />
+      <div style={{ gridArea: 'lens' }}>
+        <LensBanner lens={lens} />
+      </div>
       {/* The center column scrolls on short viewports, so it must be keyboard-focusable (WCAG 2.1.1). */}
       <main
         id="main-content"

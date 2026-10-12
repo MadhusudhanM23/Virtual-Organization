@@ -72,6 +72,31 @@ export const messagesEn = {
   'panel.orderFlow.title': 'Order flow',
   'panel.orderFlow.description': 'Orders from created to delivered, on time versus delayed.',
 
+  // Lens banner (ADR-27: the lens is shown separately from the data mode)
+  'lens.region': 'Active lens',
+  'lens.live.title': 'LIVE lens',
+  'lens.live.detail': 'Current operational state',
+  'lens.replay.title': 'REPLAY — historical playback, not live',
+  'lens.replay.detail': 'Reconstructed from recorded events',
+  'lens.simulate.title': 'SIMULATE — scenario results, not live',
+  'lens.simulate.detail': 'What-if results, kept separate from live state',
+
+  // Data-mode truth labels (ADR-27, BLUEPRINT §22)
+  'dataMode.live': 'LIVE',
+  'dataMode.liveSource': 'LIVE / SOURCE: {source}',
+  'dataMode.simulated': 'SIMULATED',
+  'dataMode.synthetic': 'SYNTHETIC',
+  'dataMode.replay': 'REPLAY',
+  'dataMode.simulation': 'SIMULATION',
+  'dataMode.mixed': 'MIXED',
+  'dataMode.aria.live': 'Data mode: live data',
+  'dataMode.aria.liveSource': 'Data mode: live data from source {source}',
+  'dataMode.aria.simulated': 'Data mode: simulated source',
+  'dataMode.aria.synthetic': 'Data mode: synthetic test data',
+  'dataMode.aria.replay': 'Data mode: replay of historical data, not live',
+  'dataMode.aria.simulation': 'Data mode: simulation result, not live',
+  'dataMode.aria.mixed': 'Data mode: mixed sources, source labels shown per entity or event',
+
   // Mobile drawer
   'drawer.label': 'Context panels',
   'drawer.open': 'Open panels',
