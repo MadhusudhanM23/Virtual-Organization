@@ -12,6 +12,7 @@ import {
   Network,
   Radio,
   Settings,
+  ShieldAlert,
   Sparkles,
   Truck,
   Users,
@@ -68,6 +69,15 @@ export const NAV_ENTRIES: NavEntry[] = [
     descriptionId: 'page.operations.description',
     icon: Activity,
     arrivesInPhase: 3,
+  },
+  {
+    kind: 'item',
+    id: 'incidents',
+    path: '/incidents',
+    labelId: 'nav.incidents',
+    descriptionId: 'page.incidents.description',
+    icon: ShieldAlert,
+    arrivesInPhase: 4,
   },
   {
     kind: 'group',

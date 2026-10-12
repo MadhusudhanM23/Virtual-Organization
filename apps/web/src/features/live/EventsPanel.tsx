@@ -18,6 +18,7 @@ import type { EventEnvelope } from './liveProtocol';
 import { useLiveStore } from './liveStore';
 
 const GROUP_LABEL: Record<EventGroup, MessageId> = {
+  safety: 'live.events.group.safety',
   tasks: 'live.events.group.tasks',
   integration: 'live.events.group.integration',
   site: 'live.events.group.site',

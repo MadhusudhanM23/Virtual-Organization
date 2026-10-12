@@ -10,9 +10,11 @@ import {
   type WorldResponse,
 } from '@vo/twin-schema';
 import { t } from '../../i18n';
+import type { IncidentOverlay } from './twinStore';
 import {
   desiredPose,
   effectiveMode,
+  incidentFocusPose,
   lerpVec,
   moveFraction,
   overviewPose,
@@ -44,6 +46,10 @@ export interface Scene3DProps {
   panRequest: { x: number; y: number; nonce: number } | null;
   /** Reports the orbit target (world meters) so the minimap can show where the camera looks. */
   onTarget?: (x: number, y: number) => void;
+  /** Incident marker and pair highlight (shown when on this floor). */
+  incident?: IncidentOverlay | null;
+  /** One-shot cinematic flight to an incident's evidence point. */
+  focusRequest?: { x: number; y: number; z: number; nonce: number } | null;
 }
 
 const scratch = new Object3D();
@@ -136,14 +142,18 @@ function InstancedLayer({
   );
 }
 
-type LabelTone = 'zone' | 'floor' | 'dock' | 'select';
+type LabelTone = 'zone' | 'floor' | 'dock' | 'select' | 'alert';
 
 const LABEL_STYLE: Record<LabelTone, { bg: string; fg: string; height: number; font: number }> = {
   zone: { bg: 'rgba(255,255,255,0.78)', fg: '#2b3a52', height: 2.6, font: 30 },
   floor: { bg: 'rgba(11,27,52,0.92)', fg: '#ffffff', height: 3.4, font: 32 },
   dock: { bg: 'rgba(255,255,255,0.92)', fg: '#0f1b2d', height: 1.6, font: 30 },
   select: { bg: '#1f5fd1', fg: '#ffffff', height: 1.9, font: 32 },
+  alert: { bg: '#b42318', fg: '#ffffff', height: 1.15, font: 32 },
 };
+
+const INCIDENT_COLOR = '#b42318';
+const PAIR_COLOR = '#e8590c';
 
 /** Text drawn once to a canvas texture and shown as a sprite: no DOM overlay, one cheap draw per label. */
 function Label({
@@ -349,6 +359,54 @@ function SelectionMarker({ entity }: { entity: Entity }) {
   );
 }
 
+/** Orange outline around each entity of the incident pair (shape and label too, so not color alone). */
+function PairHighlight({ entity }: { entity: Entity }) {
+  const spec = useMemo(() => entityInstance(entity), [entity]);
+  return (
+    <group
+      position={[spec.position[0], spec.position[1], spec.position[2]]}
+      rotation={[0, spec.yaw, 0]}
+    >
+      <mesh scale={[spec.scale[0] * 1.35, spec.scale[1] * 1.3, spec.scale[2] * 1.35]}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial visible={false} />
+        <Edges color={PAIR_COLOR} lineWidth={2} />
+      </mesh>
+    </group>
+  );
+}
+
+/** The incident's spatial evidence: a ring on the floor, a beam and a labeled sign above it. */
+function IncidentMarker3D({ overlay, elevation }: { overlay: IncidentOverlay; elevation: number }) {
+  if (!overlay.location) return null;
+  const x = overlay.location.x;
+  const z = -overlay.location.y;
+  const label = t('twin.incident.marker', {
+    severity: overlay.severity,
+    forklift: overlay.forkliftCode ?? '?',
+    worker: overlay.workerCode ?? '?',
+  });
+  return (
+    <group name="incident-marker" position={[x, elevation, z]}>
+      <mesh position={[0, 0.07, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}>
+        <circleGeometry args={[3.2, 48]} />
+        <meshBasicMaterial color={INCIDENT_COLOR} transparent opacity={0.16} depthWrite={false} />
+      </mesh>
+      <mesh position={[0, 0.09, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={6}>
+        <ringGeometry args={[2.8, 3.2, 48]} />
+        <meshBasicMaterial color={INCIDENT_COLOR} transparent opacity={0.95} depthWrite={false} />
+      </mesh>
+      <mesh position={[0, 3.1, 0]}>
+        <cylinderGeometry args={[0.07, 0.07, 6.2, 8]} />
+        <meshBasicMaterial color={INCIDENT_COLOR} />
+      </mesh>
+      <Label tone="alert" position={[0, 7, 0]}>
+        {label}
+      </Label>
+    </group>
+  );
+}
+
 /** Drives camera modes. Reduced motion cuts straight to the target pose; otherwise it eases (no overshoot). */
 function CameraController({
   floor,
@@ -356,6 +414,7 @@ function CameraController({
   mode,
   reducedMotion,
   panRequest,
+  focusRequest,
   onTarget,
 }: {
   floor: Floor;
@@ -363,6 +422,7 @@ function CameraController({
   mode: CameraMode;
   reducedMotion: boolean;
   panRequest: Scene3DProps['panRequest'];
+  focusRequest: Scene3DProps['focusRequest'];
   onTarget: ((x: number, y: number) => void) | undefined;
 }) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
@@ -371,6 +431,7 @@ function CameraController({
   const snapNext = useRef(true);
   const reducedRef = useRef(reducedMotion);
   const lastPan = useRef(0);
+  const lastFocus = useRef(0);
 
   useEffect(() => {
     reducedRef.current = reducedMotion;
@@ -384,12 +445,14 @@ function CameraController({
   const sh = selected?.pose.heading_deg;
 
   useEffect(() => {
-    goal.current = desiredPose(mode, {
+    const next = desiredPose(mode, {
       floorBounds: floor.bounds,
       floorElevation: floor.elevation_m,
       selected,
       aspect,
     });
+    // Explore leaves the camera to the user, but must not cancel a pan or incident flight already under way.
+    if (next !== null || live !== 'explore') goal.current = next;
     invalidate();
     // `selected` is represented by its pose fields: a new object with the same pose must not re-fly the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -412,6 +475,24 @@ function CameraController({
     };
     invalidate();
   }, [panRequest, floor.elevation_m, camera, invalidate]);
+
+  // Cinematic incident focus (REQ-053): fly to the evidence point; reduced motion cuts straight to it.
+  useEffect(() => {
+    if (!focusRequest || focusRequest.nonce === lastFocus.current) return;
+    lastFocus.current = focusRequest.nonce;
+    const c = controls.current;
+    if (snapNext.current && c && !reducedRef.current) {
+      // Fresh scene: start the flight from the floor overview instead of cutting to the close shot.
+      const from = overviewPose(floor.bounds, floor.elevation_m, aspect);
+      camera.position.set(from.position[0], from.position[1], from.position[2]);
+      c.target.set(from.target[0], from.target[1], from.target[2]);
+      c.update();
+      snapNext.current = false;
+    }
+    goal.current = incidentFocusPose(focusRequest, floor.elevation_m);
+    invalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest, floor.id]);
 
   useEffect(() => {
     controls.current?.listenToKeyEvents(gl.domElement);
@@ -483,7 +564,14 @@ export default function Scene3D(props: Scene3DProps) {
     reducedMotion,
     panRequest,
     onTarget,
+    incident = null,
+    focusRequest = null,
   } = props;
+  const overlay = incident && (!incident.floorId || incident.floorId === floor.id) ? incident : null;
+  const pair = useMemo(
+    () => (overlay ? entities.filter((e) => overlay.entityIds.includes(e.id)) : []),
+    [overlay, entities],
+  );
   const initial = useMemo(
     () => overviewPose(floor.bounds, floor.elevation_m),
     [floor.bounds, floor.elevation_m],
@@ -508,12 +596,17 @@ export default function Scene3D(props: Scene3DProps) {
       <Structure world={world} floor={floor} />
       <EntityLayers entities={entities} onSelect={onSelect} />
       {selected ? <SelectionMarker entity={selected} /> : null}
+      {overlay ? <IncidentMarker3D overlay={overlay} elevation={floor.elevation_m} /> : null}
+      {pair.map((e) => (
+        <PairHighlight key={e.id} entity={e} />
+      ))}
       <CameraController
         floor={floor}
         selected={selected}
         mode={cameraMode}
         reducedMotion={reducedMotion}
         panRequest={panRequest}
+        focusRequest={focusRequest}
         onTarget={onTarget}
       />
     </Canvas>

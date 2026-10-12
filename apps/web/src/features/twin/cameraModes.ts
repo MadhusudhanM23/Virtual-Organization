@@ -64,6 +64,20 @@ export function followPose(entity: Entity): CameraPose {
   };
 }
 
+/**
+ * Cinematic incident shot (REQ-053): an elevated three-quarter view from the south-east that frames the spatial
+ * evidence (world point, meters) with room around it for the forklift/worker pair.
+ */
+export function incidentFocusPose(
+  point: { x: number; y: number; z?: number },
+  floorElevation: number,
+): CameraPose {
+  // Poses carry absolute height (z); a missing or ground-level z on an upper floor sits on that floor's slab.
+  const ground = Math.max(point.z ?? 0, floorElevation);
+  const t: Vec3 = [point.x, ground + 0.8, -point.y];
+  return { target: t, position: [t[0] + 14, ground + 21, t[2] + 19] };
+}
+
 export interface PoseContext {
   floorBounds: Bounds | null;
   floorElevation: number;

@@ -5,6 +5,7 @@ import {
   effectiveMode,
   focusPose,
   followPose,
+  incidentFocusPose,
   lerpVec,
   moveFraction,
   overviewPose,
@@ -79,6 +80,36 @@ describe('camera mode logic', () => {
     const eased = moveFraction(false, 0.016);
     expect(eased).toBeGreaterThan(0);
     expect(eased).toBeLessThan(0.2);
+  });
+
+  it('incident focus frames the evidence point from above the south-east, on its floor', () => {
+    const pose = incidentFocusPose({ x: 30, y: 40, z: 0 }, 0);
+    // renderer frame: x = world x, z = -world y.
+    expect(pose.target[0]).toBe(30);
+    expect(pose.target[2]).toBe(-40);
+    expect(pose.position[0]).toBeGreaterThan(30);
+    expect(pose.position[2]).toBeGreaterThan(-40);
+    expect(pose.position[1]).toBeGreaterThan(pose.target[1] + 10);
+    const dist = poseDistance(pose, { position: pose.target, target: pose.target });
+    expect(dist).toBeGreaterThan(15);
+    expect(dist).toBeLessThan(40);
+    // A ground-level z on an upper floor sits on that floor.
+    expect(incidentFocusPose({ x: 1, y: 1, z: 0 }, 6).target[1]).toBeCloseTo(6.8);
+  });
+
+  it('an incident flight eases over several frames, and cuts in one under reduced motion', () => {
+    const from = overviewPose(bounds, 0);
+    const to = incidentFocusPose({ x: 30, y: 40 }, 0);
+    let cur = from;
+    let frames = 0;
+    while (poseDistance(cur, to) > 0.05 && frames < 1000) {
+      const f = moveFraction(false, 1 / 60);
+      cur = { position: lerpVec(cur.position, to.position, f), target: lerpVec(cur.target, to.target, f) };
+      frames += 1;
+    }
+    expect(frames).toBeGreaterThan(30);
+    const f = moveFraction(true, 1 / 60);
+    expect(poseDistance({ position: lerpVec(from.position, to.position, f), target: lerpVec(from.target, to.target, f) }, to)).toBe(0);
   });
 
   it('interpolates and measures poses', () => {

@@ -31,6 +31,14 @@ describe('visibleNavEntries (UX hints from the permission matrix)', () => {
     expect(visible).toEqual(['overview', 'twin-live', 'twin-map', 'settings']);
   });
 
+  it('Incidents: every viewer of operational state except Driver/Operator and Platform Administrator', () => {
+    for (const role of ['EXECUTIVE', 'REGIONAL_MANAGER', 'WAREHOUSE_MANAGER', 'ANALYST', 'SAFETY_COMPLIANCE']) {
+      expect(ids(visibleNavEntries([role]))).toContain('incidents');
+    }
+    expect(ids(visibleNavEntries(['DRIVER_OPERATOR']))).not.toContain('incidents');
+    expect(ids(visibleNavEntries(['PLATFORM_ADMIN']))).not.toContain('incidents');
+  });
+
   it('shows only Overview with no roles', () => {
     expect(ids(visibleNavEntries([]))).toEqual(['overview']);
   });

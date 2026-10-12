@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { apiFetch, refreshAccessToken } from '../../lib/api/client';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useUiStore } from '../../stores/uiStore';
+import { useSafetyStore } from '../incidents/safetyStore';
 import { fetchAllEntities } from '../twin/twinApi';
 import { EVENT_GROUP_TYPES, OPERATIONAL_EVENT_TYPES } from './eventsModel';
 import { LiveClient } from './liveClient';
@@ -10,6 +11,8 @@ import { useLiveStore } from './liveStore';
 import { poseRegistry } from './poseRegistry';
 
 const HISTORY_LIMIT = 100;
+/** Server limit of `event_type` values per `GET /api/events` (EventQueryService.MAX_TYPES). */
+const MAX_TYPES_PER_QUERY = 20;
 
 interface EventsPage {
   items: EventEnvelope[];
@@ -28,13 +31,22 @@ async function loadHistory(siteId: string, includeMovement: boolean): Promise<vo
     const types = includeMovement
       ? [...OPERATIONAL_EVENT_TYPES, ...EVENT_GROUP_TYPES.movement]
       : [...OPERATIONAL_EVENT_TYPES];
-    const qs = new URLSearchParams({
-      site_id: siteId,
-      event_type: types.join(','),
-      limit: String(HISTORY_LIMIT),
-    });
-    const page = await apiFetch<EventsPage>(`/events?${qs.toString()}`);
-    useLiveStore.getState().addEvents(page.items);
+    // GET /api/events accepts at most 20 types per request: query in chunks and merge (the store dedupes and orders).
+    const chunks: string[][] = [];
+    for (let i = 0; i < types.length; i += MAX_TYPES_PER_QUERY) {
+      chunks.push(types.slice(i, i + MAX_TYPES_PER_QUERY));
+    }
+    const pages = await Promise.all(
+      chunks.map((chunk) => {
+        const qs = new URLSearchParams({
+          site_id: siteId,
+          event_type: chunk.join(','),
+          limit: String(HISTORY_LIMIT),
+        });
+        return apiFetch<EventsPage>(`/events?${qs.toString()}`);
+      }),
+    );
+    useLiveStore.getState().addEvents(pages.flatMap((p) => p.items));
     useLiveStore.getState().setHistoryState(false, false);
   } catch {
     useLiveStore.getState().setHistoryState(false, true);
@@ -57,9 +69,11 @@ export function LiveConnector() {
     if (status !== 'authenticated' || !siteId) return undefined;
     const live = useLiveStore.getState();
     live.reset();
+    useSafetyStore.getState().reset();
     poseRegistry.clear();
 
     const resync = () => {
+      useSafetyStore.getState().bumpRevision();
       void loadHistory(siteId, useLiveStore.getState().groups.has('movement'));
       void fetchAllEntities(siteId)
         .then((entities) => {
@@ -82,6 +96,8 @@ export function LiveConnector() {
         if (applied > 0 && first) useLiveStore.getState().notePose(now, first.data_mode);
       } else if (m.type === 'event') {
         useLiveStore.getState().addEvents([m.event]);
+        // Live events only: REST history never raises an alert (it was not "just now").
+        useSafetyStore.getState().ingest(m.event);
       }
     };
 

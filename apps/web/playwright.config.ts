@@ -14,7 +14,8 @@ const API_ORIGIN = process.env.E2E_API_ORIGIN ?? 'http://localhost:8080';
 export default defineConfig({
   testDir: './e2e',
   // The mocked-WebSocket live suite has its own config and port (playwright.live.config.ts, 5193).
-  testIgnore: /live.spec.ts/,
+  // ...and so does the incidents suite (playwright.incidents.config.ts, 5197).
+  testIgnore: /(live|incidents)\.spec\.ts/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

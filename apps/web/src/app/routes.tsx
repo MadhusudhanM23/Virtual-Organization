@@ -7,6 +7,8 @@ import AnalyticsPage from '../features/analytics';
 import AssetsPage from '../features/assets';
 import AssistantPage from '../features/assistant';
 import FleetPage from '../features/fleet';
+import IncidentDetailPage from '../features/incidents/IncidentDetailPage';
+import IncidentsPage from '../features/incidents/IncidentsPage';
 import InventoryPage from '../features/inventory';
 import NotFoundPage from '../features/not-found';
 import OperationsPage from '../features/operations';
@@ -33,6 +35,8 @@ export const routeObjects: RouteObject[] = [
       { path: 'overview', element: <OverviewPage /> },
       { path: 'organization', element: <OrganizationPage /> },
       { path: 'operations', element: <OperationsPage /> },
+      { path: 'incidents', element: <IncidentsPage /> },
+      { path: 'incidents/:id', element: <IncidentDetailPage /> },
       { path: 'twin/live', element: <LiveViewPage /> },
       { path: 'twin/map', element: <MapViewPage /> },
       { path: 'twin/simulation', element: <SimulationPage /> },

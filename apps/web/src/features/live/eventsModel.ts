@@ -2,7 +2,22 @@ import type { Entity } from '@vo/twin-schema';
 import type { EventEnvelope } from './liveProtocol';
 
 /** Filter groups of the live events panel. Movement is off by default: it is by far the busiest stream. */
-export type EventGroup = 'tasks' | 'integration' | 'site' | 'movement';
+export type EventGroup = 'safety' | 'tasks' | 'integration' | 'site' | 'movement';
+
+/** Advisory proximity alerts and the incident lifecycle (Phase 4; packages/contracts/events/CATALOG.md). */
+export const SAFETY_EVENT_TYPES = [
+  'PROXIMITY_ALERT_RAISED',
+  'INCIDENT_DETECTED',
+  'INCIDENT_UNCONFIRMED',
+  'INCIDENT_CONFIRMED',
+  'INCIDENT_REJECTED',
+  'INCIDENT_RESOLVED',
+  'INCIDENT_CLOSED',
+  'INCIDENT_ALERT_LINKED',
+  'INCIDENT_ASSIGNED',
+  'INCIDENT_NOTE_ADDED',
+  'INCIDENT_ESTOP_REQUESTED',
+] as const;
 
 export const TASK_EVENT_TYPES = [
   'TASK_ASSIGNED',
@@ -17,16 +32,24 @@ export const TASK_EVENT_TYPES = [
 ] as const;
 
 export const EVENT_GROUP_TYPES: Record<EventGroup, readonly string[]> = {
+  safety: SAFETY_EVENT_TYPES,
   tasks: TASK_EVENT_TYPES,
   integration: ['MIRROR_RECORD_UPDATED', 'INTEGRATION_FINDING_RECORDED'],
   site: ['SITE_SETTINGS_UPDATED'],
   movement: ['FORKLIFT_POSITION_UPDATED', 'WORKER_POSITION_UPDATED', 'TRUCK_POSITION_UPDATED'],
 };
 
-export const EVENT_GROUPS: readonly EventGroup[] = ['tasks', 'integration', 'site', 'movement'];
+export const EVENT_GROUPS: readonly EventGroup[] = [
+  'safety',
+  'tasks',
+  'integration',
+  'site',
+  'movement',
+];
 
 /** Event types the panel shows by default (everything but movement). */
 export const OPERATIONAL_EVENT_TYPES: readonly string[] = [
+  ...EVENT_GROUP_TYPES.safety,
   ...EVENT_GROUP_TYPES.tasks,
   ...EVENT_GROUP_TYPES.integration,
   ...EVENT_GROUP_TYPES.site,
@@ -78,6 +101,36 @@ export function summarizeEvent(e: EventEnvelope): EventSummary {
       detail: [str(p.entity_code), str(p.status)].filter(Boolean).join(' · ') || null,
       entityId: e.aggregate_id,
       entityCode: str(p.entity_code),
+    };
+  }
+  if (e.event_type === 'PROXIMITY_ALERT_RAISED') {
+    const fl = (p.forklift ?? null) as Record<string, unknown> | null;
+    const wk = (p.worker ?? null) as Record<string, unknown> | null;
+    const d = typeof p.distance_m === 'number' ? `${p.distance_m.toFixed(1)} m` : null;
+    const pair = [str(fl?.code), str(wk?.code)].filter(Boolean).join(' / ');
+    return {
+      title,
+      detail: [str(p.severity), d, pair || null].filter(Boolean).join(' · ') || null,
+      entityId: str(fl?.entity_id),
+      entityCode: str(fl?.code),
+    };
+  }
+  if (group === 'safety') {
+    const fl = (p.forklift ?? null) as Record<string, unknown> | null;
+    const transition =
+      str(p.from_status) && str(p.to_status) ? `${str(p.from_status)} to ${str(p.to_status)}` : null;
+    return {
+      title,
+      detail:
+        [
+          str(p.severity),
+          transition ?? str(p.status) ?? str(p.incident_status),
+          str(p.reason) ?? str(p.text) ?? str(p.target_entity_code),
+        ]
+          .filter(Boolean)
+          .join(' · ') || null,
+      entityId: str(fl?.entity_id),
+      entityCode: str(fl?.code),
     };
   }
   if (e.event_type === 'INTEGRATION_FINDING_RECORDED') {
