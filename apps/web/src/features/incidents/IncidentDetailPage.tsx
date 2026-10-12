@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Crosshair, ShieldAlert, UserPlus } from 'lucide-react';
+import { ArrowLeft, Crosshair, OctagonX, ShieldAlert, UserPlus } from 'lucide-react';
 import { DataModeBadge } from '../../components/DataModeBadge';
 import { EmptyState } from '../../components/EmptyState';
 import { t } from '../../i18n';
@@ -8,8 +8,9 @@ import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useSiteFormat } from '../../lib/useSiteFormat';
 import { LoadState } from '../kpi/parts';
 import { useTwinStore } from '../twin/twinStore';
-import { BUTTON_PRIMARY, BUTTON_SECONDARY } from './commandKit';
+import { BUTTON_DANGER, BUTTON_PRIMARY, BUTTON_SECONDARY } from './commandKit';
 import { AssignDialog, LifecycleDialog } from './CommandDialogs';
+import { EstopDialog } from './EstopDialog';
 import { Card, EvidenceList, NotesSection, Row, TimelineList } from './DetailSections';
 import type { Incident } from './incidentApi';
 import { formatDistance, offeredActions, type LifecycleSpec } from './incidentModel';
@@ -19,7 +20,35 @@ import { AdvisoryNotice, SeverityBadge, StatusBadge } from './parts';
 import { useIncidentDetail } from './useIncidentDetail';
 import { useIncidentPermissions } from './useIncidentPermissions';
 
-type Open = { kind: 'lifecycle'; spec: LifecycleSpec } | { kind: 'assign' } | null;
+type Open = { kind: 'lifecycle'; spec: LifecycleSpec } | { kind: 'assign' } | { kind: 'estop' } | null;
+
+function EstopHistory({ incident }: { incident: Incident }) {
+  const fmt = useSiteFormat();
+  const list = incident.estop_requests ?? [];
+  if (list.length === 0) return <p className="text-sm text-ink-600">{t('estop.history.empty')}</p>;
+  return (
+    <ul className="flex flex-col gap-2" data-testid="estop-history">
+      {list.map((r) => (
+        <li key={r.id} className="rounded-control border border-line p-2.5 text-sm">
+          <p className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-xs font-semibold">{r.target_entity_code ?? '-'}</span>
+            <span className="rounded-md border border-info-line bg-info-bg px-1.5 py-0.5 font-mono text-[0.7rem] text-info-fg">
+              {r.status}
+            </span>
+            <time dateTime={r.created_at} className="ml-auto text-xs text-ink-600">
+              {fmt.dateTime(r.created_at)}
+            </time>
+          </p>
+          <p className="mt-1 text-ink-900">{r.reason}</p>
+          <p className="mt-1 text-xs text-ink-600">
+            {r.machine_stopped ? String(r.machine_stopped) : t('estop.history.machineNo')}
+            {r.requires_on_site_confirmation ? ` · ${t('estop.result.onSite')}` : ''}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function EntityButton({
   label,
@@ -104,7 +133,7 @@ function Detail({
   const [open, setOpen] = useState<Open>(null);
   const [done, setDone] = useState<string | null>(null);
   const offered = offeredActions(incident.allowed_actions, perms.canHandle, perms.canEstop);
-  const anyAction = offered.lifecycle.length > 0 || offered.assign;
+  const anyAction = offered.lifecycle.length > 0 || offered.assign || offered.estop;
 
   const afterCommand = async (message: string) => {
     setOpen(null);
@@ -181,6 +210,19 @@ function Detail({
                   {t('incident.assign.open')}
                 </button>
               ) : null}
+              {offered.estop ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDone(null);
+                    setOpen({ kind: 'estop' });
+                  }}
+                  className={`${BUTTON_DANGER} sm:ml-auto`}
+                >
+                  <OctagonX aria-hidden="true" className="size-4" />
+                  {t('estop.open')}
+                </button>
+              ) : null}
             </div>
           ) : (
             <p className="text-sm text-ink-600">
@@ -242,6 +284,9 @@ function Detail({
               onShow={showEntity}
             />
           </Card>
+          <Card title={t('incident.section.estop')} testId="incident-estops">
+            <EstopHistory incident={incident} />
+          </Card>
           <Card title={t('incident.section.notes')} testId="incident-notes">
             <NotesSection
               incident={incident}
@@ -271,6 +316,14 @@ function Detail({
           onClose={() => setOpen(null)}
           onConflict={() => void detail.reload()}
           onDone={(spec) => void afterCommand(t('incident.done', { action: t(spec.labelId) }))}
+        />
+      ) : null}
+      {open?.kind === 'estop' ? (
+        <EstopDialog
+          incident={incident}
+          onClose={() => setOpen(null)}
+          onConflict={() => void detail.reload()}
+          onRecorded={() => void detail.reload()}
         />
       ) : null}
       {open?.kind === 'assign' ? (

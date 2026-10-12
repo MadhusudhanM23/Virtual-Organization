@@ -95,6 +95,20 @@ beforeEach(() => {
       calls.push({ url, method, headers: (init?.headers ?? {}) as Record<string, string>, body });
       if (method === 'POST') {
         if (commandStatus !== 200) return json(commandStatus, { title: 'Conflict', detail: 'Illegal transition' });
+        if (url.endsWith('/estop-request')) {
+          return json(200, {
+            command_id: 'c',
+            status: 'SUCCEEDED',
+            correlation_id: 'x',
+            result: {
+              request_status: 'REQUESTED_ADVISORY',
+              requires_on_site_confirmation: true,
+              machine_stopped: false,
+              target_entity_code: 'FL-01',
+              advisory_notice: 'Advisory request only. It does not stop any machine.',
+            },
+          });
+        }
         current = incident({ status: 'CONFIRMED', allowed_actions: ['resolve', 'assign', 'estop-request', 'notes'] });
         return json(200, { command_id: 'c', status: 'SUCCEEDED', correlation_id: 'x', result: {} });
       }
@@ -184,6 +198,33 @@ describe('IncidentDetailPage', () => {
     );
     expect(await screen.findByTestId('command-error')).toHaveTextContent('changed in the meantime');
     await vi.waitFor(() => expect(reads()).toBeGreaterThan(before));
+  });
+
+  it('advisory e-stop: two deliberate steps, then the advisory response', async () => {
+    setRoles('SAFETY_COMPLIANCE');
+    renderPage();
+    await screen.findByRole('heading', { level: 1 });
+    await userEvent.click(screen.getByRole('button', { name: 'Request emergency stop (advisory)' }));
+    let dialog = screen.getByTestId('estop-dialog');
+    expect(within(dialog).getByTestId('estop-explanation')).toHaveTextContent('does NOT stop any machine');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
+    expect(within(dialog).getByText('A reason is required.')).toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText('Reason'), 'Worker in aisle');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
+    dialog = screen.getByTestId('estop-dialog');
+    expect(dialog).toHaveTextContent('Step 2 of 2');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Record advisory request' }));
+    expect(within(dialog).getByText('Tick the box to confirm you understand.')).toBeInTheDocument();
+    expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0);
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /does not stop FL-01/ }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Record advisory request' }));
+    const result = await screen.findByTestId('estop-result');
+    expect(result).toHaveTextContent('REQUESTED_ADVISORY');
+    expect(result).toHaveTextContent('No. This platform does not stop machines.');
+    const post = calls.find((c) => c.method === 'POST')!;
+    expect(post.url).toBe(`/api/incidents/${ID}/estop-request`);
+    expect(post.body).toEqual({ reason: 'Worker in aisle', entity_id: 'fl-1' });
+    expect(post.headers['Idempotency-Key']).toBeTruthy();
   });
 
   it('a 403 is reported plainly', async () => {
