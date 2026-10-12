@@ -15,7 +15,6 @@ import io.vorg.api.twin.ObservationIngestService.IngestResult;
 import io.vorg.api.twin.ObservationIngestService.IngestSource;
 import io.vorg.api.twin.ObservationIngestService.Observation;
 import io.vorg.api.twin.ZoneLocator;
-import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.time.Clock;
 import java.time.Duration;
@@ -35,6 +34,8 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
@@ -137,10 +138,15 @@ public class MovementSourceRunner {
         this.timeScale = live.movement().timeScale();
     }
 
-    @PostConstruct
+    /** After the demo and world seeders (application runners) have finished, so the twin has its entities. */
+    @EventListener(ApplicationReadyEvent.class)
     void autostart() {
         if (live.enabled() && live.movement().autostart() && configured()) {
-            start();
+            try {
+                start();
+            } catch (RuntimeException ex) {
+                LOG.warn("Movement source not started: {}", ex.toString());
+            }
         }
     }
 
