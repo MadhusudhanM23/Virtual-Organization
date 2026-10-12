@@ -18,6 +18,7 @@
   <description>Root aggregator for the Virtual Organization digital-twin platform (ADR-15).</description>
 
   <modules>
+    <module>services/simulation</module>
     <module>services/api</module>
   </modules>
 
