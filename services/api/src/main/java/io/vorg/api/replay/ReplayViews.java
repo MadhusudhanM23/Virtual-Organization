@@ -62,6 +62,17 @@ public final class ReplayViews {
     public record Content(UUID siteId, Instant at, UUID floorId, Recorded recorded, List<EntityView> entities,
             Summary<TaskView> tasks, Summary<IncidentView> incidents, List<AlertView> alerts) {}
 
+    /**
+     * The content as hashed: the recorded context's {@code recorded_at} names the base snapshot, which is an input of the
+     * reconstruction, not part of the reconstructed state, so it is left out and the hash is the same for any base.
+     */
+    public static Content hashable(Content c) {
+        Recorded r = c.recorded();
+        return new Content(c.siteId(), c.at(), c.floorId(),
+                new Recorded(null, r.replayTreatment(), r.worldVersion(), r.docks()), c.entities(), c.tasks(),
+                c.incidents(), c.alerts());
+    }
+
     public static Content content(ReplayReducer reducer, ReplayReducer.Fold fold, UUID siteId, Instant at,
             UUID floorId, RecordedContext recorded) {
         List<EntityView> entities = new ArrayList<>();
