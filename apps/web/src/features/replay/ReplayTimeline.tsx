@@ -204,7 +204,8 @@ export function ReplayTimeline({ engine, markers }: ReplayTimelineProps) {
       </div>
 
       <div className="px-2">
-        <div className="relative h-5" aria-label={t('replay.markers.label')} role="group">
+        {/* Two rows: incidents above, alerts below, so an incident and its alert at the same instant never overlap. */}
+        <div className="relative h-10" aria-label={t('replay.markers.label')} role="group">
           {placed.map((m) => {
             const Icon = m.kind === 'incident' ? OctagonAlert : TriangleAlert;
             const mIso = toIso(m.at);
@@ -224,8 +225,10 @@ export function ReplayTimeline({ engine, markers }: ReplayTimelineProps) {
                 })}
                 title={`${m.label} - ${fmt.timeSeconds(mIso)}`}
                 className={cn(
-                  'absolute top-0 grid size-5 -translate-x-1/2 place-items-center rounded-full border bg-surface shadow-card hover:z-10 hover:scale-110',
-                  m.kind === 'incident' ? 'border-danger-line text-danger-fg' : 'border-warning-line text-warning-fg',
+                  'absolute grid size-5 -translate-x-1/2 place-items-center rounded-full border bg-surface shadow-card hover:z-10 hover:scale-110',
+                  m.kind === 'incident'
+                    ? 'top-0 border-danger-line text-danger-fg'
+                    : 'top-5 border-warning-line text-warning-fg',
                 )}
                 style={{ left: `${fractionOf(m.at, bounds) * 100}%` }}
               >

@@ -171,13 +171,15 @@ describe('ReplayEngine', () => {
 });
 
 describe('REPLAY lens', () => {
-  beforeEach(() => useUiStore.setState({ lens: 'LIVE' }));
+  beforeEach(() => useUiStore.setState({ lens: 'LIVE', bottomPanelCollapsed: false }));
 
-  it('switches the lens to REPLAY while mounted and back to LIVE on leave', () => {
+  it('switches the lens to REPLAY while mounted and back to LIVE on leave (live KPI row folded meanwhile)', () => {
     const { unmount } = renderHook(() => useReplayLens());
     expect(useUiStore.getState().lens).toBe('REPLAY');
+    expect(useUiStore.getState().bottomPanelCollapsed).toBe(true);
     unmount();
     expect(useUiStore.getState().lens).toBe('LIVE');
+    expect(useUiStore.getState().bottomPanelCollapsed).toBe(false);
   });
 
   it('the replay scene ignores live poses (the live registry is not the replay registry)', async () => {

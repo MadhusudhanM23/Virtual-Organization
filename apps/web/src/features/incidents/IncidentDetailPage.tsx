@@ -44,7 +44,7 @@ function EstopHistory({ incident }: { incident: Incident }) {
           <p className="mt-1 text-ink-900">{r.reason}</p>
           <p className="mt-1 text-xs text-ink-600">
             {r.machine_stopped ? String(r.machine_stopped) : t('estop.history.machineNo')}
-            {r.requires_on_site_confirmation ? ` Â· ${t('estop.result.onSite')}` : ''}
+            {r.requires_on_site_confirmation ? ` · ${t('estop.result.onSite')}` : ''}
           </p>
         </li>
       ))}

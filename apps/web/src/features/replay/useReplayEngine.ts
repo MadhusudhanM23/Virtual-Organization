@@ -6,14 +6,21 @@ import type { TimeRange } from './timelineModel';
 
 /**
  * The REPLAY lens while the replay route is mounted (ADR-27): the shell banner and every truth label switch to
- * REPLAY; leaving the route returns to LIVE.
+ * REPLAY; leaving the route returns to LIVE. The bottom row holds live KPI panels, which replay does not reconstruct:
+ * it is collapsed while replaying (the user can reopen it) and restored on leave.
  */
 export function useReplayLens(): void {
-  const setLens = useUiStore((s) => s.setLens);
   useEffect(() => {
-    setLens('REPLAY');
-    return () => setLens('LIVE');
-  }, [setLens]);
+    const ui = useUiStore.getState();
+    const bottomWasCollapsed = ui.bottomPanelCollapsed;
+    ui.setLens('REPLAY');
+    if (!bottomWasCollapsed) ui.toggleBottomPanel();
+    return () => {
+      const now = useUiStore.getState();
+      now.setLens('LIVE');
+      if (!bottomWasCollapsed && now.bottomPanelCollapsed) now.toggleBottomPanel();
+    };
+  }, []);
 }
 
 /**

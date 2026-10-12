@@ -15,7 +15,8 @@ export default defineConfig({
   testDir: './e2e',
   // The mocked-WebSocket live suite has its own config and port (playwright.live.config.ts, 5193).
   // ...and so does the incidents suite (playwright.incidents.config.ts, 5197).
-  testIgnore: /(live|incidents)\.spec\.ts/,
+  // ...and so does the replay suite (playwright.replay.config.ts, 5199).
+  testIgnore: /(live|incidents|replay)\.spec\.ts/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

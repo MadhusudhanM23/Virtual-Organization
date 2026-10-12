@@ -55,7 +55,7 @@ export function AlertToast({ alert, compact = false, onView, onFocus, onDismiss 
           </p>
           <p className="text-sm text-ink-900">
             {t('alert.pair', { forklift, worker })}
-            {' Â· '}
+            {' · '}
             <span className="font-semibold">
               {t('alert.distance', { distance: formatDistance(alert.distanceM, units) })}
             </span>
