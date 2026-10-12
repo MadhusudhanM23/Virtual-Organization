@@ -170,7 +170,13 @@ export interface FloorSlab {
 export function floorSlab(floor: Floor): FloorSlab {
   const s = boundsSize(floor.bounds);
   const c = worldToRenderer({ x: s.cx, y: s.cy, z: floor.elevation_m });
-  return { id: floor.id, name: floor.name, center: [c.x, c.y, c.z], width: s.width, depth: s.depth };
+  return {
+    id: floor.id,
+    name: floor.name,
+    center: [c.x, c.y, c.z],
+    width: s.width,
+    depth: s.depth,
+  };
 }
 
 export interface ZonePatch {
@@ -236,7 +242,11 @@ export function rackBodies(racks: readonly Rack[], floor: Floor): InstanceSpec[]
   return racks
     .filter((r) => r.floor_id === floor.id)
     .map((r) => {
-      const p = worldToRenderer({ x: r.position.x, y: r.position.y, z: r.position.z + r.height_m / 2 });
+      const p = worldToRenderer({
+        x: r.position.x,
+        y: r.position.y,
+        z: r.position.z + r.height_m / 2,
+      });
       return {
         id: r.id,
         position: [p.x, p.y, p.z],

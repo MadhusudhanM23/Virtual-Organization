@@ -1,22 +1,21 @@
 import { create } from 'zustand';
-import type { EntityType } from '@vo/twin-schema';
+import type { Entity, EntityType } from '@vo/twin-schema';
 import type { CameraMode } from './cameraModes';
 
-export type ViewMode = '3d' | '2d';
-
 export interface TwinViewState {
-  view: ViewMode;
   /** Chosen by the user; null = first floor of the world. */
   floorId: string | null;
   selectedEntityId: string | null;
+  /** Entities of the loaded site (shared so the shell's inspector panel can resolve the selection). */
+  entities: Entity[];
   cameraMode: CameraMode;
   hiddenTypes: EntityType[];
   /** One-shot request from the minimap/2D map: move the camera target to this world point (meters). */
   panRequest: { x: number; y: number; nonce: number } | null;
 
-  setView: (view: ViewMode) => void;
   setFloorId: (id: string | null) => void;
   select: (id: string | null) => void;
+  setEntities: (entities: Entity[]) => void;
   setCameraMode: (mode: CameraMode) => void;
   toggleType: (type: EntityType) => void;
   requestPan: (x: number, y: number) => void;
@@ -24,9 +23,9 @@ export interface TwinViewState {
 }
 
 const initial = {
-  view: '3d' as ViewMode,
   floorId: null,
   selectedEntityId: null,
+  entities: [] as Entity[],
   cameraMode: 'overview' as CameraMode,
   hiddenTypes: [] as EntityType[],
   panRequest: null,
@@ -34,7 +33,7 @@ const initial = {
 
 export const useTwinStore = create<TwinViewState>()((set) => ({
   ...initial,
-  setView: (view) => set({ view }),
+  setEntities: (entities) => set({ entities }),
   setFloorId: (floorId) => set({ floorId, selectedEntityId: null }),
   select: (selectedEntityId) =>
     set((s) => ({
@@ -52,6 +51,10 @@ export const useTwinStore = create<TwinViewState>()((set) => ({
         ? s.hiddenTypes.filter((x) => x !== type)
         : [...s.hiddenTypes, type],
     })),
-  requestPan: (x, y) => set((s) => ({ panRequest: { x, y, nonce: (s.panRequest?.nonce ?? 0) + 1 } })),
+  requestPan: (x, y) =>
+    set((s) => ({
+      cameraMode: 'explore',
+      panRequest: { x, y, nonce: (s.panRequest?.nonce ?? 0) + 1 },
+    })),
   reset: () => set(initial),
 }));
