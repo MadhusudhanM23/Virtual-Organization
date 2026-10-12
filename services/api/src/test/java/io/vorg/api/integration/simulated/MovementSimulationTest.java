@@ -71,6 +71,26 @@ class MovementSimulationTest {
     }
 
     @Test
+    void aPlacedEntityStaysPutDuringTheHoldAndThenResumes() {
+        List<Spec> all = specs();
+        MovementSimulation sim = new MovementSimulation(11, GRAPH, all);
+        UUID forklift = all.stream().filter(s -> s.type().equals("FORKLIFT")).findFirst().orElseThrow().id();
+        sim.place(forklift, 12.5, 33.0, 90.0, "MOVING", 20.0);
+        for (int i = 0; i < 30; i++) { // 15 s of simulated time, inside the 20 s hold
+            State s = sim.step(0.5).stream().filter(x -> x.id().equals(forklift)).findFirst().orElseThrow();
+            assertThat(s.x()).isEqualTo(12.5);
+            assertThat(s.y()).isEqualTo(33.0);
+            assertThat(s.speedMps()).isZero();
+        }
+        boolean moved = false;
+        for (int i = 0; i < 400 && !moved; i++) { // after the hold it wanders again from the placed pose
+            State s = sim.step(0.5).stream().filter(x -> x.id().equals(forklift)).findFirst().orElseThrow();
+            moved = s.x() != 12.5 || s.y() != 33.0;
+        }
+        assertThat(moved).isTrue();
+    }
+
+    @Test
     void differentSeedsYieldDifferentTrajectories() {
         assertThat(run(42, 300, 0.5)).isNotEqualTo(run(43, 300, 0.5));
     }

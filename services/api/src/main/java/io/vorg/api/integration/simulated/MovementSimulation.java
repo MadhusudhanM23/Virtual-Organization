@@ -146,6 +146,28 @@ public final class MovementSimulation {
         startLeg(m);
     }
 
+    /**
+     * Puts a forklift or worker at a pose and keeps it there for {@code holdSeconds} (status {@code status}), then it
+     * resumes wandering from there. Used by the demo controls so a staged situation does not teleport afterwards. No
+     * effect on trucks or unknown ids.
+     */
+    public void place(UUID entityId, double x, double y, double headingDeg, String status, double holdSeconds) {
+        Mover m = byId.get(entityId);
+        if (m == null || "TRUCK".equals(m.spec.type())) {
+            return;
+        }
+        m.waypoints.clear();
+        m.x = x;
+        m.y = y;
+        m.heading = headingDeg;
+        m.speed = 0;
+        m.status = status;
+        m.phase = Phase.DWELL;
+        m.dwellLeft = Math.max(0.0, holdSeconds);
+        m.arrivalStatus = null;
+        m.arrivalDwell = 0;
+    }
+
     // ---- behaviour ----
 
     private void initTruck(Mover m) {

@@ -389,3 +389,20 @@ opens. Evidence is links to events, pose snapshots and a camera reference with a
 takes an `incident_id`; stand-alone requests without an incident are not modeled in Phase 4.
 **Consequences:** a long-running open incident keeps absorbing alerts of its pair for 15 min after each alert; a later alert opens
 a new one. A real control-system integration needs its own ADR and a delivery-status lifecycle.
+
+### ADR-43 Demo control for the proximity situation: gating, authorization, provenance — Proposed
+**Context:** MCD step 5 needs "trigger a worker/forklift proximity observation" on demand (REQ-055, ADR-19). ADR-19 (Accepted)
+says: demo tenants only, any user with *View operational state* on the site, injected data `SYNTHETIC` / source `SYSTEM`,
+actor = requesting user, audited. A Platform Administrator has no business-data authority (ADR-06) yet administers demos.
+**Decision (conservative default):** `POST /api/demo/incidents/proximity` is a command (Idempotency-Key, audited allowed/denied/
+failed). It is rejected with 403 unless the tenant has `demo_mode`. It is authorized with `VIEW_OPERATIONAL_STATE` on the site
+(ADR-19); a caller who fails that check is re-evaluated as `MANAGE_PLATFORM_CONFIGURATION` (so a Platform Administrator may use it
+as technical configuration, as for the movement-source control) and otherwise denied. It does not write alerts or incidents: it
+sends position observations (source system `SIM-DEMO`, `SYNTHETIC`/`SYSTEM`, actor HUMAN = requester) through the ordinary
+ingest path - a forklift approaching a stationary worker from 12 m along a straight line (9, 6, 4 m, then a final distance below
+the threshold, default 2.0 m), 1 s apart - so the proximity rule, incident creation, WebSocket fan-out and audit all run the
+real code. The staged pair is held out of the movement simulation for 90 s and parked in it at the final poses so the
+simulation neither overwrites nor teleports them. The alert and incident derived from it are therefore `SYNTHETIC` (not
+`SIMULATED`), which the UI shows as the data-mode label. Repeated triggers on one pair within the cooldown/merge windows join the
+open incident; other `forklift_code`/`worker_code` give a new incident.
+**Consequences:** the control cannot fabricate an incident without the rule firing; it can only move two twin entities.
