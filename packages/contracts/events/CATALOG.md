@@ -16,6 +16,8 @@ Every event type must be listed here **before** any code emits it. The envelope 
 | event_type | aggregate_type | Emitted by | Payload summary | Replay-authoritative | Phase |
 |---|---|---|---|---|---|
 | `SITE_SETTINGS_UPDATED` | `SITE` | API, site settings command (Plan 1.5) | `{ changed_fields: string[], new_values: { <field>: value } }`; fields are `time_zone`, `locale`, `currency`, `unit_system`; `source=HUMAN`, `data_mode=LIVE`, sequenced per site | n | 1 |
+| `MIRROR_RECORD_UPDATED` | `MIRROR_RECORD` | API, integration mirror (Plan 3.1) | `{ source_system, record_kind, source_record_id, source_version, change: CREATED/UPDATED, content_hash }`; `source=SIMULATION`, `data_mode=SIMULATED` for SIM-WMS/SIM-TMS, actor `svc:adapter:<source_system>`, `occurred_at` = source timestamp, sequenced per mirror record | n | 3 |
+| `INTEGRATION_FINDING_RECORDED` | `INTEGRATION_FINDING` | API, integration mirror (Plan 3.1) | `{ finding_type: DATA_QUALITY/STALE_VERSION/VERSION_CONFLICT/RECONCILIATION_DIFF, severity, source_system, record_kind, source_record_id, source_version, detail }`; same provenance as above | n | 3 |
 
 "Replay-authoritative" follows blueprint section 7: only the listed MVP domains (entity positions, task and incident
 lifecycle, scenario lifecycle, approvals and commands) are rebuilt from events during replay.
