@@ -121,6 +121,7 @@ public class MovementSourceRunner {
     private Instant lastOccurredAt = Instant.EPOCH;
     private Instant startedAt;
     private final Map<UUID, String> dispatchedTargets = new HashMap<>();
+    private final Map<UUID, Instant> held = new HashMap<>();
     private final Deque<long[]> recent = new ArrayDeque<>(); // {wall millis, emitted count}
 
     public MovementSourceRunner(LiveProperties live, JdbcClient jdbc, JsonMapper mapper, ZoneLocator zones,
@@ -212,12 +213,31 @@ public class MovementSourceRunner {
         return status();
     }
 
+    /** A pose to hold an entity at (demo controls). */
+    public record HoldPose(UUID entityId, double x, double y, double headingDeg, String status) {}
+
+    /**
+     * Stops publishing the given entities for {@code duration} and parks them in the simulation at the given poses, so
+     * observations injected for them (the demo proximity situation) are not interleaved with the wandering simulation and
+     * the entities do not jump afterwards. A no-op for the simulation when it has not been started.
+     */
+    public synchronized void hold(List<HoldPose> poses, Duration duration) {
+        Instant until = clock.instant().plus(duration);
+        for (HoldPose p : poses) {
+            held.put(p.entityId(), until);
+            if (sim != null) {
+                sim.place(p.entityId(), p.x(), p.y(), p.headingDeg(), p.status(), duration.toMillis() / 1000.0);
+            }
+        }
+    }
+
     /** Forgets the simulation so the next start re-reads the current poses from the twin. */
     public synchronized void reset() {
         stop();
         sim = null;
         policy = null;
         dispatchedTargets.clear();
+        held.clear();
     }
 
     public synchronized Status status() {
@@ -284,6 +304,11 @@ public class MovementSourceRunner {
         redirectToTasks();
         double dt = tickIntervalMs / 1000.0 * timeScale;
         List<State> selected = policy.select(tick, sim.step(dt));
+        if (!held.isEmpty()) {
+            Instant now = clock.instant();
+            held.values().removeIf(until -> !until.isAfter(now));
+            selected = selected.stream().filter(s -> !held.containsKey(s.id())).toList();
+        }
         if (!selected.isEmpty()) {
             Instant at = clock.instant().truncatedTo(ChronoUnit.MICROS);
             if (!at.isAfter(lastOccurredAt)) {

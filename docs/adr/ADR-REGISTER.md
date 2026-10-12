@@ -353,3 +353,56 @@ history-based analytics (series, heatmap, order flow) need `ANALYZE_QUERY` (so D
 menu (`15m`, `1h`, `6h`, `24h`, `7d`). The heatmap bins `*_POSITION_UPDATED` events of one floor into square cells (1..25 m,
 at most 20000 cells); order flow counts SIM-WMS order revisions per status per bucket and shows the current backlog and shipments.
 **Consequences:** each read scans site rows; fine for the MCD volumes, revisit with materialized aggregates if dashboards get slow.
+
+### ADR-41 Proximity rule: pure detector, hysteresis, cooldown, immediate advisory alert — Proposed
+**Context:** REQ-050 needs a worker/forklift proximity rule whose alert is never delayed by confirmation, must not storm, and
+must be reproducible for replay and tests. The blueprint gives no threshold ("demo thresholds are configuration examples").
+**Decision (conservative default):** the rule is a pure class (`ProximityDetector`, no clock, no I/O) driven by an outbox
+consumer (`safety.proximity-rule`) of `FORKLIFT_/WORKER_POSITION_UPDATED`; the alert is a domain event `PROXIMITY_ALERT_RAISED`
+(aggregate `PROXIMITY_ALERT`) emitted in the handler's transaction, so it is committed, fanned out to the WebSocket and listed in
+`/api/events` like any event, and an incident follows from it through a second consumer. Defaults (`vo.safety.proximity.*`, all
+demo examples, not safety limits): threshold 3.0 m planar distance on the same floor, forklift moving at 0.3 m/s or more,
+hysteresis 1.0 m (pair is apart again at 4.0 m), cooldown 20 s of **event time** between alerts of one pair, one `ESCALATION`
+alert (CRITICAL) at 1.5 m, poses older than 10 s relative to the evaluated event are ignored. Pair state changes after an alert
+are committed only after the event is emitted, so a retried delivery re-emits instead of losing the alert. Poses live in memory
+(one per entity); a restart rebuilds them from new events and the age limit prevents stale pairings. The alert's provenance
+derives from its inputs (equal data mode/source: that value; else `MIXED`/`SYSTEM`), actor `svc:proximity-rule`.
+**Consequences:** single-instance rule state (as the MCD live loop); a person standing still next to a parked forklift never
+alerts (no moving forklift); thresholds are configuration, not a safety claim.
+
+### ADR-42 Incident aggregate: ADR-18 states, alert merge, advisory emergency-stop request — Proposed
+**Context:** REQ-050/051/054 need an incident created from alerts, a lifecycle, evidence and an emergency-stop request, and
+the requested commands (acknowledge, assign, notes, resolve, false-positive, estop-request) do not name the ADR-18 states.
+**Decision (conservative default):** the lifecycle is exactly ADR-18 (`DETECTED -> UNCONFIRMED` automatic, then `CONFIRMED` |
+`REJECTED`, `CONFIRMED -> RESOLVED -> CLOSED`, `REJECTED -> CLOSED`); the API verbs map onto it: **acknowledge = confirm**,
+**false-positive = reject**, plus `resolve` and `close`; `assign` and `notes` are non-state events (allowed while the incident is
+open for assignment, until CLOSED for notes). Illegal transitions are 409; repeating an applied transition is an idempotent
+no-op. Lifecycle, assignment and notes need `HANDLE_SAFETY_INCIDENT` on the incident's site (ADR-20); the emergency-stop
+request needs `EMERGENCY_STOP_REQUEST` (Safety within scope, Warehouse Manager Limited to the own site, ADR-21). Viewing needs
+`VIEW_OPERATIONAL_STATE`. An alert for a pair with an open incident (DETECTED/UNCONFIRMED/CONFIRMED) whose last alert is within
+15 min of event time joins it (alert count, maximum severity, minimum distance, evidence, timeline); otherwise a new incident
+opens. Evidence is links to events, pose snapshots and a camera reference with a focus target; the clip is always
+`NOT_AVAILABLE` (camera feeds are placeholders until Phase 7; nothing is fabricated). The emergency-stop request is an
+**advisory record**: an `INCIDENT_ESTOP_REQUESTED` event, an `inc.estop_requests` row and an audit entry; the result states
+`machine_stopped=false` and `requires_on_site_confirmation=true`; no external control-system stub is connected
+(`delivery=RECORDED_ONLY`) and the simulated forklift is not affected. The REQ-054 path `POST /api/safety/emergency-stop-request`
+takes an `incident_id`; stand-alone requests without an incident are not modeled in Phase 4.
+**Consequences:** a long-running open incident keeps absorbing alerts of its pair for 15 min after each alert; a later alert opens
+a new one. A real control-system integration needs its own ADR and a delivery-status lifecycle.
+
+### ADR-43 Demo control for the proximity situation: gating, authorization, provenance — Proposed
+**Context:** MCD step 5 needs "trigger a worker/forklift proximity observation" on demand (REQ-055, ADR-19). ADR-19 (Accepted)
+says: demo tenants only, any user with *View operational state* on the site, injected data `SYNTHETIC` / source `SYSTEM`,
+actor = requesting user, audited. A Platform Administrator has no business-data authority (ADR-06) yet administers demos.
+**Decision (conservative default):** `POST /api/demo/incidents/proximity` is a command (Idempotency-Key, audited allowed/denied/
+failed). It is rejected with 403 unless the tenant has `demo_mode`. It is authorized with `VIEW_OPERATIONAL_STATE` on the site
+(ADR-19); a caller who fails that check is re-evaluated as `MANAGE_PLATFORM_CONFIGURATION` (so a Platform Administrator may use it
+as technical configuration, as for the movement-source control) and otherwise denied. It does not write alerts or incidents: it
+sends position observations (source system `SIM-DEMO`, `SYNTHETIC`/`SYSTEM`, actor HUMAN = requester) through the ordinary
+ingest path - a forklift approaching a stationary worker from 12 m along a straight line (9, 6, 4 m, then a final distance below
+the threshold, default 2.0 m), 1 s apart - so the proximity rule, incident creation, WebSocket fan-out and audit all run the
+real code. The staged pair is held out of the movement simulation for 90 s and parked in it at the final poses so the
+simulation neither overwrites nor teleports them. The alert and incident derived from it are therefore `SYNTHETIC` (not
+`SIMULATED`), which the UI shows as the data-mode label. Repeated triggers on one pair within the cooldown/merge windows join the
+open incident; other `forklift_code`/`worker_code` give a new incident.
+**Consequences:** the control cannot fabricate an incident without the rule firing; it can only move two twin entities.

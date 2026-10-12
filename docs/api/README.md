@@ -112,6 +112,39 @@ rows; a KPI that cannot be computed has `value: null` and a `reason` (never an i
 | `GET /api/analytics/heatmap?site_id=&floor_id=&window=&cell_size=&entity_type=` | `ANALYZE_QUERY` | grid `cols, rows, cell_size_m` and non-empty `cells[{col,row,min_x,min_y,max_x,max_y,count,entities}]` from position events; `floor_id` defaults to the lowest floor, `cell_size` 1..25 m (default 5), optional `entity_type`; `data_mode` is derived from the events (SIMULATED for the simulator) |
 | `GET /api/analytics/order-flow?site_id=&window=` | `ANALYZE_QUERY` | `buckets[{start,end,inbound{released,in_progress,completed},outbound{...}}]` from SIM-WMS order revisions, `backlog[{order_type,status,count}]`, `shipments[{direction,state,count}]` (SIM-TMS), `data_mode`, `reason` |
 
+## Implemented: incidents and safety (Phase 4, plans 4.1 and 4.2)
+
+Everything here is **advisory**: the platform is not a safety-rated function and never stops a machine (ADR-05). Thresholds
+are demo examples (ADR-41). Decisions: ADR-41 (proximity rule), ADR-42 (incident aggregate, e-stop), ADR-43 (demo control).
+
+**Flow.** `FORKLIFT_/WORKER_POSITION_UPDATED` events (any source) -> rule `safety.proximity-rule` -> `PROXIMITY_ALERT_RAISED`
+(immediate, `observation_status=UNCONFIRMED`) -> consumer `incidents.from-alerts` -> incident `DETECTED` then automatically
+`UNCONFIRMED` (a repeated alert of the same pair within 15 min joins the open incident and emits `INCIDENT_ALERT_LINKED`).
+All of these events carry `location.site_id`, so they reach `/ws/live` subscribers of the site (no `event_types` filter, or list
+them) and `GET /api/events`. Payload shapes: `packages/contracts/events/CATALOG.md`.
+
+Lifecycle (ADR-18): `DETECTED -> UNCONFIRMED -> CONFIRMED | REJECTED`, `CONFIRMED -> RESOLVED -> CLOSED`, `REJECTED -> CLOSED`.
+`acknowledge` = confirm, `false-positive` = reject. Illegal moves are `409`; repeating an applied move is a no-op (`changed:false`).
+
+| Endpoint | Auth | Notes |
+|---|---|---|
+| `GET /api/incidents?site_id=` | `VIEW_OPERATIONAL_STATE` on the site | filters `status` (comma list), `severity` (comma list: LOW, MEDIUM, HIGH, CRITICAL), `from`, `to` (ISO-8601 UTC, on `detected_at`), `limit`, `cursor`; newest first; `{items, next_cursor}` |
+| `GET /api/incidents/{id}` | same | incident: `status`, `severity`, `title`, `forklift`/`worker` `{entity_id, code}`, `floor_id`, `zone_id`, `zone_name`, `location {x,y,z}`, `camera {entity_id, code, focus_target {x,y,z}, clip {available:false, status:"NOT_AVAILABLE", note}}` (absent when the floor has no camera), `min_distance_m`, `alert_count`, `detected_at`, `last_alert_at`, `assigned_actor_ref`, `status_reason`, `data_mode`, `source`, `confidence`, `version`, timestamps, `allowed_actions[]`, `advisory`, `advisory_notice`, `notes[]`, `estop_requests[]` |
+| `GET /api/incidents/{id}/timeline` | same | `{incident_id, items[{sequence, event_id, event_type, occurred_at, summary, actor_type, actor_id, source, data_mode, payload}], next_cursor}` ordered by `sequence`; `limit` (1..500, default 200), `cursor` |
+| `GET /api/incidents/{id}/evidence` | same | `{incident_id, advisory, clip_notice, items[{id, kind, ref_key, occurred_at, detail}]}`; kinds `EVENT_LINK` (alert + the two triggering position events), `POSE_SNAPSHOT` (forklift and worker pose with `data_mode`/`source`), `CAMERA_REFERENCE` (camera, its position, `focus_target`, `clip.available=false`: **no video exists**, placeholder camera) |
+| `POST /api/incidents/{id}/acknowledge` | `HANDLE_SAFETY_INCIDENT` | command (`Idempotency-Key`); body optional `{"reason"}` |
+| `POST /api/incidents/{id}/false-positive` | `HANDLE_SAFETY_INCIDENT` | body `{"reason"}` required |
+| `POST /api/incidents/{id}/resolve` | `HANDLE_SAFETY_INCIDENT` | body `{"reason"}` required; only from CONFIRMED |
+| `POST /api/incidents/{id}/close` | `HANDLE_SAFETY_INCIDENT` | from RESOLVED or REJECTED |
+| `POST /api/incidents/{id}/assign` | `HANDLE_SAFETY_INCIDENT` | body `{"assignee_actor_ref", "note"?}`; open incidents (UNCONFIRMED, CONFIRMED) |
+| `POST /api/incidents/{id}/notes` | `HANDLE_SAFETY_INCIDENT` | body `{"text"}` (1..1000); until CLOSED |
+| `POST /api/incidents/{id}/estop-request` and `POST /api/safety/emergency-stop-request` (body adds `incident_id`) | `EMERGENCY_STOP_REQUEST` (Safety on their sites/org; Warehouse Manager Limited to the own site) | body `{"reason", "entity_id"?}` (entity must be the incident's forklift or worker; default the forklift). **Advisory**: result `request_status: REQUESTED_ADVISORY`, `requires_on_site_confirmation: true`, `machine_stopped: false`, `advisory_notice`; recorded as `INCIDENT_ESTOP_REQUESTED` + audit, delivery `RECORDED_ONLY` (no control system is connected). Open incidents only |
+| `POST /api/demo/incidents/proximity` | demo tenants only (`demo_mode`, else `403`); `VIEW_OPERATIONAL_STATE` on the site, or Platform Administrator (ADR-43) | **DEMO CONTROL** command (`Idempotency-Key`); body `{"site_id", "forklift_code"?, "worker_code"?, "final_distance_m"? (0.5 .. below 3.0, default 2.0)}` (defaults: first forklift by code and the first worker on its floor). Stages a forklift approaching the worker from 12 m through the normal observation ingest (source system `SIM-DEMO`, `data_mode=SYNTHETIC`, `source=SYSTEM`, actor = the caller); the rule then raises `PROXIMITY_ALERT_RAISED` (about 4 s after the call with the default 1 s step, `vo.safety.demo.step-interval`) and the incident follows. Result: `{demo_control:true, label, forklift, worker, steps, distances_m, step_interval_ms, expected_alert_after_ms, data_mode, ...}`. The pair is held out of the movement simulation for 90 s |
+
+Authorization uses the incident's own site (never client input). Viewing: Executive, Regional (own region), Warehouse Manager (own
+site), Analyst, Safety; Driver/Operator and Platform Administrator get `403`; other tenants' incidents are `404`. Handling
+(`HANDLE_SAFETY_INCIDENT`): Safety and Warehouse Manager (own site) only. Every command and denial is audited.
+
 ## Planned query endpoints
 
 | Resource | Endpoint | Purpose |
@@ -119,7 +152,6 @@ rows; a KPI that cannot be computed has `value: null` and a `reason` (never an i
 | Organizations | `GET /api/organizations` | Organization and scope metadata |
 | World state | `GET /api/twin/world` | Current normalized twin state within authorized scope |
 | Entities | `GET /api/entities/{id}` | Canonical entity inspector |
-| Incidents | `GET /api/incidents/{id}` | Incident timeline and evidence |
 | Scenarios | `GET /api/scenarios/{id}` | Scenario definition and results |
 | Simulations | `GET /api/simulations/{id}` | Simulation outputs and metrics |
 | Recommendations | `GET /api/recommendations/{id}` | Decision package and evidence |
@@ -133,7 +165,6 @@ rows; a KPI that cannot be computed has `value: null` and a `reason` (never an i
 | Create scenario | `POST /api/scenarios` | Clones baseline and accepts scenario changes |
 | Approve proposal | `POST /api/approvals/{id}/approve` | Checks scope, separation of duties and expiry |
 | Execute proposal | `POST /api/recommendations/{id}/execute` | Checks baseline entity versions and policy versions |
-| Emergency request | `POST /api/safety/emergency-stop-request` | Advisory software command; the external safety system owns the physical stop |
 
 These endpoints are a baseline, not a commitment: each is built in the phase that owns it (see
 [`.gsd/ROADMAP.md`](../../.gsd/ROADMAP.md)), and this table is updated as they land.

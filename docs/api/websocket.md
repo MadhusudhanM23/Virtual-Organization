@@ -42,6 +42,14 @@ Filters: `floor_id` and `bbox` (site frame, meters) apply to position events; `e
 * `ping` (every 15 s, with `expires_at`): reply `{"type":"pong"}` (any client message resets the 45 s idle timer).
 * `error`, `subscribed`, `unsubscribed`, `ready`, `reauthenticated` as above.
 
+## Safety and incident events
+`PROXIMITY_ALERT_RAISED` (aggregate `PROXIMITY_ALERT`) and the `INCIDENT_*` events (`INCIDENT_DETECTED`, `INCIDENT_UNCONFIRMED`,
+`INCIDENT_ALERT_LINKED`, `INCIDENT_CONFIRMED`, `INCIDENT_REJECTED`, `INCIDENT_RESOLVED`, `INCIDENT_CLOSED`, `INCIDENT_ASSIGNED`,
+`INCIDENT_NOTE_ADDED`, `INCIDENT_ESTOP_REQUESTED`) are ordinary non-pose events with a `location.site_id`: they arrive as `event`
+messages on any subscription of the site without an `event_types` filter, or when listed in `event_types`. The alert is pushed
+as soon as it is committed (`observation_status=UNCONFIRMED`, `payload.advisory=true`); the incident events follow within a
+poll interval. Payloads: `packages/contracts/events/CATALOG.md`; all are advisory and carry `data_mode`/`source` truth labels.
+
 ## Close codes
 `4400` protocol error (bad JSON, oversize frame >8 KiB), `4401` authentication failed/expired, `4408` no auth within 5 s,
 `4409` idle, `4429` slow consumer / send failure. Delivery is at-most-once per connection; after any reconnect or `gap` the
