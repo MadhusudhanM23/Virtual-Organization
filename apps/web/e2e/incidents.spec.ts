@@ -246,6 +246,8 @@ test.describe('Incident detail', () => {
     const { api } = await open(page, `/incidents/${INCIDENT_ID}`);
     await page.getByRole('button', { name: 'Request emergency stop (advisory)' }).click();
     const dialog = page.getByTestId('estop-dialog');
+    // A real modal (top layer, inert background, focus inside).
+    await expect(page.locator('dialog:modal')).toHaveCount(1);
     await expect(dialog.getByTestId('estop-explanation')).toContainText('does NOT stop any machine');
     await dialog.getByLabel('Reason').fill('Worker in the forklift aisle');
     await dialog.getByRole('button', { name: 'Continue' }).click();

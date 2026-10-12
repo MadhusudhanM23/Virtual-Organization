@@ -18,6 +18,8 @@ export interface SafetyState extends AlertState {
   /** Feed one LIVE (WebSocket) event. REST history must not be fed here: it never raises an alert. */
   ingest: (e: EventEnvelope, now?: number) => void;
   dismiss: (key: string, now?: number) => void;
+  /** The user opened this incident: its alert has done its job (a later escalation still shows). */
+  dismissIncident: (incidentId: string, now?: number) => void;
   /** The stream may have missed events (reconnect or gap): incident views re-read. */
   bumpRevision: () => void;
   reset: () => void;
@@ -40,6 +42,11 @@ export const useSafetyStore = create<SafetyState>()((set) => ({
       };
     }),
   dismiss: (key, now = Date.now()) => set((s) => dismissAlert(s, key, now)),
+  dismissIncident: (incidentId, now = Date.now()) =>
+    set((s) => {
+      const alert = s.alerts.find((a) => a.incidentId === incidentId);
+      return alert ? dismissAlert(s, alert.key, now) : s;
+    }),
   bumpRevision: () => set((s) => ({ incidentRevision: s.incidentRevision + 1 })),
   reset: () => set({ ...EMPTY_ALERTS, incidentRevision: 0, touchedIncidents: [] }),
 }));

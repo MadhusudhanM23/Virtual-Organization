@@ -396,11 +396,11 @@ function IncidentMarker3D({ overlay, elevation }: { overlay: IncidentOverlay; el
         <ringGeometry args={[2.8, 3.2, 48]} />
         <meshBasicMaterial color={INCIDENT_COLOR} transparent opacity={0.95} depthWrite={false} />
       </mesh>
-      <mesh position={[0, 2.4, 0]}>
-        <cylinderGeometry args={[0.07, 0.07, 4.8, 8]} />
+      <mesh position={[0, 3.1, 0]}>
+        <cylinderGeometry args={[0.07, 0.07, 6.2, 8]} />
         <meshBasicMaterial color={INCIDENT_COLOR} />
       </mesh>
-      <Label tone="alert" position={[0, 5.4, 0]}>
+      <Label tone="alert" position={[0, 7, 0]}>
         {label}
       </Label>
     </group>

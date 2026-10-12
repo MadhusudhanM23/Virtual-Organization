@@ -11,6 +11,8 @@ import { useLiveStore } from './liveStore';
 import { poseRegistry } from './poseRegistry';
 
 const HISTORY_LIMIT = 100;
+/** Server limit of `event_type` values per `GET /api/events` (EventQueryService.MAX_TYPES). */
+const MAX_TYPES_PER_QUERY = 20;
 
 interface EventsPage {
   items: EventEnvelope[];
@@ -29,13 +31,22 @@ async function loadHistory(siteId: string, includeMovement: boolean): Promise<vo
     const types = includeMovement
       ? [...OPERATIONAL_EVENT_TYPES, ...EVENT_GROUP_TYPES.movement]
       : [...OPERATIONAL_EVENT_TYPES];
-    const qs = new URLSearchParams({
-      site_id: siteId,
-      event_type: types.join(','),
-      limit: String(HISTORY_LIMIT),
-    });
-    const page = await apiFetch<EventsPage>(`/events?${qs.toString()}`);
-    useLiveStore.getState().addEvents(page.items);
+    // GET /api/events accepts at most 20 types per request: query in chunks and merge (the store dedupes and orders).
+    const chunks: string[][] = [];
+    for (let i = 0; i < types.length; i += MAX_TYPES_PER_QUERY) {
+      chunks.push(types.slice(i, i + MAX_TYPES_PER_QUERY));
+    }
+    const pages = await Promise.all(
+      chunks.map((chunk) => {
+        const qs = new URLSearchParams({
+          site_id: siteId,
+          event_type: chunk.join(','),
+          limit: String(HISTORY_LIMIT),
+        });
+        return apiFetch<EventsPage>(`/events?${qs.toString()}`);
+      }),
+    );
+    useLiveStore.getState().addEvents(pages.flatMap((p) => p.items));
     useLiveStore.getState().setHistoryState(false, false);
   } catch {
     useLiveStore.getState().setHistoryState(false, true);

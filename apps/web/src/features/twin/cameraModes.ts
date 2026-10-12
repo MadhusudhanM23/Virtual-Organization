@@ -75,7 +75,7 @@ export function incidentFocusPose(
   // Poses carry absolute height (z); a missing or ground-level z on an upper floor sits on that floor's slab.
   const ground = Math.max(point.z ?? 0, floorElevation);
   const t: Vec3 = [point.x, ground + 0.8, -point.y];
-  return { target: t, position: [t[0] + 11, ground + 17, t[2] + 15] };
+  return { target: t, position: [t[0] + 14, ground + 21, t[2] + 19] };
 }
 
 export interface PoseContext {

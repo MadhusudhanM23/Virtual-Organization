@@ -19,13 +19,15 @@ function severityText(severity: string): string {
 
 export interface AlertToastProps {
   alert: ProximityAlert;
+  /** Older alerts in the stack: title, pair, labels and actions only (the advisory line stays on the newest). */
+  compact?: boolean;
   onView: (alert: ProximityAlert) => void;
   onFocus: (alert: ProximityAlert) => void;
   onDismiss: (alert: ProximityAlert) => void;
 }
 
 /** One proximity alert. Severity is text + icon + border weight, never color alone. */
-export function AlertToast({ alert, onView, onFocus, onDismiss }: AlertToastProps) {
+export function AlertToast({ alert, compact = false, onView, onFocus, onDismiss }: AlertToastProps) {
   const units = useSiteFormat().unitSystem;
   const critical = alert.severity === 'CRITICAL';
   const Icon = critical ? OctagonAlert : TriangleAlert;
@@ -72,12 +74,17 @@ export function AlertToast({ alert, onView, onFocus, onDismiss }: AlertToastProp
         <DataModeBadge dataMode={alert.dataMode} />
         <span>{t('alert.unconfirmed')}</span>
         {alert.count > 1 ? <span>{t('alert.repeats', { count: alert.count })}</span> : null}
-        {alert.cameraCode ? <span>{t('alert.camera', { code: alert.cameraCode })}</span> : null}
+        {alert.cameraCode && !compact ? (
+          <span>{t('alert.camera', { code: alert.cameraCode })}</span>
+        ) : null}
+        {compact ? <span className="font-semibold">{t('safety.advisory.short')}</span> : null}
       </div>
-      <p className="mt-2 text-xs text-ink-600">
-        <span className="font-semibold">{t('safety.advisory.short')}.</span>{' '}
-        {alert.advisoryNotice ?? t('safety.advisory.notice')}
-      </p>
+      {compact ? null : (
+        <p className="mt-2 text-xs text-ink-600">
+          <span className="font-semibold">{t('safety.advisory.short')}.</span>{' '}
+          {alert.advisoryNotice ?? t('safety.advisory.notice')}
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap gap-2">
         <button
           type="button"
@@ -129,14 +136,22 @@ export function AlertRegion() {
 
   const critical = alerts.filter((a) => a.severity === 'CRITICAL');
   const other = alerts.filter((a) => a.severity !== 'CRITICAL');
+  // Only the newest alert shows every detail; older ones stay compact so the stack never covers the screen.
   const render = (a: ProximityAlert) => (
-    <AlertToast key={a.key} alert={a} onView={onView} onFocus={onFocus} onDismiss={onDismiss} />
+    <AlertToast
+      key={a.key}
+      alert={a}
+      compact={a.key !== top?.key}
+      onView={onView}
+      onFocus={onFocus}
+      onDismiss={onDismiss}
+    />
   );
 
   return (
     <div
       data-testid="alert-region"
-      className="pointer-events-none fixed top-20 right-4 z-40 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2"
+      className="pointer-events-none fixed top-20 right-4 z-40 flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-2"
     >
       {/* Persistent assertive region (so insertions are announced); each CRITICAL toast is itself role="alert". */}
       <div aria-live="assertive" data-testid="alert-region-critical" className="flex flex-col gap-2">

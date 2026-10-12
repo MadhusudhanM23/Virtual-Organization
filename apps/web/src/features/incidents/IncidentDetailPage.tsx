@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Crosshair, OctagonX, ShieldAlert, UserPlus } from 'lucide-react';
 import { DataModeBadge } from '../../components/DataModeBadge';
@@ -17,6 +17,7 @@ import { formatDistance, offeredActions, type LifecycleSpec } from './incidentMo
 import { overlayFromIncident } from './incidentOverlay';
 import { IncidentSpatialMap } from './IncidentSpatialMap';
 import { AdvisoryNotice, SeverityBadge, StatusBadge } from './parts';
+import { useSafetyStore } from './safetyStore';
 import { useIncidentDetail } from './useIncidentDetail';
 import { useIncidentPermissions } from './useIncidentPermissions';
 
@@ -86,6 +87,11 @@ export default function IncidentDetailPage() {
   const { id } = useParams();
   const detail = useIncidentDetail(id);
   const incident = detail.incident;
+  const alertOpen = useSafetyStore((s) => s.alerts.some((a) => a.incidentId === id));
+  const dismissIncident = useSafetyStore((s) => s.dismissIncident);
+  useEffect(() => {
+    if (id && alertOpen) dismissIncident(id);
+  }, [id, alertOpen, dismissIncident]);
   useDocumentTitle(incident?.title ?? t('incidents.title'));
 
   return (
