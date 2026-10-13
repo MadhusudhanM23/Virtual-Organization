@@ -56,4 +56,19 @@ class ModuleBoundariesTest {
             .that().resideInAPackage("io.vorg.api..")
             .should().dependOnClassesThat().resideInAPackage("io.vorg.simulation..internal..")
             .allowEmptyShould(true);
+
+    /**
+     * Isolation (REQ-074): scenarios/simulation runs are computed purely from their own stored document (ADR-60).
+     * Nothing in {@code io.vorg.api.scenarios} may depend on a module that writes live tenant state, or on
+     * {@code DomainEvents} (the only path onto the event store). The real enforcement is the database grant
+     * ({@code vo_sim}, {@code sim} schema only — V1_2_01, {@code SimConfig}); this is the compile-time half.
+     */
+    @ArchTest
+    static final ArchRule scenariosNeverDependOnLiveWriteServices = noClasses()
+            .that().resideInAPackage("io.vorg.api.scenarios..")
+            .should().dependOnClassesThat().resideInAnyPackage("io.vorg.api.ops..", "io.vorg.api.world..",
+                    "io.vorg.api.twin..", "io.vorg.api.incidents..", "io.vorg.api.safety..",
+                    "io.vorg.api.integration..", "io.vorg.api.replay..", "io.vorg.api.kpi..")
+            .orShould().dependOnClassesThat().haveFullyQualifiedName("io.vorg.api.platform.events.DomainEvents")
+            .allowEmptyShould(true);
 }

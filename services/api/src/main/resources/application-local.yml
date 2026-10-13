@@ -25,6 +25,10 @@ vo:
     generate-if-absent: true
   auth:
     cookie-secure: false
+  sim:
+    datasource:
+      url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:virtual_org}
+      password: ${VO_SIM_DB_PASSWORD:vo_sim_dev_password}
   outbox:
     datasource:
       url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:virtual_org}

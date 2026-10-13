@@ -565,3 +565,36 @@ query.
 catalog's names (about 20 to 30 characters) 64 types are under 2 KB of query string, well inside the server's 8 KB request
 header limit, and the `event_type in (...)` filter stays a short list.
 **Consequences:** clients may keep chunking for safety; the cap is a constant in `EventQueryService`.
+
+### ADR-60 Plan 6.3 baseline choice and database-enforced simulation isolation — Proposed
+**Context:** REQ-070 asks for a scenario that "clones a baseline (snapshot ref + policy versions)"; REQ-074 requires
+that a simulation run can never mutate live tenant state, checked by "architecture test + DB grants". Building a true
+point-in-time snapshot of the live twin (entities, policy versions, in-flight tasks) as a `ModelInput` is out of scope
+for Plan 6.3 — there is exactly one demo site, one seeded world, and the warehouse-flow model (ADR-48) already reduces
+that world to a fixed layout/resources description `Baselines.load("bengaluru-warehouse-01")` independent of live twin
+state (poses, task queues). A snapshot-taking step would clone data the model never reads.
+**Decision (conservative default):** every scenario created through `POST /api/scenarios` references the one
+built-in baseline by name (`baseline_ref = "bengaluru-warehouse-01"`); the stored `scenario_json` is the full
+`vorg.simulation.scenario.v1` document (schema, scenario id, name, description, `baseline`, `run`, `overlay`) so a run
+reparses and replays it byte-for-byte (ADR-47) without re-deriving anything from the live database. When a second site
+or tenant-specific calibrated baseline exists (REQ-077), `baseline_ref` already carries the name needed to add more
+entries to the `Baselines` registry or, later, a real snapshot step — no migration of stored scenarios is required.
+Isolation is enforced twice, independently: (1) **database grants** — `sim.scenarios`/`sim.simulation_runs` are the
+only tables `vo_sim` (V1_2_01, `NOBYPASSRLS`) may touch; the application's scenarios module (`io.vorg.api.scenarios`)
+uses a dedicated `vo_sim`-authenticated `DataSource`/`JdbcClient` (`SimConfig`) for every read and write, so even a bug
+in that module cannot reach `world`/`ops`/`evt`/`cmd` — Postgres refuses the statement regardless of application code;
+(2) **architecture** — an ArchUnit rule (`ModuleBoundariesTest`) fails the build if anything under `io.vorg.api.scenarios`
+depends on a live-write module or on `DomainEvents`. A run executes on a bounded background executor
+(`simulationExecutor`, Plan 6.3; NFR-06 allows up to 60 s) that reads only the stored `scenario_json`, calls the pure
+`io.vorg.simulation` engine in-process and writes only its own result row; it never calls `DomainEvents.record` or any
+live repository, so nothing it does appears in `evt.events`, is visible to replay, or changes a live projection. A
+consequence of using a separate connection pool is that a scenario/run write is not in the same database transaction
+as its `cmd.commands` bookkeeping row (unlike every live command handler, which shares one transaction on `vo_app`);
+this is acceptable because the two tables have disjoint consistency requirements (REQ-074 asks that sim writes be
+*isolated* from live writes, not atomic with their own command record) and because each write is a single statement
+with nothing else in its handler that can fail afterward.
+**Consequences:** a dock-closure scenario run shows the documented KPI deltas (`docs/scenarios/dock-closure.md`)
+through the API exactly as the CLI reports them, byte-for-byte. The isolation guarantee is testable directly
+(`has_table_privilege('vo_sim', 'world.sites', 'SELECT')` is false) rather than only inferred from code review. If a
+future phase needs a true point-in-time snapshot baseline, it is an additive `ModelInput` producer behind the same
+`baseline`/`model` choice `Scenario` already supports — this ADR's isolation mechanism does not change.
