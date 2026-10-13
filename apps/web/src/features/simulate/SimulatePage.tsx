@@ -10,9 +10,7 @@ import { ScenarioBuilderForm } from './ScenarioBuilderForm';
 import { ScenarioList } from './ScenarioList';
 import {
   createScenario,
-  fetchScenario,
   newIdempotencyKey,
-  scenarioIdFromCreateResult,
   type CreateScenarioBody,
   type Scenario,
 } from './simulationApi';
@@ -35,10 +33,8 @@ export function SimulatePage() {
     setSubmitting(true);
     try {
       const ack = await createScenario(body, newIdempotencyKey());
-      const id = ack.result ? scenarioIdFromCreateResult(ack.result) : null;
-      if (id) {
-        // Re-read the canonical shape (GET /scenarios/{id}) rather than trust the command result's fields.
-        const scenario = await fetchScenario(id);
+      const scenario = ack.result;
+      if (scenario) {
         addScenario(scenario);
         setSelected(scenario);
         setMode('list');

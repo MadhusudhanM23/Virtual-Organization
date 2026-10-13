@@ -1,4 +1,4 @@
-package io.vorg.api.scenarios;
+﻿package io.vorg.api.scenarios;
 
 import static io.vorg.api.platform.identity.seed.DemoIds.SITE_BLR;
 import static io.vorg.api.platform.identity.seed.DemoIds.SITE_MUM;
@@ -60,7 +60,7 @@ class ScenarioApiIT extends AbstractApiIntegrationTest {
         assertThat(created.statusCode()).as(created.body()).isEqualTo(200);
         JsonNode ack = json(created);
         assertThat(ack.get("status").asString()).isEqualTo("SUCCEEDED");
-        String scenarioId = ack.get("result").get("scenario_id").asString();
+        String scenarioId = ack.get("result").get("id").asString();
 
         HttpResponse<String> getScenario = get("/api/scenarios/" + scenarioId, wm);
         assertThat(getScenario.statusCode()).isEqualTo(200);
@@ -125,7 +125,7 @@ class ScenarioApiIT extends AbstractApiIntegrationTest {
     void anotherTenantCannotSeeTheScenario() throws Exception {
         HttpResponse<String> created = post("/api/scenarios", wm(), dockClosureBody("Cross tenant"),
                 "Idempotency-Key", key());
-        String scenarioId = json(created).get("result").get("scenario_id").asString();
+        String scenarioId = json(created).get("result").get("id").asString();
 
         HttpResponse<String> res = get("/api/scenarios/" + scenarioId, tenantBExec());
         assertThat(res.statusCode()).isEqualTo(404);
@@ -136,7 +136,7 @@ class ScenarioApiIT extends AbstractApiIntegrationTest {
         String wm = wm();
         HttpResponse<String> created = post("/api/scenarios", wm, dockClosureBody("Will corrupt"),
                 "Idempotency-Key", key());
-        String scenarioId = json(created).get("result").get("scenario_id").asString();
+        String scenarioId = json(created).get("result").get("id").asString();
         // Corrupt the stored document directly (simulating e.g. a future format change) to exercise the FAILED path.
         int updated = ownerUpdate("update sim.scenarios set scenario_json = '{\"schema\":\"bogus\"}'::jsonb "
                 + "where id = ?", UUID.fromString(scenarioId));
@@ -161,7 +161,7 @@ class ScenarioApiIT extends AbstractApiIntegrationTest {
 
         HttpResponse<String> created = post("/api/scenarios", wm, dockClosureBody("Isolation check"),
                 "Idempotency-Key", key());
-        String scenarioId = json(created).get("result").get("scenario_id").asString();
+        String scenarioId = json(created).get("result").get("id").asString();
         HttpResponse<String> runRes = post("/api/scenarios/" + scenarioId + "/runs", wm, null, "Idempotency-Key",
                 key());
         String runId = json(runRes).get("result").get("run_id").asString();

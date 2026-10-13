@@ -104,16 +104,17 @@ public class ScenarioQueryService {
 
     static Map<String, Object> toMap(ScenarioView v) {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("scenario_id", v.id().toString());
+        m.put("id", v.id().toString());
         m.put("site_id", v.siteId().toString());
         m.put("name", v.name());
         m.put("description", v.description());
-        m.put("baseline", v.baselineRef());
+        m.put("baseline_ref", v.baselineRef());
         m.put("overlay", v.overlay());
-        m.put("run", v.runSettings());
+        m.put("run_settings", v.runSettings());
         m.put("affected_entities", v.affectedEntities());
         m.put("created_by", v.createdBy().toString());
         m.put("created_at", v.createdAt().toString());
+        m.put("updated_at", v.updatedAt() == null ? null : v.updatedAt().toString());
         m.put("version", v.version());
         return m;
     }

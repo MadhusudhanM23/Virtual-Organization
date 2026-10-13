@@ -156,32 +156,12 @@ export interface CreateScenarioBody {
 
 export const BASELINE_REF = 'bengaluru-warehouse-01';
 
-/**
- * The `POST /api/scenarios` command result observed from the running API uses `scenario_id`/`baseline`/`run`
- * (not `id`/`baseline_ref`/`run_settings` as docs/api/simulation.md states — a real mismatch between the command
- * result and `GET /api/scenarios`, found running against the live API). Typed loosely here; callers should re-read
- * the scenario by id rather than trust this shape directly (see `scenarioIdFromCreateResult`).
- */
-export interface CreateScenarioResult {
-  id?: string;
-  scenario_id?: string;
-  site_id: string;
-}
-
-export function createScenario(
-  body: CreateScenarioBody,
-  key: string,
-): Promise<CommandAck<CreateScenarioResult>> {
-  return apiFetch<CommandAck<CreateScenarioResult>>('/scenarios', {
+export function createScenario(body: CreateScenarioBody, key: string): Promise<CommandAck<Scenario>> {
+  return apiFetch<CommandAck<Scenario>>('/scenarios', {
     method: 'POST',
     body,
     headers: { 'Idempotency-Key': key },
   });
-}
-
-/** Reads the created scenario's id from the command result, tolerating either field name (see above). */
-export function scenarioIdFromCreateResult(result: CreateScenarioResult): string | null {
-  return result.id ?? result.scenario_id ?? null;
 }
 
 export function startSimulationRun(
