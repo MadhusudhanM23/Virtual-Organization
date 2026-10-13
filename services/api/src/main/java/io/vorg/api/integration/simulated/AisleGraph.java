@@ -37,6 +37,7 @@ public final class AisleGraph {
 
     private final List<Node> nodes = new ArrayList<>();
     private final List<List<Integer>> neighbours = new ArrayList<>();
+    private final List<int[]> edges = new ArrayList<>();
     private final Map<String, Integer> byKey = new TreeMap<>();
 
     private AisleGraph() {}
@@ -129,6 +130,29 @@ public final class AisleGraph {
     private void connect(int a, int b) {
         neighbours.get(a).add(b);
         neighbours.get(b).add(a);
+        edges.add(new int[] {a, b});
+    }
+
+    /**
+     * Planar distance from a point to the nearest forklift lane (any edge of the network), in meters. Used to keep the
+     * pedestrian work spots of the simulation clear of forklift traffic (ADR-56).
+     */
+    public double laneDistance(double x, double y) {
+        double best = Double.MAX_VALUE;
+        for (int[] e : edges) {
+            Node a = nodes.get(e[0]);
+            Node b = nodes.get(e[1]);
+            best = Math.min(best, segmentDistance(x, y, a.x(), a.y(), b.x(), b.y()));
+        }
+        return best;
+    }
+
+    static double segmentDistance(double px, double py, double ax, double ay, double bx, double by) {
+        double dx = bx - ax;
+        double dy = by - ay;
+        double len2 = dx * dx + dy * dy;
+        double t = len2 == 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
+        return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
     }
 
     public List<Node> nodes() {
@@ -163,6 +187,11 @@ public final class AisleGraph {
             }
         }
         return best != null || box == null ? best : nearestWithin(x, y, null);
+    }
+
+    /** Indices of the nodes adjacent to {@code index} along a lane, in insertion order (deterministic). */
+    public List<Integer> neighbours(int index) {
+        return List.copyOf(neighbours.get(index));
     }
 
     public List<Node> nodesWithin(Box box) {

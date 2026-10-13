@@ -61,7 +61,7 @@ sources is labeled `data_mode: SIMULATED` with its `source_system` (see
 
 | Endpoint | Query parameters | Response |
 |---|---|---|
-| `GET /api/events` | `site_id` (required), `event_type` (comma list), `aggregate_type`, `aggregate_id` (entity or task id), `data_mode` (comma list), `source`, `from` (inclusive) / `to` (exclusive) on `occurred_at` (ISO-8601 UTC), `limit`, `cursor` | `{items, next_cursor}` of full event envelopes ([`event-envelope.v1`](../../packages/contracts/schemas/event-envelope.v1.schema.json)): `event_id`, `aggregate_type/id`, `event_type`, `sequence`, `occurred_at`, `ingested_at`, `source`, `data_mode`, `actor_type`, `actor_id`, `location`, `correlation_id`, `causation_id`, `payload`, `confidence` |
+| `GET /api/events` | `site_id` (required), `event_type` (comma list, at most 64 types), `aggregate_type`, `aggregate_id` (entity or task id), `data_mode` (comma list), `source`, `from` (inclusive) / `to` (exclusive) on `occurred_at` (ISO-8601 UTC), `limit`, `cursor` | `{items, next_cursor}` of full event envelopes ([`event-envelope.v1`](../../packages/contracts/schemas/event-envelope.v1.schema.json)): `event_id`, `aggregate_type/id`, `event_type`, `sequence`, `occurred_at`, `ingested_at`, `source`, `data_mode`, `actor_type`, `actor_id`, `location`, `correlation_id`, `causation_id`, `payload`, `confidence` |
 
 Authorization: `VIEW_OPERATIONAL_STATE` on the site (Warehouse Manager, Regional Manager, Executive, Analyst, Safety; not
 Driver/Operator or Platform Administrator). Event types are catalogued in

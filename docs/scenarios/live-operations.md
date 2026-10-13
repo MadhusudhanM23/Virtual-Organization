@@ -30,8 +30,40 @@ timestamps and in the entity start poses (which resume from the twin).
   (tested over 20 minutes of simulated time).
 - Forklifts pick a random lane node, drive there at 1.8 to 2.6 m/s, dwell (LOADING 5 to 12 s, sometimes IDLE 10 to 25 s)
   and repeat; a forklift is sent to the origin of its oldest open task once, then to the destination when the task is
-  STARTED. Workers do the same inside their home zone (WALKING / WORKING). The two waiting trucks cycle WAITING,
-  ARRIVING, DOCKED (60 to 120 s), DEPARTING; the four trucks seeded as docked stay put.
+  STARTED. Workers stay inside their home zone (WALKING / WORKING) and keep away from the forklift lanes (next
+  section). The two waiting trucks cycle WAITING, ARRIVING, DOCKED (60 to 120 s), DEPARTING; the four trucks seeded as
+  docked stay put.
+
+### Pedestrian separation (ADR-56)
+
+Until ADR-56 workers wandered on the forklift lane graph and dwelt on the yard lanes, so the proximity rule (3.0 m,
+forklift at least 0.3 m/s, ADR-41) fired every 4 to 5 s. The rule is unchanged; the simulated people now behave like a
+warehouse with marked walkways. Simulation assumptions (typical values, not measurements):
+
+- Work spots: in receiving, packing, picking and dispatch a worker walks only between spots at least 4.5 m from every
+  forklift lane (a 1 m grid inside the zone: e.g. the picking strip north of the y = 72 yard lane, the packing and
+  receiving strip along the south wall, pockets between the cross lanes) and its walks stay at least 4.0 m from a lane.
+  One leg in 8 goes to another clear area of the zone and crosses the lane the shortest way.
+- Storage aisles have no such space (every point is within 3 m of an aisle centre line): the three storage workers walk
+  the aisle lanes and dwell at a rack face, 1.8 m off the aisle centre line.
+- Forklifts yield: a forklift stops (status stays MOVING, speed 0) while a worker is within 4.0 m of it or of the next
+  6 m of its route, and moves off once no walking worker is within 7.5 m; after 60 s it drives on regardless.
+- Workers give way: before walking into (or along) the lane band a worker waits while a moving forklift is within 12 m,
+  for at most 90 s.
+- A forklift or worker that comes to a stop is published on that tick (not up to 3 ticks later), so a yielding forklift
+  is never seen as moving.
+
+Organic alert rate, measured by `MovementProximityRateTest` (simulation + emission policy + proximity rule, default
+settings, one simulated hour, seeds 20261012 / 1 / 2 / 3):
+
+| | Initial proximity alerts per hour | Forklift travel per hour | Position events per second |
+|---|---|---|---|
+| before ADR-56 | 720 / 804 / 740 / 783 | about 5.7 km each | about 6.9 |
+| after ADR-56 | 3 / 6 / 4 / 5 | about 5.0 km each (yielding about 12 % of the time) | about 6.0 |
+
+The remaining alerts are genuine per the rule: a forklift or worker whose patience ran out, or a crossing timed badly.
+The staged demo situation (`POST /api/demo/incidents/proximity`, ADR-43) is unaffected: it injects its own observations
+and holds the pair out of the simulation, so it still alerts on its 2 m approach step.
 - Dock status is not changed by truck movement (no dock command exists yet), so SIM-TMS saying "truck at dock IN-03" while
   the twin dock is `AVAILABLE` is surfaced as a `RECONCILIATION_DIFF` finding, on purpose.
 
@@ -41,10 +73,10 @@ timestamps and in the entity start poses (which resume from the twin).
 |---|---|---|
 | `vo.live.movement.tick-interval` | 1 s | simulated `dt` per tick = tick interval x `time-scale` |
 | `vo.live.movement.emit-every-ticks` | 4 | each entity publishes at most every 4th tick (0.25 Hz) |
-| `vo.live.movement.min-move-m` / `min-turn-deg` | 0.5 m / 5 degrees | standing entities publish nothing; a stopped entity publishes once to settle |
+| `vo.live.movement.min-move-m` / `min-turn-deg` | 0.5 m / 5 degrees | standing entities publish nothing; a stopped entity publishes once to settle, on the tick it stops (ADR-56) |
 | `vo.live.sync.interval` | 15 s | one SIM-WMS and one SIM-TMS batch |
 
-At most 46 / 4 = 11.5 position events per second; measured in the real run below: 6.4 events per second after 73 ticks
+At most 46 / 4 = 11.5 position events per second plus one per entity that comes to a stop; measured in the real run below: 6.4 events per second after 73 ticks
 (about 0.55 million events a day). Observations of one entity within a batch are coalesced to the latest. At runtime a
 Platform Administrator can `START`, `STOP`, `CONFIGURE` (tick interval, time scale) or single-`STEP` the source with
 `POST /api/simulation/movement/control`.

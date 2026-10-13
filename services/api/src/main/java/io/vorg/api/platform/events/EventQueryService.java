@@ -36,7 +36,8 @@ import tools.jackson.databind.JsonNode;
 public class EventQueryService {
 
     private static final Pattern UPPER_SNAKE = Pattern.compile("^[A-Z][A-Z0-9_]{0,99}$");
-    private static final int MAX_TYPES = 20;
+    /** Bound on {@code event_type} values per query: the live UI asks for ~23 types at once; 64 keeps URLs short. */
+    static final int MAX_TYPES = 64;
 
     /** Parsed, validated filters. */
     public record Filter(Set<String> eventTypes, String aggregateType, UUID aggregateId, Set<DataMode> dataModes,
