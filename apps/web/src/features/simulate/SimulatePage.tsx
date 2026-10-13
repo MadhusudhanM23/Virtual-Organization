@@ -8,7 +8,14 @@ import { useUiStore } from '../../stores/uiStore';
 import { RunPanel } from './RunPanel';
 import { ScenarioBuilderForm } from './ScenarioBuilderForm';
 import { ScenarioList } from './ScenarioList';
-import { createScenario, newIdempotencyKey, type CreateScenarioBody, type Scenario } from './simulationApi';
+import {
+  createScenario,
+  fetchScenario,
+  newIdempotencyKey,
+  scenarioIdFromCreateResult,
+  type CreateScenarioBody,
+  type Scenario,
+} from './simulationApi';
 import { useScenarios } from './useSimulateData';
 import { useSimulateLens } from './useSimulateLens';
 import type { FieldError } from './scenarioModel';
@@ -28,9 +35,12 @@ export function SimulatePage() {
     setSubmitting(true);
     try {
       const ack = await createScenario(body, newIdempotencyKey());
-      if (ack.result) {
-        addScenario(ack.result);
-        setSelected(ack.result);
+      const id = ack.result ? scenarioIdFromCreateResult(ack.result) : null;
+      if (id) {
+        // Re-read the canonical shape (GET /scenarios/{id}) rather than trust the command result's fields.
+        const scenario = await fetchScenario(id);
+        addScenario(scenario);
+        setSelected(scenario);
         setMode('list');
       }
       return null;

@@ -72,6 +72,11 @@ export async function mockSimulationApi(page: Page, options: SimulateMockOptions
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: scenarios, next_cursor: null }) });
   });
 
+  await page.route(`**/api/scenarios/${SCENARIO_ID}`, (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(dockClosureScenario) });
+  });
+
   await page.route('**/api/scenarios', (route) => {
     if (route.request().method() !== 'POST') return route.fallback();
     if (options.createFieldErrors) {
