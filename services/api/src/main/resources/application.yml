@@ -84,6 +84,12 @@ vo:
     partitions:
       days-ahead: 7
       cron: "0 15 * * * *"
+  sim:
+    # Scenarios/simulation-runs connection: vo_sim (NOBYPASSRLS, sim schema only; REQ-074 isolation, Plan 6.3).
+    datasource:
+      url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      username: vo_sim
+      password: ${VO_SIM_DB_PASSWORD}
   outbox:
     # Publisher connection: vo_outbox (BYPASSRLS, evt schema only); never the runtime vo_app pool.
     datasource:

@@ -53,6 +53,10 @@ public abstract class AbstractIntegrationTest {
         registry.add("vo.outbox.datasource.username", () -> "vo_outbox");
         registry.add("vo.outbox.datasource.password", () -> OUTBOX_PASSWORD);
         registry.add("vo.outbox.poller.enabled", () -> "false");
+        // The scenarios/simulation-runs module connects as vo_sim (NOBYPASSRLS, sim schema only; REQ-074).
+        registry.add("vo.sim.datasource.url", POSTGRES::getJdbcUrl);
+        registry.add("vo.sim.datasource.username", () -> "vo_sim");
+        registry.add("vo.sim.datasource.password", () -> SIM_PASSWORD);
         registry.add("vo.jwt.key-path", () -> JWT_KEY_PATH.toString());
         registry.add("vo.jwt.generate-if-absent", () -> "true");
         registry.add("vo.jwt.issuer", () -> "http://localhost:8080");

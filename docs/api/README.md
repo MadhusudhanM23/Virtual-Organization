@@ -164,6 +164,27 @@ Periodic snapshots: `vo.replay.snapshots.enabled` (on in `local`), every `vo.rep
 `vo.replay.snapshots.retention` (7 days, newest always kept). Driver/Operator and Platform Administrator cannot read replay
 (`403`); other tenants' sites are `404`.
 
+## Implemented: scenarios and simulation runs (Phase 6, plan 6.3)
+
+Scenarios and simulation runs (REQ-070..074, ADR-49, ADR-60). Full semantics, request/response shapes and the
+isolation guarantee: [`simulation.md`](simulation.md). Authorization is `CREATE_SIMULATION` on the site for every
+endpoint below (reads and writes alike — the permission matrix gives it the same role set as `ANALYZE_QUERY`); a run
+is computed purely from its own stored scenario document on a database role (`vo_sim`) that cannot read or write
+`world`/`ops`/`evt`/`cmd` — it can never touch live tenant state.
+
+| Endpoint | Notes |
+|---|---|
+| `GET /api/scenarios?site_id=[&limit=&cursor=]` | `{items[{id, site_id, name, description, baseline_ref, overlay, run_settings, affected_entities, created_by, created_at, updated_at, version}], next_cursor}` |
+| `POST /api/scenarios` | command (`Idempotency-Key`); body `{site_id, name, description?, overlay?, run?}`; always overlays the built-in `bengaluru-warehouse-01` baseline (ADR-60); `run.master_seed` is derived from the scenario id when omitted; result is the created scenario |
+| `GET /api/scenarios/{id}` | scenario detail (same shape as a list item) |
+| `POST /api/scenarios/{id}/runs` | command (`Idempotency-Key`); no body; inserts a `QUEUED` run and starts it on a bounded background executor; result `{run_id, scenario_id, status: "QUEUED"}` |
+| `GET /api/simulation-runs/{id}` | `{run_id, scenario_id, site_id, status, requested_by, engine{name, version}, results, results_hash, error_message, created_at, started_at, finished_at, version}`; `results`/`results_hash` once `SUCCEEDED`, `error_message` once `FAILED` |
+| `GET /api/simulation-runs?scenario_id=\|site_id=[&limit=&cursor=]` | `{items[...], next_cursor}`; `scenario_id` resolves its own site (and is authorized through the scenario), otherwise `site_id` is required |
+
+An unknown or `InvalidInputException`-rejected scenario field is `400` naming the field (e.g. `overlay.dock_closures[0].dock_id`);
+an unknown site is `404`; a site outside the caller's role scope is `403`; another tenant's scenario or run is `404`
+(RLS).
+
 ## Planned query endpoints
 
 | Resource | Endpoint | Purpose |
@@ -171,8 +192,6 @@ Periodic snapshots: `vo.replay.snapshots.enabled` (on in `local`), every `vo.rep
 | Organizations | `GET /api/organizations` | Organization and scope metadata |
 | World state | `GET /api/twin/world` | Current normalized twin state within authorized scope |
 | Entities | `GET /api/entities/{id}` | Canonical entity inspector |
-| Scenarios | `GET /api/scenarios/{id}` | Scenario definition and results |
-| Simulations | `GET /api/simulations/{id}` | Simulation outputs and metrics |
 | Recommendations | `GET /api/recommendations/{id}` | Decision package and evidence |
 | Cameras | `GET /api/cameras` | Camera registry and streams |
 | Analytics | `GET /api/metrics/...` | Governed KPI definitions and values |
@@ -181,7 +200,6 @@ Periodic snapshots: `vo.replay.snapshots.enabled` (on in `local`), every `vo.rep
 
 | Command | Endpoint | Rule |
 |---|---|---|
-| Create scenario | `POST /api/scenarios` | Clones baseline and accepts scenario changes |
 | Approve proposal | `POST /api/approvals/{id}/approve` | Checks scope, separation of duties and expiry |
 | Execute proposal | `POST /api/recommendations/{id}/execute` | Checks baseline entity versions and policy versions |
 
