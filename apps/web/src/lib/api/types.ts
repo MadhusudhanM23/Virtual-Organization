@@ -84,4 +84,6 @@ export interface ProblemDetail {
   title?: string;
   status?: number;
   detail?: string;
+  /** Field-level validation errors (e.g. the scenario/simulation-run API's 400s, docs/api/simulation.md). */
+  errors?: { field: string; message: string }[];
 }

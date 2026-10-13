@@ -5,6 +5,7 @@ import {
   emptyForkliftOutage,
   emptyWorkerReduction,
   isMovedVerdict,
+  minutesToClock,
   summarizeOverlay,
   toCreateScenarioBody,
   validateScenarioForm,
@@ -131,6 +132,17 @@ describe('summarizeOverlay', () => {
     });
     expect(text).toContain('1 dock closure');
     expect(text).toContain('demand x1.5');
+  });
+});
+
+describe('minutesToClock', () => {
+  it('renders minutes as an HH:MM clock offset', () => {
+    expect(minutesToClock('90')).toBe('01:30');
+    expect(minutesToClock('0')).toBe('00:00');
+  });
+  it('is null for invalid input', () => {
+    expect(minutesToClock('abc')).toBeNull();
+    expect(minutesToClock('-5')).toBeNull();
   });
 });
 

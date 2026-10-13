@@ -1,5 +1,4 @@
 import { TwinWorkspace } from './TwinWorkspace';
-import { PlaceholderPage } from '../../components/PlaceholderPage';
 
 export function LiveViewPage() {
   return (
@@ -21,8 +20,5 @@ export function MapViewPage() {
   );
 }
 
-export function SimulationPage() {
-  return <PlaceholderPage itemId="twin-simulation" />;
-}
-
+export { SimulatePage as SimulationPage } from '../simulate/SimulatePage';
 export { ReplayPage } from '../replay/ReplayPage';

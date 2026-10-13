@@ -297,6 +297,15 @@ export function summarizeOverlay(overlay: ScenarioOverlay): string {
   return parts.length > 0 ? parts.join(', ') : 'No overlay (baseline only)';
 }
 
+/** "90" -> "01:30" — minutes-from-shift-start shown as a clock offset, for the readable time picker. */
+export function minutesToClock(raw: string): string | null {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  const h = Math.floor(n / 60);
+  const m = Math.floor(n % 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
 /** Verdicts the KPI card highlights as "moved" (a significant, directional change). */
 export function isMovedVerdict(verdict: KpiDelta['verdict']): boolean {
   return verdict === 'worse' || verdict === 'better';
