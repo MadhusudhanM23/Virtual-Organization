@@ -23,7 +23,7 @@ class MovementSimulationTest {
 
     private static final WorldSeedPlan PLAN = BengaluruWarehouse01.build(TENANT_A, SITE_BLR);
     private static final SimWorld WORLD = SimWorld.fromPlan(PLAN);
-    private static final AisleGraph GRAPH = AisleGraph.forWarehouse(WORLD);
+    static final AisleGraph GRAPH = AisleGraph.forWarehouse(WORLD);
 
     static List<Spec> specs() {
         Map<UUID, WorldSeedPlan.Zone> zones = new HashMap<>();
@@ -97,16 +97,83 @@ class MovementSimulationTest {
 
     @Test
     void entityStreamsAreIndependentOfEachOther() {
-        // Removing all workers must not change any forklift trajectory.
+        // Each entity draws from its own stream: removing an entity changes no other entity it does not interact with.
+        // Forklifts and workers interact (they yield to each other, ADR-56); forklifts among themselves, workers among
+        // themselves and trucks with anyone do not.
         List<Spec> all = specs();
-        List<Spec> noWorkers = all.stream().filter(s -> !s.type().equals("WORKER")).toList();
-        MovementSimulation a = new MovementSimulation(7, GRAPH, all);
-        MovementSimulation b = new MovementSimulation(7, GRAPH, noWorkers);
+        assertSameTrajectories(all, all.stream().filter(s -> !s.type().equals("TRUCK")).toList(), "FORKLIFT", "WORKER");
+        List<Spec> forklifts = all.stream().filter(s -> s.type().equals("FORKLIFT")).toList();
+        assertSameTrajectories(forklifts, forklifts.subList(1, forklifts.size()), "FORKLIFT");
+        List<Spec> workers = all.stream().filter(s -> s.type().equals("WORKER")).toList();
+        assertSameTrajectories(workers, workers.subList(1, workers.size()), "WORKER");
+    }
+
+    private static void assertSameTrajectories(List<Spec> a, List<Spec> b, String... types) {
+        Set<String> codes = new HashSet<>();
+        b.forEach(s -> codes.add(s.code()));
+        Set<String> wanted = Set.of(types);
+        MovementSimulation sa = new MovementSimulation(7, GRAPH, a);
+        MovementSimulation sb = new MovementSimulation(7, GRAPH, b);
         for (int i = 0; i < 400; i++) {
-            List<State> sa = a.step(0.5).stream().filter(s -> s.type().equals("FORKLIFT")).toList();
-            List<State> sb = b.step(0.5).stream().filter(s -> s.type().equals("FORKLIFT")).toList();
-            assertThat(sa).isEqualTo(sb);
+            List<State> ta = sa.step(0.5).stream().filter(s -> wanted.contains(s.type()) && codes.contains(s.code()))
+                    .toList();
+            List<State> tb = sb.step(0.5).stream().filter(s -> wanted.contains(s.type())).toList();
+            assertThat(ta).isEqualTo(tb);
         }
+    }
+
+    @Test
+    void aForkliftStopsForAWorkerOnItsRouteAndNeverPassesItWhileMoving() {
+        List<Spec> all = specs();
+        UUID forklift = all.stream().filter(s -> s.code().equals("FL-01")).findFirst().orElseThrow().id();
+        UUID worker = all.stream().filter(s -> s.code().equals("W-028")).findFirst().orElseThrow().id();
+        List<Spec> pair = all.stream().filter(s -> s.id().equals(forklift) || s.id().equals(worker)).toList();
+        MovementSimulation sim = new MovementSimulation(4, GRAPH, pair);
+        sim.place(worker, 25.0, 31.0, 0.0, "WORKING", 50.0); // standing in aisle y = 31
+        sim.place(forklift, 1.0, 31.0, 0.0, "MOVING", 0.0);
+        sim.directTo(forklift, 49.0, 31.0, "LOADING", 10.0);
+        boolean stopped = false;
+        for (int i = 0; i < 90; i++) { // 45 s, inside the worker's hold
+            Map<UUID, State> now = new HashMap<>();
+            sim.step(0.5).forEach(s -> now.put(s.id(), s));
+            State f = now.get(forklift);
+            double d = Math.hypot(f.x() - 25.0, f.y() - 31.0);
+            if (f.speedMps() > 0) {
+                assertThat(d).as("moving forklift at %.2f,%.2f", f.x(), f.y()).isGreaterThan(3.0);
+            }
+            assertThat(f.x()).isLessThan(25.0);
+            stopped |= f.speedMps() == 0 && f.status().equals("MOVING");
+        }
+        assertThat(stopped).isTrue();
+    }
+
+    @Test
+    void workersOutsideTheStorageAislesWorkClearOfTheForkliftLanes() {
+        List<Spec> specs = specs();
+        Box storageA = new Box(0, 16, 60, 64);
+        Set<UUID> clearZoneWorkers = new HashSet<>();
+        specs.stream().filter(s -> s.home() != null && !s.home().equals(storageA))
+                .forEach(s -> clearZoneWorkers.add(s.id()));
+        assertThat(clearZoneWorkers).hasSize(27);
+        MovementSimulation sim = new MovementSimulation(6, GRAPH, specs);
+        int working = 0;
+        for (int i = 0; i < 2400; i++) {
+            for (State s : sim.step(0.5)) {
+                if (clearZoneWorkers.contains(s.id()) && s.status().equals("WORKING")) {
+                    working++;
+                    assertThat(GRAPH.laneDistance(s.x(), s.y())).as("%s at %.2f,%.2f", s.code(), s.x(), s.y())
+                            .isGreaterThanOrEqualTo(MovementSimulation.WALK_CLEARANCE_M - 1e-9);
+                }
+            }
+        }
+        assertThat(working).isGreaterThan(10_000);
+    }
+
+    @Test
+    void laneDistanceMeasuresToTheNearestLane() {
+        assertThat(GRAPH.laneDistance(19.0, 25.0)).isEqualTo(0.0); // on aisle y = 25
+        assertThat(GRAPH.laneDistance(19.0, 27.0)).isEqualTo(2.0, org.assertj.core.data.Offset.offset(1e-9));
+        assertThat(GRAPH.laneDistance(30.0, 78.0)).isEqualTo(6.0, org.assertj.core.data.Offset.offset(1e-9));
     }
 
     @Test

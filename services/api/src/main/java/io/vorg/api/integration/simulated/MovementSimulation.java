@@ -17,21 +17,56 @@ import java.util.UUID;
  * no global randomness. The state after N calls of {@link #step} with the same {@code dt} sequence is a function of the
  * seed, the lane graph and the initial entities only, so the same seed reproduces the same trajectory (tested).
  *
- * <p>Behaviour (speeds are typical, not measured):
+ * <p>Behaviour (speeds and distances are typical simulation assumptions, not measured; ADR-56):
  * <ul>
  *   <li><b>Forklifts</b> pick a random lane node, drive there along the shortest lane path at 1.8 to 2.6 m/s, dwell 5 to
  *       12 s (status LOADING) or sometimes 10 to 25 s (IDLE), and repeat. {@link #directTo} sends one to a task location
- *       instead.</li>
- *   <li><b>Workers</b> do the same inside their home zone at 0.9 to 1.4 m/s with longer dwells (status WORKING).</li>
+ *       instead. A forklift <b>yields to pedestrians</b>: while a worker stands within {@value #YIELD_RADIUS_M} m of its
+ *       position or of the next {@value #YIELD_LOOKAHEAD_M} m of its route it stops (status unchanged, speed 0), for at
+ *       most {@value #MAX_YIELD_S} s at a time, then drives on regardless.</li>
+ *   <li><b>Workers</b> whose home zone has floor space at least {@value #SPOT_CLEARANCE_M} m from every forklift lane
+ *       (receiving, packing, picking, dispatch) walk between such work spots at 0.9 to 1.4 m/s and dwell there (status
+ *       WORKING). They keep to the clear area they are in (a walk never comes closer than {@value #WALK_CLEARANCE_M} m
+ *       to a lane) except for an occasional trip to another clear area of the zone (1 leg in
+ *       {@value #CROSS_AREA_ONE_IN}), which crosses a lane the shortest way. Workers of a zone without such space (the
+ *       storage aisles) walk the aisle lanes and dwell at a rack face, {@value #RACK_FACE_OFFSET_M} m off the aisle
+ *       centre line.</li>
  *   <li><b>Trucks</b> with a planned dock cycle WAITING, ARRIVING (yard approach to the dock at 2.5 to 3.5 m/s), DOCKED
  *       and DEPARTING back to the queue point; trucks that start docked stay docked.</li>
  * </ul>
- * Each entity owns an independent random stream derived from (seed, entity code), so adding or removing an entity never
- * changes the others.
+ * Each entity owns an independent random stream derived from (seed, entity code). The only interaction is the forklift
+ * yield, which reads the worker positions at the start of the step: removing a forklift or a truck never changes any other
+ * entity, removing a worker can change the forklifts' timing.
  */
 public final class MovementSimulation {
 
     public static final String SOURCE_TAG = "movement";
+
+    /** A forklift stops while a worker is this close to it or to its route ahead (m). */
+    static final double YIELD_RADIUS_M = 4.0;
+    /** A yielding forklift drives on only when no worker is within this distance of it (m). */
+    static final double RESUME_RADIUS_M = 7.5;
+    /** How far along its route a forklift looks for workers (m). */
+    static final double YIELD_LOOKAHEAD_M = 6.0;
+    /** Longest a forklift waits for a worker before it drives on (s). */
+    static final double MAX_YIELD_S = 60.0;
+    /** A worker about to walk in a lane waits while a moving forklift is this close (m). */
+    static final double WORKER_WAIT_RADIUS_M = 12.0;
+    /** How far along its path a worker looks for the lane band (m). */
+    static final double WORKER_LOOKAHEAD_M = 3.0;
+    /** Longest a worker waits for forklifts before it walks on (s). */
+    static final double MAX_WORKER_WAIT_S = 90.0;
+    /** Minimum distance of a pedestrian work spot from every forklift lane (m). */
+    static final double SPOT_CLEARANCE_M = 4.5;
+    /** Minimum lane distance along a walk inside one clear area (m). */
+    static final double WALK_CLEARANCE_M = 4.0;
+    /** One worker leg in this many goes to another clear area of the zone, crossing a lane. */
+    static final int CROSS_AREA_ONE_IN = 8;
+    /** Offset of a storage worker's dwell point from the aisle centre line, towards a rack face (m). */
+    static final double RACK_FACE_OFFSET_M = 1.8;
+    private static final double SPOT_GRID_M = 1.0;
+    private static final double SPOT_INSET_M = 0.5;
+    private static final double SAMPLE_M = 0.5;
 
     /** Planned yard approach of a waiting truck. */
     public record TruckPlan(double dockX, double approachY) {}
@@ -61,6 +96,9 @@ public final class MovementSimulation {
         double arrivalDwell;
         double[] queuePoint;
         int truckStage; // 0 waiting, 1 arriving, 2 docked, 3 departing
+        boolean yielding;
+        double yieldedFor;
+        Spots spots; // workers only; empty when the home zone has no clear floor space
 
         Mover(Spec spec, SplittableRandom rnd) {
             this.spec = spec;
@@ -72,9 +110,100 @@ public final class MovementSimulation {
         }
     }
 
+    /**
+     * Pedestrian work spots of one home zone: grid points at least {@link #SPOT_CLEARANCE_M} from every lane, grouped
+     * into clear areas (4-connected components of the grid). Racks always lie within 3 m of an aisle lane, so no spot is
+     * ever inside a rack.
+     */
+    private static final class Spots {
+        final List<double[]> points = new ArrayList<>();
+        final List<Integer> area = new ArrayList<>();
+        final List<List<Integer>> byArea = new ArrayList<>();
+
+        boolean isEmpty() {
+            return points.isEmpty();
+        }
+
+        int nearest(double x, double y, int inArea) {
+            int best = -1;
+            double bestD = Double.MAX_VALUE;
+            for (int i = 0; i < points.size(); i++) {
+                if (inArea >= 0 && area.get(i) != inArea) {
+                    continue;
+                }
+                double d = Math.hypot(points.get(i)[0] - x, points.get(i)[1] - y);
+                if (d < bestD) {
+                    bestD = d;
+                    best = i;
+                }
+            }
+            return best;
+        }
+
+        static Spots of(AisleGraph graph, Box home) {
+            Spots s = new Spots();
+            if (home == null) {
+                return s;
+            }
+            int nx = (int) Math.floor((home.maxX() - home.minX() - 2 * SPOT_INSET_M) / SPOT_GRID_M) + 1;
+            int ny = (int) Math.floor((home.maxY() - home.minY() - 2 * SPOT_INSET_M) / SPOT_GRID_M) + 1;
+            if (nx <= 0 || ny <= 0) {
+                return s;
+            }
+            int[] index = new int[nx * ny];
+            java.util.Arrays.fill(index, -1);
+            for (int j = 0; j < ny; j++) {
+                for (int i = 0; i < nx; i++) {
+                    double x = home.minX() + SPOT_INSET_M + i * SPOT_GRID_M;
+                    double y = home.minY() + SPOT_INSET_M + j * SPOT_GRID_M;
+                    if (graph.laneDistance(x, y) >= SPOT_CLEARANCE_M) {
+                        index[j * nx + i] = s.points.size();
+                        s.points.add(new double[] {x, y});
+                        s.area.add(-1);
+                    }
+                }
+            }
+            // Label the clear areas (breadth-first over grid neighbours), in grid order: deterministic.
+            for (int start = 0; start < index.length; start++) {
+                if (index[start] < 0 || s.area.get(index[start]) >= 0) {
+                    continue;
+                }
+                int label = s.byArea.size();
+                List<Integer> members = new ArrayList<>();
+                Deque<Integer> queue = new ArrayDeque<>();
+                queue.add(start);
+                s.area.set(index[start], label);
+                while (!queue.isEmpty()) {
+                    int cell = queue.poll();
+                    members.add(index[cell]);
+                    int ci = cell % nx;
+                    int cj = cell / nx;
+                    int[][] around = {{ci - 1, cj}, {ci + 1, cj}, {ci, cj - 1}, {ci, cj + 1}};
+                    for (int[] a : around) {
+                        if (a[0] < 0 || a[0] >= nx || a[1] < 0 || a[1] >= ny) {
+                            continue;
+                        }
+                        int k = a[1] * nx + a[0];
+                        if (index[k] >= 0 && s.area.get(index[k]) < 0) {
+                            s.area.set(index[k], label);
+                            queue.add(k);
+                        }
+                    }
+                }
+                s.byArea.add(members);
+            }
+            return s;
+        }
+    }
+
     private final AisleGraph graph;
     private final List<Mover> movers = new ArrayList<>();
     private final Map<UUID, Mover> byId = new LinkedHashMap<>();
+    private final Map<Box, Spots> spotsByHome = new LinkedHashMap<>();
+    private final List<Mover> workers = new ArrayList<>();
+    private double[][] workerPositions = new double[0][];
+    private final List<Mover> forklifts = new ArrayList<>();
+    private double[][] forkliftPositions = new double[0][];
     private double time;
 
     public MovementSimulation(long seed, AisleGraph graph, List<Spec> specs) {
@@ -86,6 +215,13 @@ public final class MovementSimulation {
             if ("TRUCK".equals(s.type())) {
                 initTruck(m);
             } else {
+                if ("WORKER".equals(s.type())) {
+                    m.spots = spotsByHome.computeIfAbsent(s.home() == null ? new Box(0, 0, 0, 0) : s.home(),
+                            h -> Spots.of(graph, s.home()));
+                    workers.add(m);
+                } else if ("FORKLIFT".equals(s.type())) {
+                    forklifts.add(m);
+                }
                 m.phase = Phase.DWELL;
                 m.dwellLeft = m.rnd.nextDouble() * 4.0; // staggered start
             }
@@ -104,6 +240,17 @@ public final class MovementSimulation {
         if (!(dtSeconds > 0) || !Double.isFinite(dtSeconds)) {
             throw new IllegalArgumentException("dt must be a positive finite number of seconds");
         }
+        // Forklifts and workers react to each other's state at the start of the step, whatever the update order.
+        workerPositions = new double[workers.size()][];
+        for (int i = 0; i < workers.size(); i++) {
+            Mover w = workers.get(i);
+            workerPositions[i] = new double[] {w.x, w.y, w.phase == Phase.MOVING && !w.yielding ? 1 : 0};
+        }
+        forkliftPositions = new double[forklifts.size()][];
+        for (int i = 0; i < forklifts.size(); i++) {
+            Mover f = forklifts.get(i);
+            forkliftPositions[i] = new double[] {f.x, f.y, f.phase == Phase.MOVING && !f.yielding ? 1 : 0};
+        }
         for (Mover m : movers) {
             advance(m, dtSeconds);
         }
@@ -115,7 +262,7 @@ public final class MovementSimulation {
         List<State> out = new ArrayList<>(movers.size());
         for (Mover m : movers) {
             out.add(new State(m.spec.id(), m.spec.code(), m.spec.type(), m.x, m.y, 0.0, m.heading,
-                    m.phase == Phase.MOVING ? m.speed : 0.0, m.status));
+                    m.phase == Phase.MOVING && !m.yielding ? m.speed : 0.0, m.status));
         }
         return out;
     }
@@ -166,6 +313,8 @@ public final class MovementSimulation {
         m.dwellLeft = Math.max(0.0, holdSeconds);
         m.arrivalStatus = null;
         m.arrivalDwell = 0;
+        m.yielding = false;
+        m.yieldedFor = 0;
     }
 
     // ---- behaviour ----
@@ -204,8 +353,22 @@ public final class MovementSimulation {
             // MOVING
             double[] target = m.waypoints.peekFirst();
             if (target == null) {
+                m.yielding = false;
                 onArrive(m);
                 continue;
+            }
+            boolean forklift = "FORKLIFT".equals(m.spec.type());
+            if (forklift || "WORKER".equals(m.spec.type())) {
+                if (forklift ? workerAhead(m) : forkliftMovingNear(m)) {
+                    if (m.yieldedFor < (forklift ? MAX_YIELD_S : MAX_WORKER_WAIT_S)) {
+                        m.yielding = true;
+                        m.yieldedFor += left;
+                        return;
+                    }
+                } else {
+                    m.yieldedFor = 0;
+                }
+                m.yielding = false;
             }
             double dx = target[0] - m.x;
             double dy = target[1] - m.y;
@@ -243,6 +406,7 @@ public final class MovementSimulation {
 
     private void onArrive(Mover m) {
         m.speed = 0;
+        m.yieldedFor = 0;
         if ("TRUCK".equals(m.spec.type())) {
             truckNext(m);
             return;
@@ -268,6 +432,10 @@ public final class MovementSimulation {
 
     private void chooseWanderLeg(Mover m) {
         boolean worker = "WORKER".equals(m.spec.type());
+        if (worker && !m.spots.isEmpty()) {
+            chooseSpotLeg(m);
+            return;
+        }
         List<Node> candidates = graph.nodesWithin(worker ? m.spec.home() : null);
         if (candidates.isEmpty()) {
             candidates = graph.nodes();
@@ -282,7 +450,193 @@ public final class MovementSimulation {
                 m.waypoints.add(new double[] {n.x(), n.y()});
             }
         }
+        if (worker) {
+            double[] face = rackFace(m, dest);
+            if (face != null) {
+                m.waypoints.add(face);
+            }
+        }
         startLeg(m);
+    }
+
+    /**
+     * A worker with clear floor space walks to another work spot of the clear area it is in; one leg in
+     * {@link #CROSS_AREA_ONE_IN} goes to another clear area instead, leaving its own area at the point nearest to the
+     * destination so the lane is crossed the shortest way. A walk that would come closer than {@link #WALK_CLEARANCE_M}
+     * to a lane is redrawn (a few times; otherwise the worker keeps working where it is).
+     */
+    private void chooseSpotLeg(Mover m) {
+        Spots sp = m.spots;
+        m.waypoints.clear();
+        double fromX = m.x;
+        double fromY = m.y;
+        int here = sp.nearest(m.x, m.y, -1);
+        if (graph.laneDistance(m.x, m.y) < WALK_CLEARANCE_M) {
+            // Off the clear floor (start pose, or placed by a demo control): step out to the nearest spot first.
+            double[] p = sp.points.get(here);
+            m.waypoints.add(new double[] {p[0], p[1]});
+            fromX = p[0];
+            fromY = p[1];
+        }
+        int area = sp.area.get(here);
+        if (sp.byArea.size() > 1 && m.rnd.nextInt(CROSS_AREA_ONE_IN) == 0) {
+            int destArea = m.rnd.nextInt(sp.byArea.size() - 1);
+            if (destArea >= area) {
+                destArea++;
+            }
+            List<Integer> members = sp.byArea.get(destArea);
+            double[] dest = sp.points.get(members.get(m.rnd.nextInt(members.size())));
+            double[] exit = sp.points.get(sp.nearest(dest[0], dest[1], area));
+            m.waypoints.add(new double[] {exit[0], exit[1]});
+            m.waypoints.add(new double[] {dest[0], dest[1]});
+        } else {
+            List<Integer> members = sp.byArea.get(area);
+            for (int attempt = 0; attempt < 8; attempt++) {
+                double[] dest = sp.points.get(members.get(m.rnd.nextInt(members.size())));
+                if (walkClear(fromX, fromY, dest[0], dest[1])) {
+                    m.waypoints.add(new double[] {dest[0], dest[1]});
+                    break;
+                }
+            }
+        }
+        startLeg(m);
+    }
+
+    private boolean walkClear(double ax, double ay, double bx, double by) {
+        double len = Math.hypot(bx - ax, by - ay);
+        int n = (int) Math.ceil(len / SAMPLE_M);
+        for (int i = 0; i <= n; i++) {
+            double t = n == 0 ? 0 : (double) i / n;
+            if (graph.laneDistance(ax + (bx - ax) * t, ay + (by - ay) * t) < WALK_CLEARANCE_M) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Dwell point of a storage worker that walked to {@code dest}: the middle of an aisle edge leaving {@code dest},
+     * offset {@link #RACK_FACE_OFFSET_M} towards a rack face (inside the home zone). Null when {@code dest} has no aisle
+     * edge or no offset point lies in the home zone.
+     */
+    private double[] rackFace(Mover m, Node dest) {
+        List<Node> along = new ArrayList<>();
+        for (int i : graph.neighbours(dest.index())) {
+            Node n = graph.node(i);
+            if (n.y() == dest.y()) {
+                along.add(n);
+            }
+        }
+        if (along.isEmpty()) {
+            return null;
+        }
+        Node other = along.get(m.rnd.nextInt(along.size()));
+        double midX = (dest.x() + other.x()) / 2.0;
+        double sign = m.rnd.nextBoolean() ? 1.0 : -1.0;
+        Box home = m.spec.home();
+        for (int k = 0; k < 2; k++, sign = -sign) {
+            double y = dest.y() + sign * RACK_FACE_OFFSET_M;
+            if (home == null || home.contains(midX, y)) {
+                // Walk along the aisle to the middle of the edge, then step to the rack face.
+                m.waypoints.add(new double[] {midX, dest.y()});
+                return new double[] {midX, y};
+            }
+        }
+        return null;
+    }
+
+    /** Whether a worker is within {@link #YIELD_RADIUS_M} of the forklift or of its next metres of route. */
+    private boolean workerAhead(Mover m) {
+        if (workerPositions.length == 0) {
+            return false;
+        }
+        // A yielding forklift moves off only once walking workers are well clear of it (hysteresis: a walking worker's
+        // last published pose can lag it by a few metres).
+        if (workerNear(m.x, m.y, YIELD_RADIUS_M) || m.yielding && walkingWorkerNear(m.x, m.y, RESUME_RADIUS_M)) {
+            return true;
+        }
+        double px = m.x;
+        double py = m.y;
+        double budget = YIELD_LOOKAHEAD_M;
+        for (double[] w : m.waypoints) {
+            double len = Math.hypot(w[0] - px, w[1] - py);
+            double reach = Math.min(len, budget);
+            for (double s = SAMPLE_M; s <= reach + 1e-9; s += SAMPLE_M) {
+                if (workerNear(px + (w[0] - px) * s / len, py + (w[1] - py) * s / len, YIELD_RADIUS_M)) {
+                    return true;
+                }
+            }
+            budget -= len;
+            if (budget <= 0) {
+                break;
+            }
+            px = w[0];
+            py = w[1];
+        }
+        return false;
+    }
+
+    /**
+     * Whether a walking worker should wait: its next {@link #WORKER_LOOKAHEAD_M} m of path enter or stay in the lane
+     * band (closer than {@link #WALK_CLEARANCE_M} to a lane) while a moving forklift is within
+     * {@link #WORKER_WAIT_RADIUS_M} of it. Stopped (or yielding) forklifts do not hold a worker up.
+     */
+    private boolean forkliftMovingNear(Mover m) {
+        boolean anyMoving = false;
+        for (double[] f : forkliftPositions) {
+            if (f[2] > 0 && Math.hypot(f[0] - m.x, f[1] - m.y) <= WORKER_WAIT_RADIUS_M + WORKER_LOOKAHEAD_M) {
+                anyMoving = true;
+                break;
+            }
+        }
+        if (!anyMoving) {
+            return false;
+        }
+        double px = m.x;
+        double py = m.y;
+        double budget = WORKER_LOOKAHEAD_M;
+        boolean inBand = graph.laneDistance(px, py) < WALK_CLEARANCE_M;
+        for (double[] w : m.waypoints) {
+            if (inBand || budget <= 0) {
+                break;
+            }
+            double len = Math.hypot(w[0] - px, w[1] - py);
+            double reach = Math.min(len, budget);
+            for (double s = SAMPLE_M; s <= reach + 1e-9 && !inBand; s += SAMPLE_M) {
+                inBand = graph.laneDistance(px + (w[0] - px) * s / len, py + (w[1] - py) * s / len)
+                        < WALK_CLEARANCE_M;
+            }
+            budget -= len;
+            px = w[0];
+            py = w[1];
+        }
+        if (!inBand) {
+            return false;
+        }
+        for (double[] f : forkliftPositions) {
+            if (f[2] > 0 && Math.hypot(f[0] - m.x, f[1] - m.y) <= WORKER_WAIT_RADIUS_M) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean walkingWorkerNear(double x, double y, double radius) {
+        for (double[] w : workerPositions) {
+            if (w[2] > 0 && Math.hypot(w[0] - x, w[1] - y) <= radius) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean workerNear(double x, double y, double radius) {
+        for (double[] w : workerPositions) {
+            if (Math.hypot(w[0] - x, w[1] - y) <= radius) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void startLeg(Mover m) {

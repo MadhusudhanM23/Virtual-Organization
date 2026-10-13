@@ -199,6 +199,22 @@ class EventsApiIT extends AbstractLiveWorldIT {
     }
 
     @Test
+    void upToSixtyFourEventTypesFitInOneQuery() throws Exception {
+        String path = "/api/events?site_id=" + SITE_BLR + "&limit=5&event_type=";
+        List<String> types = new java.util.ArrayList<>(List.of("FORKLIFT_POSITION_UPDATED", "WORKER_POSITION_UPDATED"));
+        for (int i = types.size(); i < 64; i++) {
+            types.add("SOME_TYPE_" + i);
+        }
+        HttpResponse<String> accepted = get(path + q(String.join(",", types)), analyst());
+        assertThat(accepted.statusCode()).as(accepted.body()).isEqualTo(200);
+        assertThat(json(accepted).get("items")).isNotEmpty();
+        types.add("ONE_TOO_MANY");
+        HttpResponse<String> tooMany = get(path + q(String.join(",", types)), analyst());
+        assertThat(tooMany.statusCode()).isEqualTo(400);
+        assertThat(tooMany.body()).contains("at most 64 types");
+    }
+
+    @Test
     void anotherTenantNeverSeesTheseEvents() throws Exception {
         UUID fl = entity("FL-04");
         ingestTrack(fl, "ev-d-", 2);

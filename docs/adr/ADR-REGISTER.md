@@ -473,3 +473,38 @@ changes no business or twin state, so it is allowed to whoever may view the site
 100..60000, at most 600 frames and 50 000 events per call with `next_from` for continuation.
 **Consequences:** history is visible to every site viewer, like the live twin and `/api/events`; if the owner wants history
 restricted to `ANALYZE_QUERY` (which excludes nobody but the Driver today) only the policy check changes.
+
+### ADR-56 Movement simulation keeps workers and moving forklifts apart (pedestrian separation) — Proposed
+**Context:** in a real run the live movement simulation (REQ-042) raised a `PROXIMITY_ALERT_RAISED` every 4 to 5 s at the
+Bengaluru site: workers wandered on the forklift lane graph, dwelt on the yard lanes and nobody gave way. Measured with the
+default rate control and rule (`MovementProximityRateTest`, one simulated hour): 720 / 804 / 740 / 783 initial alerts for
+seeds 20261012 / 1 / 2 / 3. That buries the staged MCD steps 5-6 situation in organic incidents. The proximity rule (ADR-41)
+is correct and must not be loosened or filtered.
+**Decision (conservative default):** the simulation, not the rule, changes. Simulation assumptions (typical, not measured):
+(1) a worker whose home zone has floor space at least 4.5 m from every forklift lane (receiving, packing, picking, dispatch)
+walks only between work spots there (a 1 m grid; areas are its 4-connected components), on walks that stay at least 4.0 m
+from a lane; 1 leg in 8 goes to another clear area of the zone and crosses the lane the shortest way. (2) Workers of a zone
+without such space (storage aisles) walk the aisle lanes as before and dwell at a rack face, 1.8 m off the aisle centre line.
+(3) Forklifts yield to pedestrians: a forklift stops (status unchanged, speed 0) while a worker is within 4.0 m of it or of
+the next 6 m of its route, and moves off only when no walking worker is within 7.5 m (hysteresis covering the lag of a
+published pose); after 60 s of waiting it drives on regardless. (4) Workers give way: a worker whose next 3 m enter or stay
+in the lane band (closer than 4.0 m to a lane) waits while a moving forklift is within 12 m, for at most 90 s. (5) The
+emission policy publishes an entity that comes to a stop on that tick, ignoring `emit-every-ticks` (otherwise a stopped
+forklift stays "moving" in the published data for up to 3 s). Forklifts read the workers' and workers the forklifts' state at
+the start of a step, so the result does not depend on the update order; each entity keeps its own random stream (ADR-22).
+Result, same harness: 3 / 6 / 4 / 5 alerts per simulated hour - genuine near-misses that remain when patience runs out or a
+crossing is mistimed. Forklift travel drops by about 12 % (they yield about 12 % of the time), position events from about
+6.9 to 6.0 per second.
+**Consequences:** removing a worker can change forklift timing and vice versa (forklifts among themselves, workers among
+themselves and trucks stay independent; tested). Trajectories for a given seed differ from earlier builds; no golden
+trajectory or hash depended on them (only same-seed equality is tested). The waiting limits and radii are the knobs of the
+organic alert rate; the rule thresholds stay in `vo.safety.proximity.*`. Task dispatch (`directTo`) and demo placement are
+unchanged, so the staged demo situation still alerts on its approach step.
+
+### ADR-57 Events API: at most 64 event types per query — Proposed
+**Context:** `GET /api/events` capped `event_type` at 20 values; the live UI now needs about 23 types and had to split the
+query.
+**Decision (conservative default):** the cap is 64 distinct types per request (more is 400 with a field error). With the
+catalog's names (about 20 to 30 characters) 64 types are under 2 KB of query string, well inside the server's 8 KB request
+header limit, and the `event_type in (...)` filter stays a short list.
+**Consequences:** clients may keep chunking for safety; the cap is a constant in `EventQueryService`.
