@@ -14,6 +14,7 @@
     "e2e": "playwright test",
     "e2e:live": "playwright test -c playwright.live.config.ts",
     "e2e:incidents": "playwright test -c playwright.incidents.config.ts",
+    "e2e:replay": "playwright test -c playwright.replay.config.ts",
     "e2e:real": "playwright test -c playwright.real.config.ts"
   },
   "dependencies": {

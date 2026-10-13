@@ -25,6 +25,4 @@ export function SimulationPage() {
   return <PlaceholderPage itemId="twin-simulation" />;
 }
 
-export function ReplayPage() {
-  return <PlaceholderPage itemId="twin-replay" />;
-}
+export { ReplayPage } from '../replay/ReplayPage';
