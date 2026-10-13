@@ -1,0 +1,133 @@
+{
+  "schema": "vorg.simulation.model-input.v1",
+  "model_id": "warehouse-flow",
+  "model_version": "1.0.0",
+  "site": {
+    "site_code": "bengaluru-warehouse-01",
+    "name": "Bengaluru Warehouse 01",
+    "site_id": "018f0000-0000-7000-8000-00000000a021",
+    "data_mode": "SYNTHETIC",
+    "provenance": "Layout, dock, rack and resource counts copied from the SYNTHETIC world seed vorg-seed/bengaluru-warehouse-01/v1 (docs/scenarios/bengaluru-warehouse-01.md). Not measured from a real warehouse."
+  },
+  "layout": {
+    "units": "m",
+    "docks": [
+      { "dock_id": "IN-01", "direction": "INBOUND", "x": 12, "y": 0 },
+      { "dock_id": "IN-02", "direction": "INBOUND", "x": 27, "y": 0 },
+      { "dock_id": "IN-03", "direction": "INBOUND", "x": 42, "y": 0 },
+      { "dock_id": "OUT-01", "direction": "OUTBOUND", "x": 72, "y": 80 },
+      { "dock_id": "OUT-02", "direction": "OUTBOUND", "x": 90, "y": 80 },
+      { "dock_id": "OUT-03", "direction": "OUTBOUND", "x": 108, "y": 80 }
+    ],
+    "zones": [
+      { "code": "RECEIVING", "type": "RECEIVING", "min_x": 0, "min_y": 0, "max_x": 60, "max_y": 16 },
+      { "code": "PACKING", "type": "PACKING", "min_x": 60, "min_y": 0, "max_x": 120, "max_y": 16 },
+      { "code": "STORAGE_A", "type": "STORAGE", "min_x": 0, "min_y": 16, "max_x": 60, "max_y": 64 },
+      { "code": "STORAGE_B", "type": "STORAGE", "min_x": 60, "min_y": 16, "max_x": 120, "max_y": 64 },
+      { "code": "PICKING", "type": "PICKING", "min_x": 0, "min_y": 64, "max_x": 60, "max_y": 80 },
+      { "code": "DISPATCH", "type": "DISPATCH", "min_x": 60, "min_y": 64, "max_x": 120, "max_y": 80 }
+    ],
+    "storage": {
+      "zones": ["STORAGE_A", "STORAGE_B"],
+      "racks": 70,
+      "levels_per_rack": 4,
+      "slots_per_level": 6,
+      "note": "Ground-floor racks A-rr-cc and B-rr-cc (7 x 5 each, 4 levels, 6 slots per level as placed by the seed). The 8 mezzanine small-parts racks are excluded: not forklift pallet storage."
+    }
+  },
+  "resources": {
+    "forklifts": ["FL-01", "FL-02", "FL-03", "FL-04", "FL-05", "FL-06", "FL-07", "FL-08", "FL-09", "FL-10"],
+    "workers": { "RECEIVING": 5, "PICKING": 10, "PACKING": 8, "DISPATCH": 4, "STORAGE": 3 }
+  },
+  "initial_state": {
+    "stored_pallets": 80,
+    "receiving_staged_pallets": 20,
+    "dispatch_staged_pallets": 20
+  },
+  "assumptions": {
+    "inbound_truck_arrival_rate_per_hour": {
+      "value": 3.5, "unit": "trucks/h", "label": "ASSUMPTION",
+      "rationale": "Poisson arrivals at a constant rate over the shift; chosen so the three inbound docks are occupied a little over half of the time. No arrival history exists to calibrate against."
+    },
+    "inbound_pallets_per_truck": {
+      "value": { "dist": "discrete_uniform", "min": 14, "max": 22 }, "unit": "pallets", "label": "ASSUMPTION",
+      "rationale": "Mixed partial and full truckloads; a full 32 ft truck carries about 22-24 standard pallets."
+    },
+    "inbound_unload_lanes_per_truck": {
+      "value": 2, "unit": "forklifts", "label": "ASSUMPTION",
+      "rationale": "At most two forklifts work one dock door at a time (one at the trailer, one at the staging lane)."
+    },
+    "dock_in_time_min": {
+      "value": { "dist": "triangular", "min": 4, "mode": 6, "max": 10 }, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "Reverse onto the door, chock, open the leveller and check documents before the first pallet moves."
+    },
+    "dock_out_time_min": {
+      "value": { "dist": "triangular", "min": 3, "mode": 5, "max": 8 }, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "Close and seal, sign documents and pull out; the door is occupied until the truck leaves."
+    },
+    "unload_time_per_pallet_min": {
+      "value": { "dist": "triangular", "min": 1.2, "mode": 1.6, "max": 2.5 }, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "Forklift cycle trailer to receiving lane and back (short distance), including occasional repositioning."
+    },
+    "receiving_check_time_per_pallet_min": {
+      "value": { "dist": "triangular", "min": 0.5, "mode": 1.0, "max": 2.0 }, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "A receiving worker scans the label and checks quantity/damage before the pallet is released for putaway."
+    },
+    "putaway_handling_time_min": {
+      "value": { "dist": "triangular", "min": 0.6, "mode": 1.0, "max": 1.8 }, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "Pick up, lift to the rack level and place; travel is added separately from the layout distance."
+    },
+    "forklift_speed_m_per_s": {
+      "value": 2.0, "unit": "m/s", "label": "ASSUMPTION",
+      "rationale": "Average loaded/unloaded travel speed (7.2 km/h) inside a building with pedestrians; travel distance is the Manhattan distance between zone centres along the aisles."
+    },
+    "inbound_turnaround_target_min": {
+      "value": 120, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "Service-level target for an inbound truck from gate arrival to departure; used only to count SLA misses."
+    },
+    "order_arrival_rate_per_hour": {
+      "value": 28, "unit": "orders/h", "label": "ASSUMPTION",
+      "rationale": "Poisson order release; with about 2 pallets per order this roughly balances the inbound pallet flow."
+    },
+    "pallets_per_order": {
+      "value": { "dist": "discrete", "values": [1, 2, 3, 4], "weights": [0.35, 0.35, 0.2, 0.1] }, "unit": "pallets", "label": "ASSUMPTION",
+      "rationale": "Outbound orders of one to four pallet equivalents, small orders most common (mean 2.05)."
+    },
+    "retrieval_handling_time_min": {
+      "value": { "dist": "triangular", "min": 0.6, "mode": 1.0, "max": 1.8 }, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "Lower the pallet from the rack and set it down in the picking zone; travel is added from the layout distance."
+    },
+    "pick_time_per_pallet_min": {
+      "value": { "dist": "triangular", "min": 3, "mode": 5, "max": 8 }, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "A picker builds one outbound pallet from one storage pallet (pallet-level abstraction, ADR-48); includes moving it to packing."
+    },
+    "pack_time_per_pallet_min": {
+      "value": { "dist": "triangular", "min": 2, "mode": 4, "max": 6 }, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "Stretch-wrap, label and move the pallet into dispatch staging (manual pallet jack, not forklift-modeled)."
+    },
+    "order_cycle_time_target_min": {
+      "value": 240, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "Same-shift dispatch target from order release to the departure of the truck carrying its last pallet."
+    },
+    "outbound_truck_arrival_rate_per_hour": {
+      "value": 3.0, "unit": "trucks/h", "label": "ASSUMPTION",
+      "rationale": "Poisson arrivals of outbound trucks (carrier pickups); capacity exceeds the mean outbound flow by about 25%."
+    },
+    "outbound_truck_capacity_pallets": {
+      "value": { "dist": "discrete_uniform", "min": 22, "max": 26 }, "unit": "pallets", "label": "ASSUMPTION",
+      "rationale": "Pallet positions of the carriers' trucks."
+    },
+    "outbound_load_lanes_per_truck": {
+      "value": 2, "unit": "forklifts", "label": "ASSUMPTION",
+      "rationale": "Two forklift + dispatch-worker teams load one truck in parallel."
+    },
+    "load_time_per_pallet_min": {
+      "value": { "dist": "triangular", "min": 1.0, "mode": 1.5, "max": 2.5 }, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "Forklift cycle dispatch staging to trailer, with a dispatch worker checking the load."
+    },
+    "outbound_max_dwell_min": {
+      "value": 30, "unit": "min", "label": "ASSUMPTION",
+      "rationale": "Loading window: a docked outbound truck stops loading when full or when this long has passed since loading started, then leaves (carrier schedule)."
+    }
+  }
+}
