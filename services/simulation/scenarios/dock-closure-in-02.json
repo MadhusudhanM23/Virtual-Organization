@@ -1,0 +1,19 @@
+{
+  "schema": "vorg.simulation.scenario.v1",
+  "scenario_id": "dock-closure-in-02",
+  "name": "Close inbound dock IN-02 for three hours",
+  "description": "MCD what-if: inbound dock IN-02 is closed (e.g. leveller repair) from 60 to 240 minutes into an 8-hour shift. Same seeds as the baseline (common random numbers).",
+  "baseline": "bengaluru-warehouse-01",
+  "run": {
+    "master_seed": 20261012,
+    "replications": 10,
+    "horizon_min": 480,
+    "warmup_min": 30,
+    "trajectory_sample_min": 15
+  },
+  "overlay": {
+    "dock_closures": [
+      { "dock_id": "IN-02", "start_min": 60, "end_min": 240, "reason": "leveller repair" }
+    ]
+  }
+}
