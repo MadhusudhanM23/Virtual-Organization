@@ -473,3 +473,61 @@ changes no business or twin state, so it is allowed to whoever may view the site
 100..60000, at most 600 frames and 50 000 events per call with `next_from` for continuation.
 **Consequences:** history is visible to every site viewer, like the live twin and `/api/events`; if the owner wants history
 restricted to `ANALYZE_QUERY` (which excludes nobody but the Driver today) only the policy check changes.
+
+### ADR-47 DES engine determinism contract: time, ordering, seeds, warm-up, canonical outputs — Proposed
+**Context:** ADR-04/ADR-22 and REQ-072/076 require a reproducible engine (same baseline + scenario + seed + engine
+parameters => same result, across repeated runs and JVM restarts) but leave the time unit, seed derivation, warm-up and
+output encoding open; NFR-06 needs a run in < 60 s.
+**Decision (conservative default):** `services/simulation` (`io.vorg.simulation`, artifact `vorg-simulation`) has **no**
+runtime dependencies (not even Jackson; a small canonical JSON codec is included). Simulation time is a `long` in
+**milliseconds** from run start, never related to the wall clock. The calendar is ordered by `(time, priority,
+insertion_sequence)`; the sequence is unique per run, so the order is total. One run = one thread; replications run
+sequentially (they may be parallelized later because they are independent). RNG: `L64X128MixRandom` (ADR-22) per **named
+stream**; a stream's seed is the first 8 bytes of `SHA-256("vorg-des/v1|<parent_seed>|<name>")` (scheme
+`sha256-name-v1`), so adding or reordering streams never perturbs other streams; replication *i* uses the derived seed of
+name `replication/<i>` as its master seed. Only `nextDouble()` of the JDK generator is used; variates are computed with
+`StrictMath` by inversion/Box-Muller with a fixed number of uniforms per variate. A golden test pins the derivation and the
+first draw; if a JDK upgrade changes it, the engine version must be bumped. Run control: events with `time < end` run; the
+warm-up reset is an event at `warmup_end` with the lowest priority value, so it precedes every other event at that instant;
+statistics observed before it are discarded (observations are recorded at completion time, time-weighted statistics
+restart). Each executed event feeds a SHA-256 trace hash (time, priority, sequence, label); results are canonical JSON
+(fixed field order, no maps with hash order, doubles rounded half-even to 6 decimals) with a `results_hash` over the
+canonical bytes; wall-clock timings are never part of the hashed results.
+**Consequences:** results are reproducible bit-for-bit within one Java release; a JDK change that alters
+`L64X128MixRandom` seeding is detected by the golden test. Event labels are part of the trace contract: renaming a label
+changes trace hashes (engine/model version bump).
+
+### ADR-48 Warehouse flow model: abstraction, resource policies, closures, KPI windows — Proposed
+**Context:** REQ-072 names the flow (truck arrival -> dock -> unload -> putaway -> pick -> pack -> dispatch) but not the
+level of detail, the resource rules or how closures interact with work in progress. The blueprint forbids fabricated truth:
+every parameter must be an explicit, labeled assumption.
+**Decision (conservative default):** a **pallet-level** model (one storage pallet becomes one outbound pallet; case-level
+picking, SKUs and slotting are not modeled). Units are individually named (docks `IN-01..03`/`OUT-01..03`, forklifts
+`FL-01..10`, workers by role from the Bengaluru Warehouse 01 seed). Pools serve requests by `(priority, FIFO)` and assign
+the lowest-index free unit; forklift priority order is outbound loading, inbound unloading, retrieval, putaway (frees docks
+first). Inbound and outbound trucks wait in a FIFO yard per direction. A **dock closure** or **forklift outage** window
+`[start, end)` is non-preemptive: the unit takes no new work from `start`; work already in progress finishes, then the
+unit stays down until `end`. Per-entity service times are drawn when the entity arrives, from streams per process, so
+baseline and scenario runs with the same seed use common random numbers (identical arrivals and work content). The run
+starts with empty docks and yards and with the seeded stock (80 stored pallets, 20 staged in receiving, 20 staged in
+dispatch); trucks shown as docked in the seed are not carried over. KPIs are measured over `[warmup_end, end)`; trucks and
+orders still in the system at the end are reported as backlog (with their ages), not dropped silently. Every numeric
+parameter lives in the model input `assumptions` with value, unit, rationale and `label: ASSUMPTION` (no calibration data
+exists yet; REQ-077 calibration will replace or confirm them).
+**Consequences:** the model answers dock/forklift/staffing what-ifs at pallet granularity; it does not claim accuracy for
+pick-path, congestion or SKU effects. Changing a policy above is a model-version change.
+
+### ADR-49 Scenario overlay, replications and results labeling — Proposed
+**Context:** REQ-070/071/073 need baseline + overrides (copy-on-write), Monte Carlo confidence "only when the model
+supports it" (section 8), and results that can never be mistaken for live data (ADR-27).
+**Decision (conservative default):** a scenario is `{baseline model input, run settings, overlay}`; the overlay is a typed
+list of changes applied to a copy of the baseline: `dock_closures`, `forklift_outages`, `worker_reductions`,
+`demand_multiplier` (factor and window, applied to order arrivals by thinning) and `parameter_overrides` (replace an
+assumption's value; marked `overridden` in the output). Unknown overlay keys or unknown dock/forklift ids are rejected,
+never ignored. The effective input is hashed (`input_hash`). A run performs N replications (default 10) with derived
+seeds; each KPI reports per-replication values, mean, sample standard deviation and the Student-t 95% CI of the mean
+(undefined for N < 2). Baseline-vs-scenario comparisons use the same replication seeds (common random numbers) and
+report the paired difference with its paired-t 95% CI. Every result carries `data_mode: SIMULATED`, `lens: SIMULATE`,
+`source: SIMULATION`, the engine/model versions, RNG algorithm, seed scheme, master seed and replication seeds.
+**Consequences:** Plan 6.3 stores the scenario JSON and the results JSON as is in the `sim` schema; the UI labels them
+SIMULATION. A CI is only as good as the labeled assumptions behind it, which the results list next to the KPIs.

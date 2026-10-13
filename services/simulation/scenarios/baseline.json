@@ -1,0 +1,14 @@
+{
+  "schema": "vorg.simulation.scenario.v1",
+  "scenario_id": "baseline",
+  "name": "Bengaluru Warehouse 01 baseline shift",
+  "description": "No overlay: the baseline model input over an 8-hour shift.",
+  "baseline": "bengaluru-warehouse-01",
+  "run": {
+    "master_seed": 20261012,
+    "replications": 10,
+    "horizon_min": 480,
+    "warmup_min": 30,
+    "trajectory_sample_min": 15
+  }
+}
