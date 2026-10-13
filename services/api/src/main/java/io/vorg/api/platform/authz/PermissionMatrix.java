@@ -21,6 +21,7 @@ public final class PermissionMatrix {
 
     private final Map<Action, Map<Role, DecisionCode>> cells = new EnumMap<>(Action.class);
     private final Map<Role, Set<ScopeType>> scopeTypes = new EnumMap<>(Role.class);
+    private int version;
 
     private PermissionMatrix() {}
 
@@ -37,6 +38,11 @@ public final class PermissionMatrix {
 
     static PermissionMatrix parse(JsonNode root) {
         PermissionMatrix m = new PermissionMatrix();
+        JsonNode version = root.get("version");
+        if (version == null || !version.isInt() || version.asInt() < 1) {
+            throw new IllegalStateException("Matrix version missing or not a positive integer");
+        }
+        m.version = version.asInt();
         for (JsonNode r : root.get("roles")) {
             Role role = Role.valueOf(r.get("role").asString());
             Set<ScopeType> types = EnumSet.noneOf(ScopeType.class);
@@ -65,6 +71,14 @@ public final class PermissionMatrix {
             throw new IllegalStateException("Matrix roles incomplete");
         }
         return m;
+    }
+
+    /**
+     * The contract's {@code "version"}: a policy version in the sense of BLUEPRINT section 9 ({@code policy_versions}
+     * of a recommendation records it as {@code "permission-matrix"}; a change makes an approved plan stale, ADR-61).
+     */
+    public int version() {
+        return version;
     }
 
     /** The matrix cell; anything unknown is DENY. */

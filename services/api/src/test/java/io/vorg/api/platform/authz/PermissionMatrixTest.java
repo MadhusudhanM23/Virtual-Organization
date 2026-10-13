@@ -88,6 +88,11 @@ class PermissionMatrixTest {
     }
 
     @Test
+    void versionIsExposedForPolicyVersions() {
+        assertThat(PermissionMatrix.loadFromClasspath().version()).isEqualTo(1);
+    }
+
+    @Test
     void roleScopeTypesFollowSection4ScopeColumn() {
         PermissionMatrix matrix = PermissionMatrix.loadFromClasspath();
         assertThat(matrix.allowedScopeTypes(Role.EXECUTIVE)).containsExactly(io.vorg.api.platform.identity.ScopeType.ORG);
