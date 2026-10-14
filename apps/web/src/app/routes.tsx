@@ -6,6 +6,7 @@ import { DEFAULT_PATH } from './navigation';
 import AnalyticsPage from '../features/analytics';
 import AssetsPage from '../features/assets';
 import AssistantPage from '../features/assistant';
+import CamerasPage from '../features/cameras/CamerasPage';
 import FleetPage from '../features/fleet';
 import IncidentDetailPage from '../features/incidents/IncidentDetailPage';
 import IncidentsPage from '../features/incidents/IncidentsPage';
@@ -39,6 +40,7 @@ export const routeObjects: RouteObject[] = [
       { path: 'operations', element: <OperationsPage /> },
       { path: 'incidents', element: <IncidentsPage /> },
       { path: 'incidents/:id', element: <IncidentDetailPage /> },
+      { path: 'cameras', element: <CamerasPage /> },
       { path: 'recommendations', element: <RecommendationsPage /> },
       { path: 'recommendations/:id', element: <RecommendationDetailPage /> },
       { path: 'twin/live', element: <LiveViewPage /> },

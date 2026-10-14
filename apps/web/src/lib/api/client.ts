@@ -119,7 +119,8 @@ export function refreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
-export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+/** Sends with the bearer token, refreshing it once on 401; throws {@link ApiError} for any non-2xx answer. */
+async function authorizedSend(path: string, opts: RequestOptions): Promise<Response> {
   const usedToken = useSessionStore.getState().accessToken;
   let sent = await send(path, opts, usedToken);
 
@@ -133,8 +134,22 @@ export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Prom
   }
 
   if (!sent.res.ok) throw await toApiError(sent.res, sent.id);
-  if (sent.res.status === 204) return undefined as T;
-  return (await sent.res.json()) as T;
+  return sent.res;
+}
+
+export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const res = await authorizedSend(path, opts);
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+/**
+ * Binary GET (e.g. camera media, docs/api/vision.md) with the same auth and refresh rules as {@link apiFetch}.
+ * The caller owns the returned Blob (wrap it in an object URL and revoke it when done).
+ */
+export async function apiFetchBlob(path: string): Promise<Blob> {
+  const res = await authorizedSend(path, {});
+  return res.blob();
 }
 
 export function fetchMe(): Promise<MeResponse> {

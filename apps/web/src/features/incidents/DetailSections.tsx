@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
-import { Camera, FileText, MapPin, VideoOff } from 'lucide-react';
+import { Link } from 'react-router';
+import { Camera, FileText, MapPin, Video, VideoOff } from 'lucide-react';
 import { DataModeBadge } from '../../components/DataModeBadge';
 import { Dialog } from '../../components/Dialog';
 import { t, type MessageId } from '../../i18n';
@@ -7,6 +8,7 @@ import type { DataMode } from '../../lib/truthLabel';
 import { useSiteFormat } from '../../lib/useSiteFormat';
 import type { EventEnvelope } from '../live/liveProtocol';
 import { humanizeEventType } from '../live/eventsModel';
+import { cameraLink } from '../cameras/cameraModel';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, INPUT, useCommand } from './commandKit';
 import { ErrorText, Field } from './CommandDialogs';
 import {
@@ -85,7 +87,12 @@ export function TimelineList({ timeline }: { timeline: Timeline | null }) {
       data-testid="incident-timeline"
     >
       {items.map((it) => (
-        <li key={it.event_id} className="relative" data-testid="timeline-item" data-event-type={it.event_type}>
+        <li
+          key={it.event_id}
+          className="relative"
+          data-testid="timeline-item"
+          data-event-type={it.event_type}
+        >
           <span
             aria-hidden="true"
             className="absolute top-1.5 -left-[1.4rem] size-2.5 rounded-full border-2 border-surface bg-accent-600"
@@ -157,7 +164,9 @@ function EvidenceRow({
   if (item.kind === 'EVENT_LINK') {
     body = (
       <>
-        <p className="text-sm text-ink-900">{str(d.summary) ?? str(d.event_type) ?? item.ref_key}</p>
+        <p className="text-sm text-ink-900">
+          {str(d.summary) ?? str(d.event_type) ?? item.ref_key}
+        </p>
         <button
           type="button"
           onClick={() => onOpenEvent(item)}
@@ -189,6 +198,33 @@ function EvidenceRow({
             {t('incident.evidence.speed', { speed: speed.toFixed(1) })}
           </p>
         ) : null}
+      </>
+    );
+  } else if (
+    item.kind === 'CAMERA_REFERENCE' &&
+    d.role === 'OBSERVING_CAMERA' &&
+    str(d.camera_id)
+  ) {
+    // The camera that observed a party (vision, ADR-66): link into the camera panel at the media time.
+    const at = num(d.media_time_s);
+    body = (
+      <>
+        <p className="text-sm text-ink-900">
+          {t('incident.evidence.observedBy', {
+            code: str(d.code) ?? item.ref_key,
+            cls: str(d.object_class) ?? '-',
+            track: num(d.track_id) ?? '-',
+            t: at === null ? '-' : at.toFixed(2),
+          })}
+        </p>
+        <Link
+          to={cameraLink(str(d.camera_id)!, str(d.session_id), at)}
+          className="mt-1 inline-flex items-center gap-1 self-start text-xs font-semibold text-accent-700 underline underline-offset-2"
+          data-testid="evidence-camera-link"
+        >
+          <Video aria-hidden="true" className="size-3.5" />
+          {t('incident.evidence.openCamera')}
+        </Link>
       </>
     );
   } else if (item.kind === 'CAMERA_REFERENCE') {
@@ -226,13 +262,7 @@ function EvidenceRow({
   );
 }
 
-export function EvidenceList({
-  evidence,
-  siteId,
-}: {
-  evidence: Evidence | null;
-  siteId: string;
-}) {
+export function EvidenceList({ evidence, siteId }: { evidence: Evidence | null; siteId: string }) {
   const [open, setOpen] = useState<EvidenceItem | null>(null);
   const items = evidence?.items ?? [];
   const hasCamera = items.some((i) => i.kind === 'CAMERA_REFERENCE');
@@ -247,9 +277,7 @@ export function EvidenceList({
           ))}
         </ul>
       )}
-      {!hasCamera && evidence?.clip_notice ? (
-        <ClipPlaceholder note={evidence.clip_notice} />
-      ) : null}
+      {!hasCamera && evidence?.clip_notice ? <ClipPlaceholder note={evidence.clip_notice} /> : null}
       {open ? <EventDialog item={open} siteId={siteId} onClose={() => setOpen(null)} /> : null}
     </>
   );
@@ -271,7 +299,9 @@ function EventDialog({
   const eventType = str(d.event_type) ?? '';
   const occurredAt = str(d.occurred_at) ?? item.occurred_at;
   const [state, setState] = useState<
-    { status: 'loading' } | { status: 'ok'; event: EventEnvelope | null } | { status: 'error'; error: unknown }
+    | { status: 'loading' }
+    | { status: 'ok'; event: EventEnvelope | null }
+    | { status: 'error'; error: unknown }
   >({ status: 'loading' });
 
   useEffect(() => {

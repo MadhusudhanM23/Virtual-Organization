@@ -13,6 +13,8 @@ const REQUIRED_ACTION: Record<string, string | null | ((roles: readonly string[]
   organization: 'ANALYZE_QUERY',
   operations: 'ANALYZE_QUERY',
   incidents: canViewIncidents,
+  // Camera media is sensitive (REQ-084): the incident audience, not Driver/Operator or Platform Administrator.
+  cameras: canViewIncidents,
   recommendations: 'VIEW_OPERATIONAL_STATE',
   'twin-live': 'VIEW_OPERATIONAL_STATE',
   'twin-map': 'VIEW_OPERATIONAL_STATE',

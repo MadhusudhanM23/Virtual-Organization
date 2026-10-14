@@ -448,7 +448,8 @@ export const messagesEn = {
     'Mark this alert as a false positive. The incident moves to Rejected and can then be closed.',
   'incident.confirm.resolve':
     'Record that the situation has been dealt with. The incident moves to Resolved.',
-  'incident.confirm.close': 'Close the incident. No further changes or notes are possible afterwards.',
+  'incident.confirm.close':
+    'Close the incident. No further changes or notes are possible afterwards.',
   'incident.dialog.reason': 'Reason',
   'incident.dialog.reasonOptional': 'Reason (optional)',
   'incident.dialog.reasonRequired': 'A reason is required.',
@@ -521,7 +522,8 @@ export const messagesEn = {
   'replay.error.state': 'Replay request failed: {message}',
   'replay.deepLink.clamped':
     'The linked instant is outside the replayable range; showing the nearest replayable instant instead.',
-  'replay.deepLink.invalid': 'The linked instant could not be read; showing the start of the replayable range.',
+  'replay.deepLink.invalid':
+    'The linked instant could not be read; showing the start of the replayable range.',
   'replay.timeline.label': 'Replay timeline',
   'replay.time.label': 'Replay time',
   'replay.status.seeking': 'Reconstructing state...',
@@ -553,16 +555,20 @@ export const messagesEn = {
   'replay.incidents.detected': 'Detected {time}',
   'replay.incidents.focus': 'Focus',
   'replay.provenance.title': 'Reconstruction',
-  'replay.provenance.from': 'Reconstructed from snapshot {snapshot} ({snapshotAt}) + {events} events',
-  'replay.provenance.read': 'State read at {at}: {read} events read, {ignored} ignored, {skipped} skipped',
+  'replay.provenance.from':
+    'Reconstructed from snapshot {snapshot} ({snapshotAt}) + {events} events',
+  'replay.provenance.read':
+    'State read at {at}: {read} events read, {ignored} ignored, {skipped} skipped',
   'replay.provenance.frames': 'Then advanced by playback frames to {at}',
   'replay.recorded.title': 'Shown as recorded, not reconstructed',
-  'replay.recorded.world': 'World model "{label}" v{version} and {docks} docks as recorded at the base snapshot.',
+  'replay.recorded.world':
+    'World model "{label}" v{version} and {docks} docks as recorded at the base snapshot.',
   'replay.inspector.asOf': 'As of replay time {time}',
   'replay.inspector.noTime': 'Replay time not set',
   'replay.inspector.noPose': 'No pose at this instant.',
   'replay.inspector.provenance': 'Provenance',
-  'replay.inspector.catalogNote': 'Name and attributes are the entity catalog as recorded; pose, floor, zone and status are reconstructed.',
+  'replay.inspector.catalogNote':
+    'Name and attributes are the entity catalog as recorded; pose, floor, zone and status are reconstructed.',
   'replay.events.title': 'Replay events',
   'replay.events.window': 'Window {from} to {to}: {count} events, newest first.',
   'replay.events.more': 'More events fall in this window than are listed.',
@@ -574,7 +580,8 @@ export const messagesEn = {
   'replay.events.role.recorded': 'RECORDED',
   'replay.events.role.reconstructed.help': 'Folded into the replayed state',
   'replay.events.role.recorded.help': 'Listed as captured; not reconstructed',
-  'replay.events.panel': 'The live event feed is paused in the REPLAY lens. The replay events of the visible window are listed on the page.',
+  'replay.events.panel':
+    'The live event feed is paused in the REPLAY lens. The replay events of the visible window are listed on the page.',
   'incident.replay': 'Replay this incident',
 
   // Recommendations & approvals (Phase 8, plan 8.4). Never a "confidence %" (REQ-091).
@@ -597,8 +604,10 @@ export const messagesEn = {
   'rec.expiry.expired': 'The approval window has expired',
   'rec.expiry.remaining': 'Approval window closes in {time}',
   'rec.error.sod': 'Separation of duties: the proposer cannot approve their own recommendation.',
-  'rec.error.expired': 'The approval window expired. Re-evaluate to create a fresh proposal from the same run.',
-  'rec.error.invalidState': 'This recommendation is no longer in a state that allows this action. The view has been refreshed.',
+  'rec.error.expired':
+    'The approval window expired. Re-evaluate to create a fresh proposal from the same run.',
+  'rec.error.invalidState':
+    'This recommendation is no longer in a state that allows this action. The view has been refreshed.',
   'rec.error.stale': 'The baseline changed since the plan was computed, so it was not executed.',
   'rec.error.generatorUnavailable': 'The recommendation generator is not available right now.',
   'rec.error.forbidden': 'Your role is not allowed to do this for this site.',
@@ -645,11 +654,13 @@ export const messagesEn = {
   'rec.feasibility.solveTime': 'Solve time',
   'rec.feasibility.ms': '{ms} ms',
   'rec.feasibility.policies': 'Policy versions',
-  'rec.feasibility.notFeasible': 'The solver found no feasible plan; this recommendation cannot be approved.',
+  'rec.feasibility.notFeasible':
+    'The solver found no feasible plan; this recommendation cannot be approved.',
   'rec.section.objective': 'Objective',
   'rec.objective.to': 'changes to',
   'rec.objective.delta': 'Change: {delta} {unit}',
-  'rec.objective.note': 'Measured by the solver on the simulation run; not a probability or confidence.',
+  'rec.objective.note':
+    'Measured by the solver on the simulation run; not a probability or confidence.',
   'rec.objective.none': 'No objective values were reported.',
   'rec.section.constraints': 'Constraints',
   'rec.constraints.empty': 'No constraints were reported.',
@@ -664,7 +675,8 @@ export const messagesEn = {
   'rec.entities.empty': 'No affected entities.',
   'rec.entities.baseline': 'Baseline version {version}',
   'rec.entities.show': 'Show {code} in the twin',
-  'rec.entities.notInTwin': '{code} is not an entity shown in the twin (for example a trip or dock assignment).',
+  'rec.entities.notInTwin':
+    '{code} is not an entity shown in the twin (for example a trip or dock assignment).',
   'rec.section.dryRun': 'Dry-run diff',
   'rec.dryRun.refresh': 'Recompute',
   'rec.dryRun.explain':
@@ -672,7 +684,8 @@ export const messagesEn = {
   'rec.dryRun.loading': 'Computing the dry run...',
   'rec.dryRun.failed': 'The dry run could not be computed.',
   'rec.dryRun.computed': 'Computed {time}',
-  'rec.dryRun.stale': '{count} affected entities changed since the plan was computed; approval is blocked.',
+  'rec.dryRun.stale':
+    '{count} affected entities changed since the plan was computed; approval is blocked.',
   'rec.dryRun.empty': 'The plan changes no values.',
   'rec.dryRun.caption': 'Dry-run diff, {count} changes: before and after per entity field',
   'rec.dryRun.entity': 'Entity',
@@ -696,9 +709,11 @@ export const messagesEn = {
   'rec.approval.expiry': 'Expiry',
   'rec.approve': 'Approve',
   'rec.approve.done': 'Approved.',
-  'rec.approve.needsDryRun': 'Approve is enabled once the dry-run diff has been computed with no stale entities.',
+  'rec.approve.needsDryRun':
+    'Approve is enabled once the dry-run diff has been computed with no stale entities.',
   'rec.approve.notFeasible': 'Only an optimal or feasible plan can be approved.',
-  'rec.approve.viewOnly': 'You can view this recommendation. Approving it is reserved for eligible approvers of this site.',
+  'rec.approve.viewOnly':
+    'You can view this recommendation. Approving it is reserved for eligible approvers of this site.',
   'rec.reject': 'Reject',
   'rec.reject.reason': 'Reason for rejecting (required)',
   'rec.reject.reasonRequired': 'A reason is required.',
@@ -709,8 +724,10 @@ export const messagesEn = {
   'rec.execute': 'Execute',
   'rec.execute.explain':
     'Applies the plan step by step through the simulated adapters, after re-checking that the baseline is unchanged.',
-  'rec.execute.viewOnly': 'Approved. Executing it is reserved for roles that can execute commands on this site.',
-  'rec.execution.running': 'Executing: waiting until every target is observed with its new value...',
+  'rec.execute.viewOnly':
+    'Approved. Executing it is reserved for roles that can execute commands on this site.',
+  'rec.execution.running':
+    'Executing: waiting until every target is observed with its new value...',
   'rec.execution.none': 'Not executed.',
   'rec.execution.command': 'Command',
   'rec.execution.started': 'Started {time}',
@@ -718,7 +735,8 @@ export const messagesEn = {
   'rec.outcome.VERIFIED': 'Verified: every target was observed with its new value.',
   'rec.outcome.PARTIAL': 'Partially applied: some compensations failed. See the step evidence.',
   'rec.outcome.FAILED': 'Failed: the plan was not verified. See the step evidence.',
-  'rec.stale.explain': 'These entities changed after the plan was computed (baseline version → current version).',
+  'rec.stale.explain':
+    'These entities changed after the plan was computed (baseline version → current version).',
   'rec.stale.caption': '{count} stale entities with baseline and current versions',
   'rec.stale.entity': 'Entity',
   'rec.stale.baseline': 'Baseline version',
@@ -730,6 +748,48 @@ export const messagesEn = {
   'rec.resimulate.RUNNING': 'Re-simulating...',
   'rec.resimulate.SUCCEEDED': 'Re-simulation succeeded',
   'rec.resimulate.FAILED': 'Re-simulation failed',
+  // Cameras (Phase 7, docs/api/vision.md)
+  'nav.cameras': 'Cameras',
+  'page.cameras.description':
+    'Recorded and synthetic camera feeds with labelled detections. Observations are advisory perception, not business truth.',
+  'cameras.title': 'Cameras',
+  'cameras.noSite': 'Select a site to see its cameras.',
+  'cameras.loading': 'Loading cameras...',
+  'cameras.empty': 'This site has no registered cameras.',
+  'cameras.list': 'Cameras of the site',
+  'cameras.status.ACTIVE': 'Active',
+  'cameras.status.PLACEHOLDER': 'Placeholder',
+  'cameras.status.DISABLED': 'Disabled',
+  'cameras.calibrated': 'Floor calibration: {points} control points',
+  'cameras.uncalibrated': 'Not calibrated',
+  'cameras.lastObservation': 'Last observation {at}',
+  'cameras.noObservations': 'No observations yet',
+  'cameras.panel.label': 'Camera {code}',
+  'cameras.source': 'Source: {source}',
+  'cameras.detector': 'Detector: {detector}',
+  'cameras.noFeed': 'No feed: this camera is a placeholder without media.',
+  'cameras.media.loading': 'Loading media...',
+  'cameras.media.unavailable': 'The media file is not available on this server.',
+  'cameras.media.videoLabel': 'Recorded video of camera {code}',
+  'cameras.media.stillAlt': 'Still image of camera {code} (synthetic background, no people)',
+  'cameras.timeline.play': 'Play overlays',
+  'cameras.timeline.pause': 'Pause',
+  'cameras.timeline.label': 'Media time',
+  'cameras.timeline.at': 'Media time {t} s: {count} tracked objects shown',
+  'cameras.observations.loading': 'Loading observations...',
+  'cameras.observations.empty':
+    'No observations for this camera yet. Run the vision pipeline to produce some.',
+  'cameras.session': 'Session',
+  'cameras.session.count': '{count} observations',
+  'cameras.legend': 'Tracked objects by class',
+  'cameras.legend.item': '{cls}: {count} tracks',
+  'cameras.legend.provisional': 'Dashed box and "?": provisional identity.',
+  'cameras.truncated': 'Only the first observations are shown.',
+  'cameras.privacy':
+    'Privacy: only class, track id, box, floor position and confidence are stored; no frames, faces or biometric data. Observations are kept {days} days. Viewing media is audited.',
+  'cameras.advisory': 'Computer vision is advisory monitoring, not a safety-rated sensor.',
+  'incident.evidence.observedBy': 'Observed by camera {code}: {cls} track {track} at {t} s',
+  'incident.evidence.openCamera': 'Open camera at this moment',
 } as const;
 
 export type MessageId = keyof typeof messagesEn;
