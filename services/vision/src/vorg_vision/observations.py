@@ -38,6 +38,8 @@ FLOOR_KEYS = frozenset({"x", "y", "z"})
 
 # Speeds are estimated over this many seconds of floor history (shorter windows amplify box jitter).
 SPEED_WINDOW_S = 1.0
+# Faster than this is a mapping glitch (e.g. a box jump), not motion; such a speed is not reported.
+MAX_PLAUSIBLE_SPEED_MPS = 15.0
 # Below this speed a heading is noise, so none is reported.
 HEADING_MIN_SPEED_MPS = 0.2
 
@@ -142,7 +144,7 @@ class ObservationMapper:
                 "z": round(self.calibration.floor_z_m, 3),
             }
             speed, heading = speed_and_heading(track.floor_history)
-            if speed is not None:
+            if speed is not None and speed <= MAX_PLAUSIBLE_SPEED_MPS:
                 obs["speed_mps"] = round(speed, 3)
             if heading is not None:
                 obs["heading_deg"] = round(heading, 3)

@@ -151,3 +151,14 @@ def test_detection_dataclass_is_frozen():
     d = Detection(0, 0, 1, 1, 0.5, "person")
     with pytest.raises(AttributeError):
         d.score = 1.0  # type: ignore[misc]
+
+
+def test_an_implausible_speed_from_a_box_jump_is_not_reported():
+    m = ObservationMapper("S1", CAL, START, 1000, 1000)
+    t = track(80, 300, 120, 500)
+    m.update_floor(t, 0.0)
+    t.box = (880, 300, 920, 500)  # 8 m in 0.2 s = 40 m/s
+    floor = m.update_floor(t, 0.2)
+    obs = m.map(t, 5, 0.2, "STABLE", floor)
+    assert "speed_mps" not in obs
+    assert obs["heading_deg"] == pytest.approx(0.0)

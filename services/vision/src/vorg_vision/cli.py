@@ -8,7 +8,7 @@ import os
 import sys
 import time
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from . import __version__
@@ -55,8 +55,8 @@ def _batch_doc(
 def cmd_run(args: argparse.Namespace) -> int:
     from .api_client import VisionApi
 
-    started_at = datetime.now(UTC).replace(microsecond=0)
-    session_id = args.session or _session_id(started_at)
+    now = datetime.now(UTC).replace(microsecond=0)
+    session_id = args.session or _session_id(now)
     api = None
     camera_doc: dict | None = None
     if not args.dry_run:
@@ -90,6 +90,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         def detect(_i: int, frame: object) -> list:
             return model.detect(frame)
 
+    # Observation time = session start + media time. Offline (faster or slower than real time) the session is placed so
+    # its last frame is "now": no observation is ever stamped in the future. --realtime starts the session now.
+    started_at = now if args.realtime else now - timedelta(seconds=source.frame_count / source.fps)
     out = open(args.out, "w", encoding="utf-8") if args.out else None  # noqa: SIM115
     seq = 0
 
