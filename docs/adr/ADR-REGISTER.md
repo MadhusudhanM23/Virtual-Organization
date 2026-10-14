@@ -724,3 +724,28 @@ times are only as good as the minutes-per-batch assumption and model one visit p
 arrival times) would replace (4) without changing the contract. Overrides are never deleted; compensation writes the
 previous dock as a new override version. Verification depends on the live sync loop (or a test calling `syncOnce`);
 without syncs an execution stays `EXECUTING`.
+
+### ADR-64 Vision detector, licensing and class coverage (resolves ADR-25) — Proposed
+**Context:** ADR-25 left the vision model license open. Owner decision OD-6 (Phase 7): Apache-2.0 or MIT components
+only, a royalty-free stock clip is approved, model weights and video are never committed. The host has an integrated
+Intel UHD 730 GPU, so inference runs on the CPU. COCO-pretrained detectors know `person`, `car`, `truck`, `bus`, but
+not forklift, pallet or box (BLUEPRINT section 11 lists those objects).
+**Decision (conservative default):**
+(1) *Detector.* YOLOX (Megvii, Apache-2.0), official COCO-80 ONNX weights from release `0.1.1rc0` (`yolox_s` default,
+`yolox_nano` for speed), run with onnxruntime (MIT) on `CPUExecutionProvider`; OpenCV (Apache-2.0) and NumPy (BSD-3)
+for decoding and math. No Ultralytics and no AGPL/GPL package anywhere in `services/vision`; the tracker is the
+project's own code (no `supervision`, no ByteTrack source copied).
+(2) *Assets.* Weights and clips live in `services/vision/assets/` (gitignored), fetched by
+`scripts/fetch-vision-assets.{ps1,sh}` and checked against `services/vision/assets.sha256`; provenance (URL, author,
+license, date, hash) in `docs/scenarios/vision-demo-clip.md`. Downloads are untrusted data: hashed, decoded, never
+executed.
+(3) *Class coverage, no faking.* The recorded clip yields what the model detects: persons (worker observations).
+Forklift observations come only from the deterministic SYNTHETIC scene (`data_mode=SYNTHETIC`,
+`detector=synthetic-ground-truth`), which drives the vision proximity demo. A COCO vehicle class is never relabelled
+as a forklift by default; a camera's `class_map` in the registry decides which classes become which twin entity
+types, and the demo maps only `person -> WORKER` (both cameras) and `forklift -> FORKLIFT` (synthetic camera).
+(4) *Performance.* Throughput is measured, not assumed (`python -m vorg_vision bench`); Plan 7.1 records the figures.
+The MCD processes recorded clips offline, so real time is not required.
+**Consequences:** the MCD shows real detections of people on a stock clip and a forklift/worker proximity incident
+only on synthetic data, both labelled. Real forklift detection needs a permissively licensed forklift checkpoint or
+fine-tuning on owned data (open item); swapping the ONNX file does not change the pipeline or the contract.
