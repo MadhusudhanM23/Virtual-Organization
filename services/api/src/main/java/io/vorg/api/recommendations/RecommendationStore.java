@@ -154,6 +154,41 @@ public class RecommendationStore {
         return current.version() + 1;
     }
 
+    /**
+     * Moves a recommendation to {@code next} (which may equal its current status for an execution progress update),
+     * stores {@code executionJson} and, when given, the verification start batch (version + 1); returns the new version.
+     */
+    int updateExecution(UUID tenantId, RecommendationView current, RecommendationStatus next, String executionJson,
+            Long verifyFromBatch, Instant at) {
+        if (next != current.status() && !current.status().canMoveTo(next)) {
+            throw new IllegalStateException("Illegal recommendation transition " + current.status() + " -> " + next);
+        }
+        int updated = jdbc.sql("""
+                update rec.recommendations set status = :status, execution = cast(:exec as jsonb),
+                    verify_from_batch = coalesce(:vfb, verify_from_batch), version = version + 1, updated_at = :at
+                where tenant_id = :t and id = :id and version = :v
+                """).param("status", next.name()).param("exec", executionJson).param("vfb", verifyFromBatch)
+                .param("at", utc(at)).param("t", tenantId).param("id", current.id()).param("v", current.version())
+                .update();
+        if (updated != 1) {
+            throw new IllegalStateException("Recommendation " + current.id() + " changed concurrently");
+        }
+        return current.version() + 1;
+    }
+
+    /** An executing recommendation and the SIM-TMS batch its verification window started at. */
+    record Executing(RecommendationView recommendation, Long verifyFromBatch) {}
+
+    /** EXECUTING recommendations of a site, locked; rows another verifier holds are skipped. */
+    List<Executing> executing(UUID tenantId, UUID siteId) {
+        return jdbc.sql(REC_SELECT.replace("from rec.recommendations", ", verify_from_batch from rec.recommendations")
+                + " where tenant_id = :t and site_id = :s and status = 'EXECUTING' order by created_at, id"
+                + " for update skip locked")
+                .param("t", tenantId).param("s", siteId)
+                .query((rs, n) -> new Executing(recommendation(rs), (Long) rs.getObject("verify_from_batch",
+                        Long.class))).list();
+    }
+
     // ---- approvals ----------------------------------------------------------------------------------------------
 
     public Optional<ApprovalView> findApproval(UUID tenantId, UUID id, boolean forUpdate) {
