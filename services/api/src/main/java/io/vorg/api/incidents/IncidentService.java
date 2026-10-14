@@ -54,8 +54,9 @@ public class IncidentService {
     public static final String ESTOP_NOTICE = "Advisory request only. It is recorded and notified; it does not stop any"
             + " machine and needs confirmation by a person on site. This platform is not a safety-rated function"
             + " and does not replace hardware emergency stops or certified safety systems.";
-    public static final String CLIP_NOTICE = "No video clip is available for this incident: camera feeds are"
-            + " placeholders until camera ingestion exists, and no recording is fabricated.";
+    public static final String CLIP_NOTICE = "No video clip is available for this incident from the nearest"
+            + " camera: that reference is positional only, and no recording is fabricated. A camera that observed the"
+            + " pair is linked separately as evidence.";
 
     /** The minimum an authorization check needs: where the incident is and what it concerns. */
     public record Ref(UUID id, UUID siteId, Status status, UUID forkliftEntityId, UUID workerEntityId,

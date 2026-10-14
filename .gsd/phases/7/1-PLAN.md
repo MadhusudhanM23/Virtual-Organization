@@ -32,19 +32,18 @@ forklift/worker proximity path (REQ-086) is demonstrated with the deterministic 
 forklift checkpoint, or fine-tuning, is an open item (ADR-64), not faked.
 
 **Measured CPU throughput** (Intel Core i3-12100, 4 cores / 8 threads, Windows 11, Python 3.14.6, onnxruntime
-1.31 CPU, default threads; `python -m vorg_vision bench`, measured 2026-10-14):
+1.31 CPU, default threads; `python -m vorg_vision bench` / `run`, all on 2026-10-14, all 305 frames of clip 4280746
+at 1920x1080; "pipeline" = decode + detect + track):
 
-| Model | Frames | Detector only | Whole pipeline (decode 1080p + detect + track) |
-|---|---|---|---|
-| yolox_nano (416) | 305 of clip 4280746 at 1920x1080 | 17.96 fps | 13.14 fps |
-| yolox_s (640) | same | 3.62 fps | 3.46 fps (a second `run --dry-run`: 4.24 fps) |
-| yolox_nano (416) | 11 frames of a 2560x1440 clip, pre-resized to 1280x720 | 69.6 fps | n/a |
-| yolox_s (640) | same 11 frames | 6.8 fps | n/a |
+| Model | Machine otherwise idle: pipeline / detector | Machine under load from other processes (another session's Testcontainers tests): pipeline / detector |
+|---|---|---|
+| yolox_nano (416) | 60.9 / 88.0 fps | 13.1 / 18.0 fps |
+| yolox_s (640) | 10.6 / 11.3 fps (an end-to-end `run` posting to the API: 10.1 fps) | 3.5 / 3.6 fps (a dry `run`: 4.2 fps) |
 
-The figures vary run to run with machine load (the two yolox_s pipeline runs differ by about 20 percent).
-**Budget:** the demo is offline processing of a recorded clip, so real time is not required; observations are
-sampled every 5th frame (5 Hz at 25 fps). yolox_s is the default for quality; yolox_nano is the choice for a
-near-real-time feed on this CPU.
+Load on the machine changes the figures by a factor of 3 to 5, so they are a range, not a guarantee.
+**Budget:** the demo processes a recorded clip offline, so real time is not required; observations are sampled
+every 5th frame (5 Hz at 25 fps). yolox_s is the default for quality; on an idle machine yolox_nano keeps up with a
+25 fps feed, yolox_s does not (about 10 fps).
 
 **REQ-087 (evaluation).** Precision/recall need labelled ground truth; the stock clip has none. The synthetic scene
 has exact ground truth and the tracker unit tests cover ID stability. Labelling the stock clip is an open item.
