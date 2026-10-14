@@ -20,27 +20,40 @@ import org.springframework.stereotype.Service;
 @Service
 public class IntegrationSyncService {
 
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(IntegrationSyncService.class);
+
     private final List<SourceAdapter> adapters;
     private final MirrorService mirrors;
     private final JdbcClient jdbc;
     private final Clock clock;
+    private final ObjectProvider<SyncCompletedListener> completed;
 
     public IntegrationSyncService(ObjectProvider<SourceAdapter> adapters, MirrorService mirrors, JdbcClient jdbc,
-            Clock clock) {
+            Clock clock, ObjectProvider<SyncCompletedListener> completed) {
         this.adapters = adapters.orderedStream().toList();
         this.mirrors = mirrors;
         this.jdbc = jdbc;
         this.clock = clock;
+        this.completed = completed;
     }
 
     /** Syncs every adapter once; the result maps source system to what happened to its batch. */
     public synchronized Map<String, IngestSummary> syncOnce(UUID tenantId, UUID siteId) {
         Map<String, IngestSummary> out = new LinkedHashMap<>();
+        Map<String, Long> batches = new LinkedHashMap<>();
         for (SourceAdapter adapter : adapters) {
             long batch = nextBatch(tenantId, siteId, adapter.sourceSystem());
             SourceBatch fetched = adapter.fetch(new AdapterContext(tenantId, siteId, batch, clock.instant()));
             out.put(adapter.sourceSystem(), mirrors.ingest(tenantId, siteId, adapter, fetched));
             advance(tenantId, siteId, adapter.sourceSystem(), batch + 1);
+            batches.put(adapter.sourceSystem(), batch);
+        }
+        for (SyncCompletedListener listener : completed.orderedStream().toList()) {
+            try {
+                listener.onSyncCompleted(tenantId, siteId, batches);
+            } catch (RuntimeException ex) {
+                LOG.warn("Sync-completed listener {} failed: {}", listener.getClass().getSimpleName(), ex.toString());
+            }
         }
         return out;
     }
