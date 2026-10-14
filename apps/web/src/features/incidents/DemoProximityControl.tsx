@@ -6,7 +6,8 @@ import { ApiError } from '../../lib/api/client';
 import { cn } from '../../lib/cn';
 import { useUiStore } from '../../stores/uiStore';
 import { canUse } from '../auth/permissionMatrix';
-import { newIdempotencyKey, triggerDemoProximity, type DemoProximityResult } from './incidentApi';
+import { newIdempotencyKey } from '../../lib/api/commands';
+import { triggerDemoProximity, type DemoProximityResult } from './incidentApi';
 import { secondsLeft } from './incidentModel';
 import { useIncidentPermissions } from './useIncidentPermissions';
 

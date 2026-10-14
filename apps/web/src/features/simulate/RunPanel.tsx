@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { CircleAlert, Loader, Play } from 'lucide-react';
 import { CompareResults } from './CompareResults';
-import { newIdempotencyKey, startSimulationRun, type Scenario } from './simulationApi';
+import { newIdempotencyKey } from '../../lib/api/commands';
+import { startSimulationRun, type Scenario } from './simulationApi';
 import { useRunPolling } from './useSimulateData';
 
 const BUTTON_PRIMARY =

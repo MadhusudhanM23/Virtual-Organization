@@ -1,4 +1,5 @@
 import { apiFetch } from '../../lib/api/client';
+import { postCommand } from '../../lib/api/commands';
 import type { DataMode } from '../../lib/truthLabel';
 import type { EventEnvelope } from '../live/liveProtocol';
 
@@ -140,13 +141,6 @@ export interface Evidence {
   items: EvidenceItem[];
 }
 
-export interface CommandAck<R = Record<string, unknown>> {
-  command_id: string;
-  status: string;
-  correlation_id: string;
-  result?: R;
-}
-
 export interface EstopResult {
   request_id?: string;
   request_status: string;
@@ -220,17 +214,7 @@ export async function fetchEventById(
   return page.items.find((e) => e.event_id === eventId) ?? null;
 }
 
-export function newIdempotencyKey(): string {
-  return globalThis.crypto.randomUUID();
-}
-
-function command<R>(path: string, body: unknown, key: string): Promise<CommandAck<R>> {
-  return apiFetch<CommandAck<R>>(path, {
-    method: 'POST',
-    body: body ?? {},
-    headers: { 'Idempotency-Key': key },
-  });
-}
+const command = postCommand;
 
 /** Lifecycle commands named exactly as in `allowed_actions`. */
 export type LifecycleAction = 'acknowledge' | 'false-positive' | 'resolve' | 'close';

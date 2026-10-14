@@ -27,6 +27,8 @@ export class ApiError extends Error {
   readonly correlationId: string;
   /** Field-level validation errors of a 400 (docs/api/simulation.md and similar command endpoints). */
   readonly fieldErrors: { field: string; message: string }[] | undefined;
+  /** The full problem body, for typed extension members (e.g. `stale`, `resimulate`, `re_evaluate`). */
+  readonly problem: ProblemDetail;
 
   constructor(status: number, problem: ProblemDetail, correlationId: string) {
     super(problem.detail ?? problem.title ?? `Request failed with status ${status}`);
@@ -36,6 +38,7 @@ export class ApiError extends Error {
     this.detail = problem.detail;
     this.correlationId = correlationId;
     this.fieldErrors = problem.errors;
+    this.problem = problem;
   }
 }
 

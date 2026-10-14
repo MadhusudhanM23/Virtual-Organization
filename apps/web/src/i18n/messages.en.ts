@@ -576,6 +576,37 @@ export const messagesEn = {
   'replay.events.role.recorded.help': 'Listed as captured; not reconstructed',
   'replay.events.panel': 'The live event feed is paused in the REPLAY lens. The replay events of the visible window are listed on the page.',
   'incident.replay': 'Replay this incident',
+
+  // Recommendations & approvals (Phase 8, plan 8.4). Never a "confidence %" (REQ-091).
+  'rec.status.PROPOSED': 'Proposed',
+  'rec.status.APPROVED': 'Approved',
+  'rec.status.REJECTED': 'Rejected',
+  'rec.status.EXPIRED': 'Expired',
+  'rec.status.STALE': 'Stale baseline',
+  'rec.status.EXECUTING': 'Executing',
+  'rec.status.VERIFIED': 'Verified',
+  'rec.status.PARTIAL': 'Partially applied',
+  'rec.status.FAILED': 'Failed',
+  'rec.approval.status.PENDING': 'Pending',
+  'rec.approval.status.APPROVED': 'Approved',
+  'rec.approval.status.REJECTED': 'Rejected',
+  'rec.approval.status.EXPIRED': 'Expired',
+  'rec.sod.self':
+    'Separation of duties: you proposed this recommendation, so a different eligible person must approve it.',
+  'rec.expiry.none': 'No expiry set',
+  'rec.expiry.expired': 'The approval window has expired',
+  'rec.expiry.remaining': 'Approval window closes in {time}',
+  'rec.error.sod': 'Separation of duties: the proposer cannot approve their own recommendation.',
+  'rec.error.expired': 'The approval window expired. Re-evaluate to create a fresh proposal from the same run.',
+  'rec.error.invalidState': 'This recommendation is no longer in a state that allows this action. The view has been refreshed.',
+  'rec.error.stale': 'The baseline changed since the plan was computed, so it was not executed.',
+  'rec.error.generatorUnavailable': 'The recommendation generator is not available right now.',
+  'rec.error.forbidden': 'Your role is not allowed to do this for this site.',
+  'rec.error.notFound': 'This recommendation was not found.',
+  'rec.error.conflict': 'The recommendation changed in the meantime. The view has been refreshed.',
+  'rec.error.invalid': 'The request was not accepted.',
+  'rec.error.generic': 'The request failed.',
+  'rec.error.network': 'The service could not be reached. Try again.',
 } as const;
 
 export type MessageId = keyof typeof messagesEn;
