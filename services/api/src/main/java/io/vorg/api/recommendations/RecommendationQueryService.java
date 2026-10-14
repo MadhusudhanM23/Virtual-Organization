@@ -5,6 +5,7 @@ import io.vorg.api.platform.web.KeysetCursor;
 import io.vorg.api.platform.web.PageParams;
 import io.vorg.api.platform.web.PageParams.Page;
 import io.vorg.api.recommendations.CurrentStateReader.EntityState;
+import io.vorg.api.recommendations.RecommendationStore.ApprovalView;
 import io.vorg.api.recommendations.RecommendationStore.RecommendationView;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -66,6 +67,31 @@ public class RecommendationQueryService {
         }
         List<RecommendationView> items = new ArrayList<>(rows.subList(0, lim));
         RecommendationView last = items.get(items.size() - 1);
+        return new Page<>(items, KeysetCursor.encode(last.createdAt(), last.id()));
+    }
+
+    public ApprovalView getApproval(Subject subject, UUID id) {
+        ApprovalView a = store.findApproval(subject.tenantId(), id, false)
+                .orElseThrow(() -> RecommendationProblems.notFound("approval"));
+        access.requireView(subject, a.siteId());
+        return a;
+    }
+
+    public Page<ApprovalView> listApprovals(Subject subject, UUID siteId, String status, Integer limit,
+            String cursor) {
+        if (siteId == null) {
+            throw RecommendationProblems.invalid("site_id", "is required");
+        }
+        ApprovalStatus filter = parse(ApprovalStatus.class, status);
+        access.requireView(subject, siteId);
+        int lim = PageParams.limit(limit);
+        List<ApprovalView> rows = store.listApprovals(subject.tenantId(), siteId, filter,
+                KeysetCursor.decode(cursor), lim + 1);
+        if (rows.size() <= lim) {
+            return new Page<>(rows, null);
+        }
+        List<ApprovalView> items = new ArrayList<>(rows.subList(0, lim));
+        ApprovalView last = items.get(items.size() - 1);
         return new Page<>(items, KeysetCursor.encode(last.createdAt(), last.id()));
     }
 
