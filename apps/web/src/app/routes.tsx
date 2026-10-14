@@ -16,6 +16,8 @@ import OrdersPage from '../features/orders';
 import OrganizationPage from '../features/organization';
 import OverviewPage from '../features/overview';
 import PeoplePage from '../features/people';
+import RecommendationDetailPage from '../features/recommendations/RecommendationDetailPage';
+import RecommendationsPage from '../features/recommendations/RecommendationsPage';
 import ReportsPage from '../features/reports';
 import SettingsPage from '../features/settings';
 import { LiveViewPage, MapViewPage, ReplayPage, SimulationPage } from '../features/twin';
@@ -37,6 +39,8 @@ export const routeObjects: RouteObject[] = [
       { path: 'operations', element: <OperationsPage /> },
       { path: 'incidents', element: <IncidentsPage /> },
       { path: 'incidents/:id', element: <IncidentDetailPage /> },
+      { path: 'recommendations', element: <RecommendationsPage /> },
+      { path: 'recommendations/:id', element: <RecommendationDetailPage /> },
       { path: 'twin/live', element: <LiveViewPage /> },
       { path: 'twin/map', element: <MapViewPage /> },
       { path: 'twin/simulation', element: <SimulationPage /> },

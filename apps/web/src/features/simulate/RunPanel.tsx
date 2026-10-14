@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CircleAlert, Loader, Play } from 'lucide-react';
+import { GenerateRecommendationButton } from '../recommendations/parts';
 import { CompareResults } from './CompareResults';
 import { newIdempotencyKey } from '../../lib/api/commands';
 import { startSimulationRun, type Scenario } from './simulationApi';
@@ -78,7 +79,11 @@ export function RunPanel({ scenario }: { scenario: Scenario }) {
       ) : null}
 
       {status === 'SUCCEEDED' && poll.run?.results ? (
-        <CompareResults results={poll.run.results} scenarioName={scenario.name} />
+        <CompareResults
+          results={poll.run.results}
+          scenarioName={scenario.name}
+          actions={<GenerateRecommendationButton siteId={poll.run.site_id} runId={poll.run.run_id} />}
+        />
       ) : null}
     </section>
   );

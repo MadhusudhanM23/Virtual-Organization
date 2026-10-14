@@ -268,6 +268,12 @@ export function commandErrorId(error: unknown): MessageId {
   return 'rec.error.network';
 }
 
+/** Display name of a recommendation `type` (e.g. DOCK_REASSIGNMENT -> "Dock reassignment"). */
+export function recTypeLabel(type: string): string {
+  const words = type.toLowerCase().split('_').filter(Boolean).join(' ');
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : type;
+}
+
 /** Twin path for a simulation-run evidence ref (the Simulate lens lives at `/twin/simulation`). */
 export function evidenceHref(kind: string, ref: string): string | null {
   if (kind === 'SIMULATION_RUN') return '/twin/simulation';

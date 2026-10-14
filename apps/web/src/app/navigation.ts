@@ -8,6 +8,7 @@ import {
   FlaskConical,
   History,
   LayoutDashboard,
+  Lightbulb,
   Map as MapIcon,
   Network,
   Radio,
@@ -78,6 +79,15 @@ export const NAV_ENTRIES: NavEntry[] = [
     descriptionId: 'page.incidents.description',
     icon: ShieldAlert,
     arrivesInPhase: 4,
+  },
+  {
+    kind: 'item',
+    id: 'recommendations',
+    path: '/recommendations',
+    labelId: 'nav.recommendations',
+    descriptionId: 'page.recommendations.description',
+    icon: Lightbulb,
+    arrivesInPhase: 8,
   },
   {
     kind: 'group',
