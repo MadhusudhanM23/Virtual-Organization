@@ -598,3 +598,44 @@ through the API exactly as the CLI reports them, byte-for-byte. The isolation gu
 (`has_table_privilege('vo_sim', 'world.sites', 'SELECT')` is false) rather than only inferred from code review. If a
 future phase needs a true point-in-time snapshot baseline, it is an additive `ModelInput` producer behind the same
 `baseline`/`model` choice `Scenario` already supports — this ADR's isolation mechanism does not change.
+
+### ADR-61 Recommendation approvals: classes, separation of duties, expiry/re-evaluation, policy versions — Proposed
+**Context:** REQ-092 and BLUEPRINT sections 9 and 16 require a human approval before an optimizer plan executes,
+"with scope, separation of duties and expiry", and a stale check against "baseline entity versions and policy
+versions". The permission matrix marks some `APPROVE_CONSEQUENTIAL_ACTION` cells `ALLOW_SUBJECT_TO_POLICY` (R\*).
+`Decision.requiresPolicyCheck` carries that flag, but no code interpreted it. The blueprint doesn't define which roles
+an approval policy accepts, how long a proposal stays decidable, or what a "policy version" is.
+**Decision (conservative default):**
+(1) *Approval classes.* `STANDARD` (no separation of duties) and `SENSITIVE` (separation of duties). The only
+recommendation type, `DOCK_REASSIGNMENT`, uses the `dock-reassignment` policy
+(`vo.recommendations.policies.dock-reassignment.*`): class `SENSITIVE`, approver roles `WAREHOUSE_MANAGER` and
+`REGIONAL_MANAGER`, expiry 30 minutes, version 1. Drivers/operators and platform administrators can never be approver
+roles. Every proposal creates exactly one `PENDING` approval in the same transaction, and the approval stores its
+class, its separation-of-duties flag, the policy name and version, and its approver roles.
+(2) *Authorization.* Reads use `PROPOSE_RECOMMENDATION` on the site, because every role that may approve may also
+propose. Approve and reject are gateway commands that use `APPROVE_CONSEQUENTIAL_ACTION`, and the gateway is
+unchanged. Inside the handler, each of the caller's role assignments is evaluated on its own. An `ALLOW` cell
+qualifies. An R\* cell qualifies only when the approval's policy lists that role. Evaluating per assignment stops an R\*
+grant in scope from borrowing a policy-listed role that the caller holds elsewhere. If no assignment qualifies, the
+call returns `403 approver_not_eligible`.
+(3) *Separation of duties.* For a `SENSITIVE` approval the decider must differ from the proposer, compared by
+pseudonymous actor ref. Otherwise the call returns `403 separation_of_duties`. This applies to approve and reject alike.
+(4) *Expiry and re-evaluation.* An approval can be decided strictly before `expires_at` (the same instant as the
+recommendation's). A decision at or after it marks the approval and the recommendation `EXPIRED` and records
+`APPROVAL_EXPIRED` in a committed command, so the state change goes through the gateway and a replay of the key answers
+the same way. It then returns `409 approval_expired` with `re_evaluate {href: "/api/recommendations", body: {site_id,
+simulation_run_id}}`. A new proposal from the same run sets `supersedes_id`. While a run's latest proposal is still
+`PENDING` and unexpired, it can't be proposed again (`409 proposal_pending`). Only `PENDING` can be decided; anything
+else returns `409 invalid_state`. Nothing expires in the background. Expiry is detected when someone tries to decide.
+(5) *Policy versions.* `policy_versions` is a map from policy name to integer version, recorded at proposal time:
+`permission-matrix` is the `version` of `permission-matrix.v1.json`, and `dock-reassignment` is the policy's
+configured `version`. The `PolicyVersions` bean returns the current map. Plan 8.3's stale check (and the dry-run's
+`stale` list) compares the recorded map with it. Operators must bump a policy's version whenever any of its settings
+change.
+(6) Recommendations, approvals and their events are `data_mode = SIMULATED`, because the plan comes from a simulation.
+There is never a confidence percentage (REQ-091).
+**Consequences:** an approval is auditable on its own, because it carries the policy it was requested under, so a
+later policy change neither rewrites past decisions nor silently re-authorizes old ones. Expiry depends on a decision
+attempt, so a list may show a `PENDING` approval whose `expires_at` has passed until someone acts on it. The UI should
+compare against `expires_at`. A background expiry sweep would be an additive change. Adding a recommendation type
+means adding its own policy record and including it in `PolicyVersions`.
