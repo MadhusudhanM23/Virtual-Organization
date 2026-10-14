@@ -670,3 +670,57 @@ against (same major version). A native-load test guards the build machine.
 for up to three times `max_solve_ms`) and maps the result onto a recommendation. A time-limited result may differ between
 machines; callers must show the status and gap rather than present a FEASIBLE plan as optimal. Upgrading OR-Tools may
 change optimal tie-breaking and therefore `result_hash`; the version is in `feasibility.solver`.
+
+### ADR-63 Recommendation execution: material-change versions, simulated outbound port, trip-time derivation, observed verification — Proposed
+**Context:** Plan 8.3 executes an approved dock-reassignment plan (REQ-095) and verifies it (REQ-096). BLUEPRINT
+sections 9 and 22 require a stale check on "baseline entity versions and policy versions", execution only through the
+owning source system, and no fabricated numbers. Open choices: which versions mean "the target changed", how the
+platform talks to a source system without breaking the pull-only `SourceAdapter` SPI, where the optimizer's trip
+arrival and service minutes come from, and what counts as "verified".
+**Decision (conservative default):**
+(1) *Material-change versions.* Pose events bump `world.entities.version` on every movement, so truck and forklift
+entity versions are **not** used. The affected entities are: trips, versioned by `ops.dock_assignments.version`
+(projected from SIM-TMS `SHIPMENT` mirror records by `AssignmentProjector`, bumped on first sight and only when
+`dock_name` changes); forklifts, versioned by `ops.forklift_assignments.version` (from SIM-WMS `FORKLIFT_STATION`
+records, same rule); and docks, versioned by `world.docks.version`. Entity ids in `affected_entities` are the codes
+(trip code, forklift code, dock name). The stale check runs in the execute transaction under a row lock, compares only
+those versions and ADR-61's `policy_versions`, and on any mismatch commits `STALE` + `RECOMMENDATION_STALE` and
+answers `409 stale_baseline` with `stale[]` and `resimulate {scenario_id, href: /api/scenarios/{id}/runs}`.
+(2) *Outbound port.* `AdapterCommandPort` (`io.vorg.api.integration.core`) is a separate SPI; `SourceAdapter` stays
+pull-only. The simulated implementations store overrides in `integ.sim_tms_overrides` / `integ.sim_wms_overrides`
+(code -> dock, change counter) and return the replaced value as the compensation. The simulated adapters read the
+overrides on every fetch (never through the `SimWorld` cache): an overridden trip is delivered every batch with source
+version `(transitions + 1) * 1000 + override_version`, so a dock change is always a strictly greater version and
+re-deliveries stay duplicates; an un-overridden trip keeps `transitions + 1`. The seeded world stations no forklift at
+a dock, so SIM-WMS reports `FORKLIFT_STATION` records only for overridden forklifts, and a forklift without an observed
+station is never part of a plan (a new mirror record kind, `FORKLIFT_STATION`, is added to the check constraints).
+Execution refuses, before applying any step, a command whose port is missing or not `SIMULATED`
+(`422 live_source_refused`). Only the recommendations execution code and the integration module's own demo control may
+use the port (ArchUnit).
+(3) *Execution.* Gateway command `RECOMMENDATION_EXECUTE`, `EXECUTE_STANDARD_COMMAND` on the site, with
+`PolicyContext.approvedWorkflow()` only when an `APPROVED` approval exists; otherwise `409 not_approved` (or the
+gateway's 403). Steps are applied in order inside the command transaction; when a step is refused, the applied steps are
+compensated in reverse and the outcome is `FAILED` (all compensations succeeded) or `PARTIAL` (one did not), with the
+failure as evidence. A successful execution stays `EXECUTING` until verified.
+(4) *Trip times.* The optimizer needs integer minutes. The trips are the SIM-TMS trips with an observed assignment;
+the current dock is the **observed** one. Arrival and service come from the SIM-TMS trip plan itself: the simulated
+TMS is a fixed cycle per trip (ARRIVING, AT_DOCK, UNLOADING/LOADING, DEPARTED, 3 batches each, staggered by trip
+index); from the last delivered batch, the next visit not yet over gives "batches until at the dock" and "batches at
+the dock". These are multiplied by `vo.recommendations.generator.minutes-per-batch` (30, an **ASSUMPTION**: the
+simulated TMS runs compressed time). A visit that ends beyond the scenario's `run.horizon_min` is left out and named
+in the rationale. Closures come from the scenario overlay (`dock_closures`), plus a whole-horizon closure for a dock
+the twin shows `CLOSED`. `reassignment-penalty-min` (15, ASSUMPTION), `max-solve-ms`, `random-seed`, the executor size
+and queue are required configuration with no code defaults. A missing input is `422 optimization_input_missing`, an
+input the optimizer rejects `422 optimization_input_invalid` with every field error; a result without a plan or
+without a move is `422 not_actionable`.
+(5) *Observed verification.* After each integration sync (`SyncCompletedListener`), `RecommendationVerifier` marks a
+step `VERIFIED` only when the projection shows its target at the step's `to_dock`, recording the
+`DOCK_ASSIGNMENT_CHANGED`/`FORKLIFT_ASSIGNMENT_CHANGED` event as `observed_event_id`. All verified: `VERIFIED` +
+`RECOMMENDATION_VERIFIED`. After `vo.recommendations.verification.timeout-batches` SIM-TMS batches (2, i.e. 30 s at the
+15 s live interval) with a step unobserved: `FAILED` (none observed) or `PARTIAL`, with the observed state as evidence.
+**Consequences:** a TMS-side dock change (the `POST /api/demo/integration/tms-change` demo control, or a real one)
+makes an approved plan stale exactly when it touches a target, while forklift and truck movement never does. The trip
+times are only as good as the minutes-per-batch assumption and model one visit per trip; a richer TMS feed (planned
+arrival times) would replace (4) without changing the contract. Overrides are never deleted; compensation writes the
+previous dock as a new override version. Verification depends on the live sync loop (or a test calling `syncOnce`);
+without syncs an execution stays `EXECUTING`.

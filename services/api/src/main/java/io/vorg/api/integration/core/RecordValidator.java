@@ -62,6 +62,11 @@ public final class RecordValidator {
                     errors.add("a docked shipment needs dock_name");
                 }
             }
+            case FORKLIFT_STATION -> {
+                if (blank(p.get("forklift_code")) || blank(p.get("dock_name"))) {
+                    errors.add("forklift station needs forklift_code and dock_name");
+                }
+            }
             case TASK -> {
                 if (!TASK_TYPES.contains(text(p, "task_type"))) {
                     errors.add("task_type must be PICK, PUTAWAY or DOCK");

@@ -185,7 +185,7 @@ An unknown or `InvalidInputException`-rejected scenario field is `400` naming th
 an unknown site is `404`; a site outside the caller's role scope is `403`; another tenant's scenario or run is `404`
 (RLS).
 
-## Implemented: recommendations & approvals (Phase 8, plan 8.1)
+## Implemented: recommendations, approvals & execution (Phase 8, plans 8.1 and 8.3)
 
 Recommendations and approvals (REQ-090..094, ADR-61). The binding recommendation shape, the approval rules (state,
 expiry and re-evaluation, separation of duties, approver eligibility) and the typed problems are in
@@ -195,14 +195,16 @@ confidence percentage.
 
 | Endpoint | Notes |
 |---|---|
-| `POST /api/recommendations` | command (`Idempotency-Key`); body `{site_id, simulation_run_id}`; recommendation + `PENDING` approval + `RECOMMENDATION_PROPOSED`/`APPROVAL_REQUESTED` in one transaction; `503 generator_unavailable` without a generator, `409 run_not_succeeded`, `409 proposal_pending` |
+| `POST /api/recommendations` | command (`Idempotency-Key`); body `{site_id, simulation_run_id}`; the OR-Tools generator (plan 8.3, ADR-63) builds the plan; recommendation + `PENDING` approval + `RECOMMENDATION_PROPOSED`/`APPROVAL_REQUESTED` in one transaction; `409 run_not_succeeded`, `409 proposal_pending`, `422 optimization_input_missing`/`optimization_input_invalid`/`not_actionable`, `503 optimizer_busy` |
 | `GET /api/recommendations?site_id=[&status=][&limit=&cursor=]` | `{items[<recommendation>], next_cursor}` |
-| `GET /api/recommendations/{id}` | the BLUEPRINT section 9 decision package plus bookkeeping (`execution` is `null` until Plan 8.3) |
+| `GET /api/recommendations/{id}` | the BLUEPRINT section 9 decision package plus bookkeeping (`execution` is `null` until executed) |
 | `GET /api/recommendations/{id}/dry-run` | `{recommendation_id, computed_at, diff[{entity, field, before, after}], stale[...]}` against current values; changes nothing |
 | `GET /api/approvals?site_id=[&status=][&limit=&cursor=]` | `{items[<approval>], next_cursor}` |
 | `GET /api/approvals/{id}` | approval detail |
 | `POST /api/approvals/{id}/approve` | command; `403 separation_of_duties`, `403 approver_not_eligible`, `409 invalid_state`, `409 approval_expired` with `re_evaluate` |
 | `POST /api/approvals/{id}/reject` | command; body `{reason}` required; same rules as approve |
+| `POST /api/recommendations/{id}/execute` | command (`Idempotency-Key`); `EXECUTE_STANDARD_COMMAND` with an approved workflow; stale check on affected-entity and policy versions (`409 stale_baseline` with `stale[]` and `resimulate`), `409 not_approved`, `422 live_source_refused`; applies the steps through the simulated source systems with compensation; verification moves it to `VERIFIED`, `FAILED` or `PARTIAL` (plan 8.3, ADR-63) |
+| `POST /api/demo/integration/tms-change` | **DEMO CONTROL** command; demo tenants only; body `{site_id, trip_code, to_dock}`; the simulated TMS moves a trip by itself (drives the stale path) |
 
 ## Planned query endpoints
 
@@ -218,7 +220,7 @@ confidence percentage.
 
 | Command | Endpoint | Rule |
 |---|---|---|
-| Execute proposal | `POST /api/recommendations/{id}/execute` | Checks baseline entity versions and policy versions |
+| (none open) | | `POST /api/recommendations/{id}/execute` is implemented (plan 8.3) |
 
 These endpoints are a baseline, not a commitment: each is built in the phase that owns it (see
 [`.gsd/ROADMAP.md`](../../.gsd/ROADMAP.md)), and this table is updated as they land.

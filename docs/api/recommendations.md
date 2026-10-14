@@ -1,7 +1,8 @@
-# Recommendations and approvals (Phase 8, plan 8.1)
+# Recommendations, approvals and execution (Phase 8, plans 8.1 and 8.3)
 
 Requirements: REQ-090 (decision package), REQ-091 (no confidence %), REQ-092 (approval workflow), REQ-093 (dry-run),
-REQ-094. Blueprint sections 9 and 16. Decisions: ADR-08, ADR-09, ADR-28, **ADR-61 (Proposed)**.
+REQ-094, REQ-095 (execution), REQ-096 (verification). Blueprint sections 9, 16 and 22. Decisions: ADR-08, ADR-09,
+ADR-28, **ADR-61 (Proposed)**, ADR-62 (optimizer), **ADR-63 (Proposed)** (execution, stale check, verification).
 
 Code: `services/api/src/main/java/io/vorg/api/recommendations/` (`RecommendationService`, `RecommendationQueryService`,
 `ApprovalService`, `web/RecommendationController`, `web/ApprovalController`). Storage: the `rec` schema
@@ -68,7 +69,7 @@ The values in the example are placeholders that show types and units. They are n
 - `feasibility.optimality_gap` and `feasibility.solve_time_ms` are `null` when the solver doesn't report them.
 - `policy_versions` records the versions in force at proposal time (see ADR-61). Plan 8.3's stale check compares it
   with the current versions.
-- `execution` is reserved for Plan 8.3 and stays `null` until the plan runs.
+- `execution` is `null` until the plan is executed (Plan 8.3); its shape is under "Execution" below.
 
 ### Lifecycle
 
@@ -97,8 +98,8 @@ returns:
 - `400` when `site_id` or `simulation_run_id` is missing, or the run belongs to a different site.
 - `404` when the run is unknown.
 - `409 run_not_succeeded` when the run isn't `SUCCEEDED`. The problem includes `run_status`.
-- `503 generator_unavailable` when no `RecommendationGenerator` bean is configured. Plan 8.3 supplies the OR-Tools
-  implementation.
+- `503 generator_unavailable` when no `RecommendationGenerator` bean is configured. Plan 8.3 registers the OR-Tools
+  implementation (see "Generation" below), so a normal server always has one.
 - `422 not_actionable` when the solver found no plan: the feasibility is neither `OPTIMAL` nor `FEASIBLE`, or the
   plan has no steps. The problem includes `feasibility_status`.
 - `409 proposal_pending` when the run's latest proposal is still `PENDING` and hasn't expired. The problem includes
@@ -109,7 +110,7 @@ Proposals from one run are serialized. A later proposal from the same run sets `
 ### Dry-run
 
 The dry-run applies each step to the **current** values, which it reads through the `CurrentStateReader` port. Plan
-8.3 implements that port. When no reader is configured, the dry-run returns `503 current_state_unavailable`.
+8.3 implements that port over the dock and forklift assignment projections and `world.docks` (`AssignmentStateReader`). When no reader is configured, the dry-run returns `503 current_state_unavailable`.
 
 When several steps change the same entity, each step sees the result of the one before it. Only command types with a
 known effect can be dry-run: `REASSIGN_TRIP_DOCK` and `REASSIGN_FORKLIFT_DOCK` both set `dock_code` from `to_dock`.
@@ -179,13 +180,25 @@ Problems are `application/problem+json` (problem.v1). A typed problem adds `code
 | 409 | `invalid_state` | `approval_status` |
 | 403 | `separation_of_duties` | none |
 | 403 | `approver_not_eligible` | none |
-| 409 | `approval_expired` | `approval_id`, `recommendation_id`, `re_evaluate {href, body {site_id, simulation_run_id}}` |
+| 409 | `approval_expired` | `approval_id`, `recommendation_id`, `re_evaluate {href, body {site_id, simulation_run_id}}` (from execute: `approval_id`, `recommendation_id` only) |
+| 422 | `optimization_input_missing` | `missing` (e.g. `scenario.run.horizon_min`, `sim_tms.trip_plan`, `ops.dock_assignments`) |
+| 422 | `optimization_input_invalid` | `errors [{field, message}]` (every optimizer validation error, with JSON paths) |
+| 503 | `optimizer_busy` | none |
+| 503 | `optimizer_unavailable` | none |
+| 409 | `not_approved` | `recommendation_status`, `approval_status` |
+| 409 | `stale_baseline` | `recommendation_id`, `stale [...]`, `resimulate {scenario_id, href}` |
+| 422 | `live_source_refused` | `command_type`, `source_system?` |
 
 ## Events
 
-`RECOMMENDATION_PROPOSED`, `APPROVAL_REQUESTED`, `APPROVAL_GRANTED`, `APPROVAL_REJECTED` and `APPROVAL_EXPIRED`. Their
-payloads are listed in [`packages/contracts/events/CATALOG.md`](../../packages/contracts/events/CATALOG.md). All of
-them have `source = API`, `data_mode = SIMULATED`, actor `HUMAN` (the caller) and `location` = the site.
+`RECOMMENDATION_PROPOSED`, `APPROVAL_REQUESTED`, `APPROVAL_GRANTED`, `APPROVAL_REJECTED` and `APPROVAL_EXPIRED`
+(plan 8.1); `RECOMMENDATION_STALE`, `RECOMMENDATION_EXECUTION_STARTED`, `RECOMMENDATION_STEP_APPLIED`,
+`RECOMMENDATION_STEP_COMPENSATED`, `RECOMMENDATION_EXECUTION_FAILED`, `RECOMMENDATION_VERIFIED`,
+`DOCK_ASSIGNMENT_CHANGED` and `FORKLIFT_ASSIGNMENT_CHANGED` (plan 8.3). Their payloads are listed in
+[`packages/contracts/events/CATALOG.md`](../../packages/contracts/events/CATALOG.md). The command events have
+`source = API`, `data_mode = SIMULATED`, actor `HUMAN` (the caller) and `location` = the site. The verifier's events
+have `source = SYSTEM` and actor `SERVICE svc:recommendation-verifier`. The assignment events come from the mirror
+(`source = SIMULATION`, actor `SERVICE svc:adapter:<source_system>`).
 
 ## Configuration
 
@@ -199,3 +212,132 @@ them have `source = API`, `data_mode = SIMULATED`, actor `HUMAN` (the caller) an
 | `expiry-minutes` | `30` |
 
 Bump `version` whenever any other key changes. A version change is what marks an approved plan stale.
+
+## Generation (plan 8.3)
+
+`OrToolsRecommendationGenerator` builds a `vorg-optimization` dock re-assignment problem (ADR-62) and maps the result
+onto the recommendation shape (ADR-63). Every number comes from observed state, the scenario or required
+configuration:
+
+| Problem input | Source |
+|---|---|
+| docks | `world.docks` of the site (name, `dock_type`) |
+| closures | the scenario overlay's `dock_closures` (`dock_id` = dock name or id, `start_min`, `end_min`, `reason`), plus `[0, horizon)` for a dock the twin shows `CLOSED` |
+| `horizon_min` | the scenario's `run.horizon_min` |
+| trips | SIM-TMS trips with an observed dock assignment (`ops.dock_assignments`); `current_dock` = the observed dock |
+| `arrival_min`, `service_min` | the trip's next visit in the SIM-TMS trip plan (batches until at the dock, batches at the dock) x `minutes-per-batch` (ASSUMPTION); visits ending beyond the horizon are left out and named in the rationale |
+| forklifts | observed forklift stations (`ops.forklift_assignments`) |
+| params | `vo.recommendations.generator.*` (required) |
+
+The solver runs on a bounded executor (`solver-threads`, `solver-queue`; more is `503 optimizer_busy`). The draft:
+
+- `evidence_refs`: the simulation run, one `METRIC` per KPI delta of the run's comparison (`ref` `<run_id>#deltas/<key>`,
+  label with the delta mean and its 95% CI), and the optimizer result (`ref` `optimization:<result_hash>`).
+- `affected_entities`: the moved trips, the moved forklifts, then every dock a move leaves or enters.
+- `baseline_entity_versions`: read in the propose transaction (assignment versions, `world.docks.version`).
+- `execution_plan.steps`: one per move, in order: `REASSIGN_TRIP_DOCK {trip_code, from_dock, to_dock,
+  planned_start_min}` or `REASSIGN_FORKLIFT_DOCK {forklift_code, from_dock, to_dock}`, each with the compensation
+  `{trip_code|forklift_code, to_dock: <from_dock>}`.
+- `rationale`: a template filled with measured and computed values only (closures, moves, objective before/after, gap,
+  the trip-plan batch and the minutes-per-batch assumption).
+
+Problems: `422 optimization_input_missing`, `422 optimization_input_invalid`, `422 not_actionable` (no plan, or a plan
+without any move), `503 optimizer_busy`, `503 optimizer_unavailable`.
+
+## Execution (plan 8.3)
+
+`POST /api/recommendations/{id}/execute`: a command (`Idempotency-Key`, no body), authorized as
+`EXECUTE_STANDARD_COMMAND` on the recommendation's site. It counts as part of an approved workflow
+(`PolicyContext.approvedWorkflow()`) only when the recommendation is `APPROVED` with an `APPROVED` approval. A repeat
+with the same key returns the stored ack (or the same `409`), and nothing is applied twice.
+
+Under a row lock, in the command transaction:
+
+1. **State.** Not `APPROVED` (or the approval not `APPROVED`): `409 not_approved`. At or after `expires_at`:
+   `409 approval_expired`.
+2. **Stale check** on the affected-entity versions and the policy versions only (ADR-63). Trips are versioned by
+   their dock assignment, forklifts by their station, docks by `world.docks.version`; truck or forklift movement never
+   changes these. On any mismatch the recommendation becomes `STALE`, `RECOMMENDATION_STALE` is committed and the call
+   returns:
+
+   ```json
+   {"type": "about:blank", "title": "Stale baseline", "status": 409, "code": "stale_baseline", "detail": "...",
+    "recommendation_id": "<uuid>",
+    "stale": [{"kind": "ENTITY", "entity": "TRIP-00002", "baseline_version": 1, "current_version": 2},
+              {"kind": "POLICY", "entity": "dock-reassignment", "baseline_version": 1, "current_version": 2}],
+    "resimulate": {"scenario_id": "<uuid>", "href": "/api/scenarios/<uuid>/runs"}}
+   ```
+
+   The values are placeholders. `current_version` is `null` for an entity that no longer exists. The recommendation's
+   new status (`STALE`) is visible through `GET /api/recommendations/{id}`.
+3. **Source check.** Every step's command must go to a `SIMULATED` source (`AdapterCommandPort`); otherwise
+   `422 live_source_refused` before anything is applied.
+4. **Apply.** The recommendation becomes `EXECUTING` (`RECOMMENDATION_EXECUTION_STARTED`) and the steps are applied in
+   order (`RECOMMENDATION_STEP_APPLIED` each). When a source refuses a step, the applied steps are compensated in
+   reverse (`RECOMMENDATION_STEP_COMPENSATED` each) and the recommendation becomes `FAILED` (every compensation
+   succeeded) or `PARTIAL` (one did not), with `RECOMMENDATION_EXECUTION_FAILED` and the failure as evidence.
+
+Result (`command-ack.v1.result`):
+
+```json
+{"outcome": "EXECUTING|FAILED|PARTIAL", "recommendation_id": "<uuid>", "status": "EXECUTING|FAILED|PARTIAL",
+ "version": 4, "execution": {"...": "see below"}, "event_id": "<uuid of RECOMMENDATION_EXECUTION_STARTED>"}
+```
+
+### `execution` on the recommendation
+
+```json
+{"command_id": "<uuid>", "started_at": "...", "finished_at": null,
+ "steps": [{"seq": 1, "command_type": "REASSIGN_TRIP_DOCK", "target": "TRIP-00002",
+            "status": "APPLIED|COMPENSATED|FAILED|VERIFIED|NOT_APPLIED", "observed_event_id": null}],
+ "evidence": null}
+```
+
+`finished_at` is set when the execution reaches `VERIFIED`, `FAILED` or `PARTIAL`. `NOT_APPLIED` marks a step after a
+failed one. `evidence` is `null` while executing and on `VERIFIED`; otherwise it is
+`{reason: STEP_FAILED, failed_step {seq, target, source_system, code, message}, compensation_failures [...]}` or
+`{reason: VERIFICATION_TIMEOUT, timeout_batches, batches_observed, observed [{seq, target, expected_dock,
+observed_dock}]}`.
+
+### Verification (REQ-096)
+
+After every integration sync of the site, the verifier compares each applied step's target with what the source
+systems now report through the mirror (the dock and forklift assignment projections). A step becomes `VERIFIED` only
+when its target is **observed** at the step's `to_dock`; `observed_event_id` is the `DOCK_ASSIGNMENT_CHANGED` /
+`FORKLIFT_ASSIGNMENT_CHANGED` event that recorded the change. When every step is verified the recommendation becomes
+`VERIFIED` (`RECOMMENDATION_VERIFIED`). After `vo.recommendations.verification.timeout-batches` SIM-TMS batches with a
+step still unobserved, it becomes `FAILED` (nothing observed) or `PARTIAL` (some steps observed), with the observed
+state as evidence (`RECOMMENDATION_EXECUTION_FAILED`).
+
+### Simulated source commands
+
+| Command | Source | Effect | Compensation |
+|---|---|---|---|
+| `REASSIGN_TRIP_DOCK {trip_code, to_dock}` | SIM-TMS | stores an override in `integ.sim_tms_overrides`; from the next batch on, the trip's `SHIPMENT` record carries the new `dock_name` with a greater source version | the same command with the previous dock |
+| `REASSIGN_FORKLIFT_DOCK {forklift_code, to_dock}` | SIM-WMS | stores an override in `integ.sim_wms_overrides`; SIM-WMS then reports a `FORKLIFT_STATION` record | the same command with the previous dock |
+
+The source refuses an unknown trip, forklift or dock, a dock of the wrong direction, and a forklift that has no
+observed station (there is nothing to compensate to).
+
+### Demo control: external TMS change
+
+`POST /api/demo/integration/tms-change` (command, `Idempotency-Key`; demo tenants only, `403` elsewhere;
+`VIEW_OPERATIONAL_STATE` on the site, or a Platform Administrator), body `{site_id, trip_code, to_dock}`: the
+simulated "external" TMS moves the trip by itself. After the next sync the trip's assignment version is bumped, so an
+approved recommendation that touches the trip is stale on execute. Result: `{demo_control: true, source_system:
+"SIM-TMS", trip_code, previous_dock, to_dock, override_version, data_mode: "SIMULATED"}`. A refused change (unknown
+trip or dock, wrong direction) is `422` with the source's `code`.
+
+### Configuration (plan 8.3)
+
+All required; there are no defaults in code (application.yml carries these values).
+
+| Key | Value | Note |
+|---|---|---|
+| `vo.recommendations.generator.minutes-per-batch` | `30` | ASSUMPTION: plan minutes per simulated adapter batch (ADR-63) |
+| `vo.recommendations.generator.reassignment-penalty-min` | `15` | ASSUMPTION: no cost data for a dock change exists |
+| `vo.recommendations.generator.max-solve-ms` | `10000` | per CP-SAT solve; the call waits up to 3 x this + 10 s |
+| `vo.recommendations.generator.random-seed` | `20261012` | CP-SAT seed |
+| `vo.recommendations.generator.solver-threads` | `2` | bounded solver executor |
+| `vo.recommendations.generator.solver-queue` | `4` | pending solves beyond the running ones |
+| `vo.recommendations.verification.timeout-batches` | `2` | SIM-TMS batches (15 s each in the live loop, so 30 s) |

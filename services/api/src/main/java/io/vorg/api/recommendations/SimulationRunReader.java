@@ -30,6 +30,6 @@ public class SimulationRunReader {
         ScenarioView scenario = scenarios.get(subject, run.scenarioId());
         return new SimulationRunSnapshot(run.id(), run.scenarioId(), run.siteId(), run.status(), run.resultsHash(),
                 run.results(), run.finishedAt(), scenario.name(), scenario.baselineRef(), scenario.overlay(),
-                scenario.affectedEntities());
+                scenario.affectedEntities(), scenario.runSettings());
     }
 }

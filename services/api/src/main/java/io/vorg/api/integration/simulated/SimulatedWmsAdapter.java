@@ -29,6 +29,10 @@ import org.springframework.stereotype.Component;
  * </ul>
  * With {@code faultEvery > 0} every {@code faultEvery}-th batch carries one deliberately invalid inventory record
  * (negative on-hand) so the data-quality path can be demonstrated; it is off by default.
+ *
+ * <p>Forklift stations (Plan 8.3, ADR-63): the seeded world stations no forklift at a dock, so SIM-WMS reports a
+ * {@code FORKLIFT_STATION} record only for a forklift that was reassigned through {@link SimOverrides}; it is delivered
+ * in every batch with the override's change counter as source version (re-deliveries are exact duplicates).
  */
 @Component
 public class SimulatedWmsAdapter implements SourceAdapter {
@@ -46,12 +50,20 @@ public class SimulatedWmsAdapter implements SourceAdapter {
     private final long seed;
     private final int faultEvery;
     private final SimWorldProvider worlds;
+    private final SimOverrides overrides;
 
+    public SimulatedWmsAdapter(long seed, int faultEvery, SimWorldProvider worlds) {
+        this(seed, faultEvery, worlds, SimOverrides.NONE);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
     public SimulatedWmsAdapter(@Value("${vo.integration.simulated.seed:20261009}") long seed,
-            @Value("${vo.integration.simulated.fault-every:0}") int faultEvery, SimWorldProvider worlds) {
+            @Value("${vo.integration.simulated.fault-every:0}") int faultEvery, SimWorldProvider worlds,
+            SimOverrides overrides) {
         this.seed = seed;
         this.faultEvery = faultEvery;
         this.worlds = worlds;
+        this.overrides = overrides;
     }
 
     @Override
@@ -66,7 +78,7 @@ public class SimulatedWmsAdapter implements SourceAdapter {
 
     @Override
     public Set<RecordKind> kinds() {
-        return Set.of(RecordKind.ORDER, RecordKind.INVENTORY, RecordKind.TASK);
+        return Set.of(RecordKind.ORDER, RecordKind.INVENTORY, RecordKind.TASK, RecordKind.FORKLIFT_STATION);
     }
 
     @Override
@@ -87,6 +99,13 @@ public class SimulatedWmsAdapter implements SourceAdapter {
         if (b % 3 == 0) {
             out.add(task(world, b / 3, ctx.now()));
         }
+        overrides.forkliftDocks(ctx.tenantId(), ctx.siteId()).forEach((forklift, o) -> {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("forklift_code", forklift);
+            payload.put("dock_name", o.dockCode());
+            out.add(new SourceRecord(RecordKind.FORKLIFT_STATION, "STATION-" + forklift, o.version(), ctx.now(),
+                    payload));
+        });
         return new SourceBatch(SOURCE_SYSTEM, b, out);
     }
 
