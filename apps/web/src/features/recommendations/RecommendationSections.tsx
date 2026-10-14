@@ -137,7 +137,14 @@ export function ConstraintsCard({ rec }: { rec: Recommendation }) {
       {rec.constraints.length === 0 ? (
         <p className="text-sm text-ink-600">{t('rec.constraints.empty')}</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div
+          // Scrollable region: keyboard reachable (axe scrollable-region-focusable).
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          tabIndex={0}
+          role="region"
+          aria-label={t('rec.section.constraints')}
+          className="overflow-x-auto"
+        >
           <table className="w-full min-w-[32rem] text-left text-sm">
             <caption className="pb-2 text-left text-xs text-ink-600">
               {t('rec.constraints.caption', { total: rec.constraints.length, violated })}
@@ -311,7 +318,14 @@ export function DryRunCard({
           {dryRun.diff.length === 0 ? (
             <p className="text-sm text-ink-600">{t('rec.dryRun.empty')}</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div
+              // Scrollable region: keyboard reachable (axe scrollable-region-focusable).
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+              tabIndex={0}
+              role="region"
+              aria-label={t('rec.section.dryRun')}
+              className="overflow-x-auto"
+            >
               <table className="w-full min-w-[32rem] text-left text-sm" data-testid="dry-run-table">
                 <caption className="sr-only">{t('rec.dryRun.caption', { count: dryRun.diff.length })}</caption>
                 <thead className="border-b border-line text-xs text-ink-700">

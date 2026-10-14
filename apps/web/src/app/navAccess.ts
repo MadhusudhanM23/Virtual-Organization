@@ -13,7 +13,9 @@ const REQUIRED_ACTION: Record<string, string | null | ((roles: readonly string[]
   organization: 'ANALYZE_QUERY',
   operations: 'ANALYZE_QUERY',
   incidents: canViewIncidents,
-  recommendations: 'VIEW_OPERATIONAL_STATE',
+  // Reading recommendations needs PROPOSE_RECOMMENDATION on the site (docs/api/recommendations.md), so a role that
+  // only views operational state (Driver/Operator) would get 403 from every call.
+  recommendations: (roles) => canUse(roles, 'VIEW_OPERATIONAL_STATE') && canUse(roles, 'PROPOSE_RECOMMENDATION'),
   'twin-live': 'VIEW_OPERATIONAL_STATE',
   'twin-map': 'VIEW_OPERATIONAL_STATE',
   'twin-simulation': 'CREATE_SIMULATION',

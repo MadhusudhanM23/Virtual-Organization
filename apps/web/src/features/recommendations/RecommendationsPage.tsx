@@ -78,7 +78,12 @@ export default function RecommendationsPage() {
     }
   };
 
-  const current = state && state.key === key ? state : null;
+  const loaded = state && state.key === key ? state : null;
+  // The API filters by a single status; with several selected, the page is filtered here.
+  const current =
+    loaded && status.length > 1
+      ? { ...loaded, items: loaded.items.filter((r) => status.includes(r.status)) }
+      : loaded;
   const loading = Boolean(siteId) && current === null;
 
   return (
@@ -135,7 +140,14 @@ export default function RecommendationsPage() {
           ) : current && current.items.length === 0 ? (
             <EmptyState icon={Lightbulb} description={t('rec.list.empty')} />
           ) : current ? (
-            <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
+            <div
+              // Scrollable region: keyboard reachable (axe scrollable-region-focusable).
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+              tabIndex={0}
+              role="region"
+              aria-label={t('rec.list.title')}
+              className="overflow-x-auto rounded-card border border-line bg-surface shadow-card"
+            >
               <table className="w-full min-w-[48rem] text-left text-sm" data-testid="recommendations-table">
                 <caption className="sr-only">{t('rec.list.caption', { site: site?.name ?? '' })}</caption>
                 <thead className="border-b border-line bg-surface-sunken text-xs text-ink-700">

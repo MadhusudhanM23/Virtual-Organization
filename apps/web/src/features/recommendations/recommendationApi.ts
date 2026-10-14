@@ -68,12 +68,24 @@ export interface RequiresApproval {
   separation_of_duties: boolean;
 }
 
-export type ExecutionStepStatus = 'APPLIED' | 'COMPENSATED' | 'FAILED' | 'VERIFIED';
+export type ExecutionStepStatus = 'APPLIED' | 'COMPENSATED' | 'FAILED' | 'VERIFIED' | 'NOT_APPLIED';
 
 export interface ExecutionStep {
   seq: number;
+  command_type?: string;
+  target?: string;
   status: ExecutionStepStatus | string;
   observed_event_id: string | null;
+}
+
+/** Why an execution ended FAILED / PARTIAL (docs/api/recommendations.md, "execution on the recommendation"). */
+export interface ExecutionEvidence {
+  reason: 'STEP_FAILED' | 'VERIFICATION_TIMEOUT' | string;
+  failed_step?: { seq: number; target: string; source_system?: string; code: string; message: string } | null;
+  compensation_failures?: { seq: number; target: string; code: string; message: string }[];
+  timeout_batches?: number;
+  batches_observed?: number;
+  observed?: { seq: number; target: string; expected_dock: string | null; observed_dock: string | null }[];
 }
 
 /** Plan 8.3: `null` until executed. */
@@ -82,6 +94,8 @@ export interface Execution {
   started_at: string | null;
   finished_at: string | null;
   steps: ExecutionStep[];
+  /** Null while executing and on VERIFIED. */
+  evidence?: ExecutionEvidence | null;
 }
 
 export interface Recommendation {
@@ -169,7 +183,8 @@ export function recommendationListQuery(
   limit = RECOMMENDATION_PAGE_SIZE,
 ): string {
   const qs = new URLSearchParams({ site_id: siteId, limit: String(limit) });
-  if (status.length > 0) qs.set('status', status.join(','));
+  // The API filters by one status (`status=`); several selected statuses are filtered on the client.
+  if (status.length === 1) qs.set('status', status[0]!);
   if (cursor) qs.set('cursor', cursor);
   return `/recommendations?${qs.toString()}`;
 }
@@ -187,7 +202,7 @@ export const fetchDryRun = (id: string) => apiFetch<DryRun>(`/recommendations/${
 
 export const fetchApprovals = (siteId: string, status: readonly string[] = []) => {
   const qs = new URLSearchParams({ site_id: siteId });
-  if (status.length > 0) qs.set('status', status.join(','));
+  if (status.length === 1) qs.set('status', status[0]!);
   return apiFetch<ApprovalPage>(`/approvals?${qs.toString()}`);
 };
 

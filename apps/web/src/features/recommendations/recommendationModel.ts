@@ -3,6 +3,7 @@ import type { MessageId } from '../../i18n';
 import { ApiError } from '../../lib/api/client';
 import type {
   ApprovalStatus,
+  ExecutionEvidence,
   ObjectiveValue,
   Recommendation,
   RecommendationStatus,
@@ -279,4 +280,44 @@ export function evidenceHref(kind: string, ref: string): string | null {
   if (kind === 'SIMULATION_RUN') return '/twin/simulation';
   if (kind === 'INCIDENT') return `/incidents/${encodeURIComponent(ref)}`;
   return null;
+}
+
+/** One line of execution evidence: a message id and its parameters, all read from the served `evidence`. */
+export interface EvidenceLine {
+  id: MessageId;
+  params: Record<string, string | number>;
+}
+
+const dash = (v: unknown): string => (v === null || v === undefined || v === '' ? '—' : String(v));
+
+/** The served FAILED / PARTIAL evidence as display lines (nothing inferred beyond what the API reports). */
+export function evidenceLines(evidence: ExecutionEvidence | null | undefined): EvidenceLine[] {
+  if (!evidence) return [];
+  const lines: EvidenceLine[] = [];
+  if (evidence.reason === 'STEP_FAILED') {
+    const f = evidence.failed_step;
+    if (f) {
+      lines.push({
+        id: 'rec.evidence.stepFailed',
+        params: { seq: f.seq, target: dash(f.target), source: dash(f.source_system), code: dash(f.code), message: dash(f.message) },
+      });
+    }
+    const failures = evidence.compensation_failures ?? [];
+    for (const c of failures) {
+      lines.push({
+        id: 'rec.evidence.compensationFailed',
+        params: { seq: c.seq, target: dash(c.target), code: dash(c.code), message: dash(c.message) },
+      });
+    }
+    if (failures.length === 0) lines.push({ id: 'rec.evidence.compensated', params: {} });
+  } else if (evidence.reason === 'VERIFICATION_TIMEOUT') {
+    lines.push({ id: 'rec.evidence.timeout', params: { batches: dash(evidence.timeout_batches) } });
+    for (const o of evidence.observed ?? []) {
+      lines.push({
+        id: 'rec.evidence.observed',
+        params: { target: dash(o.target), expected: dash(o.expected_dock), observed: dash(o.observed_dock) },
+      });
+    }
+  }
+  return lines;
 }
