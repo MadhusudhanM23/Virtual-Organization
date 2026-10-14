@@ -778,3 +778,42 @@ persistence of exchanges with no raw secrets.
 - *Region:* `VO_AI_PROVIDER_REGION` is configuration; it is returned in `provider.region` on external answers.
 **Consequences:** a key in a question can never reach OpenAI or the database. Retention `none` keeps only hashes and
 metadata. Raw prompts are not kept for evaluation; the eval suite uses fixed cases instead.
+
+### ADR-66 Assistant tool contract, evidence model and the deterministic offline provider — Proposed
+**Context:** REQ-102..105 require allowlisted, schema-validated tools that run as the user, grounded answers that cite
+evidence and drive the twin, proposals only through the existing commands, and prompt-injection defenses. The demo
+tenant does not allow external LLM use (`llm_external_allowed=false`) and no key exists yet, so the MCD question
+("why does the bottleneck matter?", MCD step 10) must work without any model.
+**Decision:**
+- *Allowlist* (`tools.py`): 13 read tools (`get_entity`, `find_entities`, `list_zones`, `list_docks`,
+  `list_incidents`, `get_incident`, `get_kpis`, `list_scenarios`, `get_scenario`, `list_simulation_runs`,
+  `get_simulation_run`, `list_recommendations`, `get_recommendation`) and 2 proposal tools (`create_scenario` ->
+  `POST /api/scenarios`, `propose_recommendation` -> `POST /api/recommendations`). Each tool wraps one existing
+  endpoint, declares its matrix action (`VIEW_OPERATIONAL_STATE`, `CREATE_SIMULATION`, `PROPOSE_RECOMMENDATION`) and
+  validates arguments with a strict pydantic model (`extra=forbid`). `site_id` is bound by the gateway from the
+  request and is never a tool argument. Unknown tools, bad arguments and more than 12 calls per exchange are rejected.
+  **There is no approve, reject, execute, incident or e-stop tool.**
+- *Write gating:* a proposal tool is offered only when the caller's roles can use its action (permission-matrix
+  contract) and the **user's own message** asks for it (`guards.detect_intents`). Nothing a tool returns can enable a
+  write. Requests to approve, reject, execute, handle incidents or stop machines are refused deterministically before
+  any provider runs. Proposal commands carry an `Idempotency-Key` derived from the exchange id (uuid5), so a retried
+  exchange never doubles a proposal.
+- *Evidence* (`evidence.py`): every tool result becomes ledger items `{id: cN, kind, ref, label, href, tool, data_mode,
+  values}` (kinds `ENTITY`, `ENTITY_SET`, `ZONE`, `DOCK`, `INCIDENT`, `INCIDENT_SET`, `METRIC`, `SCENARIO`,
+  `SIMULATION_RUN`, `RECOMMENDATION`). Answers cite `[cN]`. Only cited items are returned. Groundedness: every number
+  in the answer (identifiers, codes, timestamps and window names excluded) must equal, at its printed precision, a
+  value of a cited item or a number in the user's own question; cited ids must exist. Directives (`highlight`,
+  `focus_camera`) are kept only when their targets belong to cited evidence.
+- *Injection:* free text from tools (incident titles, notes and status reasons, scenario descriptions, recommendation
+  rationales) is scanned for instruction-like content and flagged `untrusted_instruction_in_tool_output`. It is never
+  interpreted. For OpenAI it is sent inside `{"untrusted_data": ...}` tool messages under a system rule.
+- *Offline provider* (`providers/offline.py`, model `offline-rules-v1`): ordered intent rules (refusal, propose,
+  create scenario, entity code, zone, bottleneck, incidents, recommendations, scenarios, dock, KPIs, help), each with a
+  fixed tool plan and a template that prints only tool values. The bottleneck answer reads the latest SUCCEEDED run,
+  its scenario's dock closures and the `worse` KPI deltas (with their 95% CI), then highlights and focuses the closed
+  dock and its zone. A zone question reports the entity count and open incidents and says that no per-zone congestion
+  KPI exists.
+**Alternatives:** a small local model (rejected for the MCD: not deterministic, heavy on the 8 GB reference machine);
+letting the model choose `site_id` (rejected: cross-site leakage risk).
+**Consequences:** demo answers are reproducible and testable (tests/ai-eval). Phrasing is rigid, and questions outside
+the rules get the help text instead of a guess.
