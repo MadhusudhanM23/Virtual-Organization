@@ -238,9 +238,25 @@ test('MCD 5: trigger a worker/forklift proximity situation; the alert appears at
       hasText: `Forklift ${staged.result.forklift.code} and worker ${staged.result.worker.code}`,
     })
     .first();
-  await expect(toast).toBeVisible({ timeout: 30_000 });
-  const alertMs = Date.now() - triggered;
-  measure('mcd5_trigger_to_alert_visible_ms', alertMs);
+  // locator.waitFor polls in the page (no escalating expect intervals), so the moment is accurate to a frame or so.
+  await toast.waitFor({ state: 'visible', timeout: 30_000 });
+  const seen = Date.now();
+  measure('mcd5_trigger_to_alert_visible_ms', seen - triggered);
+  // Event-to-UI (NFR-04): the alert's commit time (ingested_at, server clock on this machine) -> toast on screen.
+  const alertTok = await token(request, USERS.safety);
+  const alerts = await apiGet<{
+    items: { ingested_at: string; payload: { forklift?: { code?: string } } }[];
+  }>(
+    request,
+    alertTok,
+    `/api/events?site_id=${SITE_ID}&event_type=PROXIMITY_ALERT_RAISED&limit=20`,
+  );
+  const raised = alerts.items
+    .filter((e) => e.payload.forklift?.code === staged.result.forklift.code)
+    .map((e) => Date.parse(e.ingested_at))
+    .filter((t) => t <= seen)
+    .sort((x, y) => y - x)[0];
+  if (raised) measure('mcd5_alert_commit_to_toast_ms', seen - raised);
   await expect(toast).toContainText(/Proximity alert: (HIGH|CRITICAL)/);
   await expect(toast).toContainText('Unconfirmed: not yet checked by a person');
   await expect(toast.getByRole('img', { name: /synthetic/i })).toBeVisible();
@@ -347,6 +363,25 @@ test('MCD 7: replay the incident from the last snapshot plus state-delta events'
   );
   await page.getByTestId('replay-play').click();
   await shot(page, '07-replay-incident');
+
+  // Replay navigation (NFR-05): a keyboard scrub of 60 s -> the new instant is shown and no seek is pending.
+  const scrubber = page.getByTestId('replay-scrubber');
+  await scrubber.focus();
+  const scrubs: number[] = [];
+  for (let i = 0; i < 5; i++) {
+    const before = await page.getByTestId('replay-time').getAttribute('data-at');
+    const t0 = Date.now();
+    await page.keyboard.press('Shift+ArrowLeft');
+    await page.waitForFunction(
+      (prev) =>
+        document.querySelector('[data-testid="replay-time"]')?.getAttribute('data-at') !== prev &&
+        document.querySelector('[data-testid="replay-seeking"]') === null,
+      before,
+      { timeout: 10_000, polling: 'raf' },
+    );
+    scrubs.push(Date.now() - t0);
+  }
+  measure('mcd7_scrub_60s_to_rendered_ms', scrubs);
   // In REPLAY nothing is labeled LIVE; the page is labeled REPLAY and each replayed item keeps its recorded data mode
   // (ADR-46: lens and data mode are shown separately), which is SIMULATED or SYNTHETIC in the MCD.
   await expectNoLiveLabel(page);
