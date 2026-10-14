@@ -25,7 +25,7 @@ events) that later domains reuse.
 | 6 Simulation | Deterministic DES engine (`services/simulation`), isolated scenario/run APIs, dock-closure scenario, SIMULATE lens with baseline-vs-scenario compare | Built |
 | 7 Computer vision | Recorded-camera detection/tracking → privacy-safe observations | Waiting on owner: licensing choice (OD-6) and a demo video clip |
 | 8 Recommendations & approvals | OR-Tools optimizer, recommendation contract, approvals (separation of duties, expiry), stale-baseline check, verified execution, recommendations UI | Built (compiles; test pass pending) |
-| 9 AI assistant | Provider-neutral LLM gateway, allowlisted identity-scoped tools, grounded answers | Waiting on owner: `OPENAI_API_KEY` (an offline provider is planned too) |
+| 9 AI assistant | Provider-neutral LLM gateway (`services/ai`: deterministic offline provider + OpenAI), allowlisted identity-scoped tools, cited grounded answers that highlight and frame the twin, assistant panel, eval suite | Built (offline by default; OpenAI turns on when the owner adds `OPENAI_API_KEY` and allows the tenant, see [docs/api/assistant.md](docs/api/assistant.md)) |
 | 10 MCD integration | All 12 MCD steps automated end to end, truth-label audit, SLO report, demo runbook | Not started |
 
 Milestone 2 (hardening, offline operator PWA, scenario library and scale) follows the MCD. Phase plans live in
@@ -41,6 +41,7 @@ Layout follows blueprint §20.
 | `services/api/` | Spring Boot (Java 21) modular monolith: platform core, domains, WebSocket hub ([README](services/api/README.md)) |
 | `services/simulation/` | Pure-Java deterministic discrete-event simulation library ([README](services/simulation/README.md)) |
 | `services/optimization/` | Pure-Java OR-Tools CP-SAT dock/forklift re-assignment optimizer ([README](services/optimization/README.md)) |
+| `services/ai/` | Python FastAPI AI assistant gateway on port 8090: offline + OpenAI providers, tool allowlist, evidence, redaction ([README](services/ai/README.md)) |
 | `packages/contracts/` | Language-neutral JSON Schemas (event envelope, problems, command acks), permission matrix, event catalog |
 | `packages/twin-schema/` | Coordinate system and world-to-renderer helpers |
 | `infra/docker/` | `compose.yaml` for local infrastructure (+ `observability` profile) |
@@ -50,11 +51,11 @@ Layout follows blueprint §20.
 | `docs/adr/` | Architecture decision records |
 | `docs/api/` | HTTP/JSON conventions and endpoint catalog ([README](docs/api/README.md)) |
 | `docs/scenarios/` | Demo data provenance and scenario reproduction steps |
-| `tests/` | Cross-cutting suites (contract tests today) |
+| `tests/` | Cross-cutting suites (contract tests, AI evaluation in `tests/ai-eval`) |
 | `scripts/` | Maven wrapper helpers and GSD validation scripts |
 | `.gsd/` | Spec, requirements, roadmap, architecture conventions, phase plans |
 
-Planned, not yet present: `services/vision/` (Phase 7), `services/ai/` (Phase 9), `apps/operator-pwa/` (Milestone 2).
+Planned, not yet present: `services/vision/` (Phase 7), `apps/operator-pwa/` (Milestone 2).
 
 ## Prerequisites
 

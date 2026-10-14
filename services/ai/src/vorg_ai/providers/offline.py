@@ -96,7 +96,7 @@ def _refused(out: ToolOutcome, what: str) -> str:
     if status == 403:
         return f"The platform refused to let you {what} for this site."
     if status == 404:
-        return f"The platform found nothing to {what} here."
+        return f"The platform found nothing for this site when I tried to {what}."
     return f"I couldn't {what}: the platform answered '{code}'."
 
 
