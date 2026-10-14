@@ -86,4 +86,6 @@ export interface ProblemDetail {
   detail?: string;
   /** Field-level validation errors (e.g. the scenario/simulation-run API's 400s, docs/api/simulation.md). */
   errors?: { field: string; message: string }[];
+  /** Problem extension members (RFC 9457 §3.2), read through typed parsers. */
+  [extension: string]: unknown;
 }

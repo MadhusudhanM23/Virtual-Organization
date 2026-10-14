@@ -13,6 +13,7 @@ const REQUIRED_ACTION: Record<string, string | null | ((roles: readonly string[]
   organization: 'ANALYZE_QUERY',
   operations: 'ANALYZE_QUERY',
   incidents: canViewIncidents,
+  recommendations: 'VIEW_OPERATIONAL_STATE',
   'twin-live': 'VIEW_OPERATIONAL_STATE',
   'twin-map': 'VIEW_OPERATIONAL_STATE',
   'twin-simulation': 'CREATE_SIMULATION',

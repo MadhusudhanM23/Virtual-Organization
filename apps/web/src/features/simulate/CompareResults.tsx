@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ArrowDown, ArrowUp, CircleAlert, Minus } from 'lucide-react';
 import { DataModeBadge } from '../../components/DataModeBadge';
 import { cn } from '../../lib/cn';
@@ -95,13 +96,15 @@ function DeltaCard({ delta }: { delta: KpiDelta }) {
 export interface CompareResultsProps {
   results: ComparisonResult;
   scenarioName: string;
+  /** Extra header actions (e.g. "Generate recommendation" on a SUCCEEDED run). */
+  actions?: ReactNode;
 }
 
 /**
  * Comparison view (REQ-075, Plan 6.4): one card per KPI delta, a data-table fallback, affected entities and the
  * `comparison_hash` as provenance. Every number is read straight from the API's `results` document.
  */
-export function CompareResults({ results, scenarioName }: CompareResultsProps) {
+export function CompareResults({ results, scenarioName, actions }: CompareResultsProps) {
   const moved = results.deltas.filter((d) => isMovedVerdict(d.verdict));
   return (
     <section aria-labelledby="compare-title" data-testid="compare-results" className="flex flex-col gap-4">
@@ -109,7 +112,10 @@ export function CompareResults({ results, scenarioName }: CompareResultsProps) {
         <h2 id="compare-title" className="text-base font-semibold text-ink-900">
           Compare: {scenarioName}
         </h2>
-        <DataModeBadge dataMode="SIMULATED" lens="SIMULATE" />
+        <div className="flex flex-wrap items-start gap-2">
+          <DataModeBadge dataMode="SIMULATED" lens="SIMULATE" />
+          {actions}
+        </div>
       </div>
 
       <p className="text-sm text-ink-700">

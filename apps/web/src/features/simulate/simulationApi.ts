@@ -1,4 +1,5 @@
 import { apiFetch } from '../../lib/api/client';
+import type { CommandAck } from '../../lib/api/commands';
 
 /**
  * Wire types and calls of the scenario / simulation-run API (docs/api/simulation.md, Plan 6.3). snake_case as
@@ -116,20 +117,9 @@ export interface SimulationRunList {
   next_cursor: string | null;
 }
 
-export interface CommandAck<R = Record<string, unknown>> {
-  command_id: string;
-  status: string;
-  correlation_id: string;
-  result?: R;
-}
-
 export interface ProblemFieldError {
   field: string;
   message: string;
-}
-
-export function newIdempotencyKey(): string {
-  return globalThis.crypto.randomUUID();
 }
 
 const enc = encodeURIComponent;

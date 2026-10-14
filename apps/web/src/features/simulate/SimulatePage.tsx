@@ -8,12 +8,8 @@ import { useUiStore } from '../../stores/uiStore';
 import { RunPanel } from './RunPanel';
 import { ScenarioBuilderForm } from './ScenarioBuilderForm';
 import { ScenarioList } from './ScenarioList';
-import {
-  createScenario,
-  newIdempotencyKey,
-  type CreateScenarioBody,
-  type Scenario,
-} from './simulationApi';
+import { newIdempotencyKey } from '../../lib/api/commands';
+import { createScenario, type CreateScenarioBody, type Scenario } from './simulationApi';
 import { useScenarios } from './useSimulateData';
 import { useSimulateLens } from './useSimulateLens';
 import type { FieldError } from './scenarioModel';

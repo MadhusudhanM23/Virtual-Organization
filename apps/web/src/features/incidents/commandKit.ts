@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ApiError } from '../../lib/api/client';
-import { newIdempotencyKey, type CommandAck } from './incidentApi';
+import { newIdempotencyKey, type CommandAck } from '../../lib/api/commands';
 
 export const BUTTON_PRIMARY =
   'inline-flex items-center justify-center gap-1.5 rounded-control bg-navy-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-navy-800 disabled:opacity-60';
