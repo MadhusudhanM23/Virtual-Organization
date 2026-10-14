@@ -24,6 +24,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    /** Members a problem's extension properties may not replace. */
+    private static final java.util.Set<String> RESERVED_MEMBERS = java.util.Set.of("type", "title", "status",
+            "detail", "instance", "correlation_id", "errors", "code");
+
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
             HttpHeaders headers, HttpStatusCode status, WebRequest request) {
@@ -56,6 +60,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             pd.setProperty("errors", ex.errors().stream()
                     .map(e -> Map.of("field", e.field(), "message", e.message())).toList());
         }
+        if (ex.code() != null) {
+            pd.setProperty("code", ex.code());
+        }
+        ex.properties().forEach((name, value) -> {
+            if (!RESERVED_MEMBERS.contains(name)) {
+                pd.setProperty(name, value);
+            }
+        });
         return handleExceptionInternal(ex, pd, new HttpHeaders(), ex.status(), request);
     }
 

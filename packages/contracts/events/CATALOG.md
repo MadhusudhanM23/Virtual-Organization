@@ -29,8 +29,12 @@ Every event type must be listed here **before** any code emits it. The envelope 
 | `INCIDENT_ASSIGNED` | `INCIDENT` | `POST /api/incidents/{id}/assign` | `{ assignee_actor_ref, previous_assignee_actor_ref?, note?, incident_status }`; `source=API`, actor HUMAN | y | 4 |
 | `INCIDENT_NOTE_ADDED` | `INCIDENT` | `POST /api/incidents/{id}/notes` | `{ note_id, text, incident_status }`; `source=API`, actor HUMAN | y | 4 |
 | `INCIDENT_ESTOP_REQUESTED` | `INCIDENT` | `POST /api/incidents/{id}/estop-request`, `POST /api/safety/emergency-stop-request` | `{ request_id, target_entity_id, target_entity_code, reason, request_status: REQUESTED_ADVISORY, advisory: true, requires_on_site_confirmation: true, delivery: RECORDED_ONLY, advisory_notice, incident_status }`; **advisory only: it never stops a machine or changes the twin** (ADR-05); `source=API`, actor HUMAN | y | 4 |
+| `RECOMMENDATION_PROPOSED` | `RECOMMENDATION` | `POST /api/recommendations` (Plan 8.1, ADR-61) | `{ recommendation_type: DOCK_REASSIGNMENT, status: PROPOSED, simulation_run_id, scenario_id, approval_id, feasibility_status, objective {name, unit, before, after}, affected_entities, baseline_entity_versions, policy_versions, step_count, expires_at, supersedes_id? }`; objective values are measured/computed quantities with a unit, never a confidence; `source=API`, `data_mode=SIMULATED` (the plan is derived from a simulation), actor HUMAN (the proposer), `location` = the site; sequenced per recommendation; same transaction as `APPROVAL_REQUESTED` | y | 8 |
+| `APPROVAL_REQUESTED` | `APPROVAL` | `POST /api/recommendations`, together with `RECOMMENDATION_PROPOSED` | `{ recommendation_id, status: PENDING, approval_class: STANDARD/SENSITIVE, separation_of_duties, policy {name, version}, approver_roles, expires_at }`; `source=API`, `data_mode=SIMULATED`, actor HUMAN (the proposer), `location` = the site; sequenced per approval | y | 8 |
 
 "Replay-authoritative" follows blueprint section 7: only the listed MVP domains (entity positions, task and incident
 lifecycle, scenario lifecycle, approvals and commands) are rebuilt from events during replay. Phase 5 replay
-(`docs/api/replay.md`, ADR-44..46) reconstructs the `y` rows above and also replays `PROXIMITY_ALERT_RAISED` as raised (recent
-alerts); `MIRROR_RECORD_UPDATED` / `INTEGRATION_FINDING_RECORDED` are only listed as recorded events. Replay emits no events.
+(`docs/api/replay.md`, ADR-44..46) reconstructs the `y` rows of phases 3–4 above and also replays `PROXIMITY_ALERT_RAISED` as raised (recent
+alerts); `MIRROR_RECORD_UPDATED` / `INTEGRATION_FINDING_RECORDED` are only listed as recorded events. The Phase 8
+recommendation/approval rows are replay-authoritative by section 7 ("approvals and commands") and carry the full state
+delta, but the replay module does not reconstruct them yet (they are listed as recorded events). Replay emits no events.

@@ -24,7 +24,8 @@ CREATE TABLE rec.recommendations (
     execution_plan jsonb NOT NULL,
     requires_approval jsonb NOT NULL,
     expires_at timestamptz NOT NULL,
-    -- The approval created with the proposal (same transaction); deferred so both rows can be inserted in either order.
+    -- The approval created with the proposal (same transaction); the foreign key is deferred to commit so the
+    -- recommendation can be inserted before the approval that references it.
     approval_id uuid NOT NULL UNIQUE,
     -- Provenance of the proposal: the SUCCEEDED simulation run (and its scenario) it was generated from. Not foreign
     -- keys: sim.* is the vo_sim schema (ADR-60) and the recommendation module only reads it.
