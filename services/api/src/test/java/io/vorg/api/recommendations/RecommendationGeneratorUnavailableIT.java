@@ -7,17 +7,38 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.vorg.api.support.AbstractApiIntegrationTest;
 import java.net.http.HttpResponse;
 import java.util.UUID;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.annotation.DirtiesContext;
 
 /**
- * Without a {@link RecommendationGenerator} bean (the default until Plan 8.3 wires the optimizer), proposing is a 503
- * {@code generator_unavailable} for an authorized caller; an unauthorized caller is still rejected (403) by the
- * gateway. Runs in the shared default context (no fake generator imported).
+ * Without a {@link RecommendationGenerator} bean, proposing is a 503 {@code generator_unavailable} for an authorized
+ * caller, and an unauthorized caller is still rejected (403) by the gateway. The OR-Tools generator is always
+ * registered on a normal server, so this context removes its bean definition.
  */
-@Disabled("Plan 8.3 registers the OR-Tools generator, so the default context always has one; the 503 path needs"
-        + " a context without the bean (to be rewritten in Plan 8.3 task 4)")
+@Import(RecommendationGeneratorUnavailableIT.NoGenerator.class)
+@DirtiesContext
 class RecommendationGeneratorUnavailableIT extends AbstractApiIntegrationTest {
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class NoGenerator {
+
+        @Bean
+        static BeanDefinitionRegistryPostProcessor removeGenerator() {
+            return (BeanDefinitionRegistry registry) -> {
+                for (String name : registry.getBeanDefinitionNames()) {
+                    String type = registry.getBeanDefinition(name).getBeanClassName();
+                    if (OrToolsRecommendationGenerator.class.getName().equals(type)) {
+                        registry.removeBeanDefinition(name);
+                    }
+                }
+            };
+        }
+    }
 
     private String body() {
         return "{\"site_id\":\"" + SITE_BLR + "\",\"simulation_run_id\":\"" + UUID.randomUUID() + "\"}";
