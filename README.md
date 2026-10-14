@@ -24,7 +24,7 @@ events) that later domains reuse.
 | 5 Replay | Snapshots + state-delta replay, timeline UI, REPLAY lens | Built |
 | 6 Simulation | Deterministic DES engine (`services/simulation`), isolated scenario/run APIs, dock-closure scenario, SIMULATE lens with baseline-vs-scenario compare | Built |
 | 7 Computer vision | Recorded-camera detection/tracking → privacy-safe observations | Waiting on owner: licensing choice (OD-6) and a demo video clip |
-| 8 Recommendations & approvals | OR-Tools optimizer, recommendation contract, approvals (separation of duties, expiry), stale-baseline check, verified execution | In progress |
+| 8 Recommendations & approvals | OR-Tools optimizer, recommendation contract, approvals (separation of duties, expiry), stale-baseline check, verified execution, recommendations UI | Built (compiles; test pass pending) |
 | 9 AI assistant | Provider-neutral LLM gateway, allowlisted identity-scoped tools, grounded answers | Waiting on owner: `OPENAI_API_KEY` (an offline provider is planned too) |
 | 10 MCD integration | All 12 MCD steps automated end to end, truth-label audit, SLO report, demo runbook | Not started |
 
@@ -40,7 +40,7 @@ Layout follows blueprint §20.
 | `apps/web/` | Web app: React + TypeScript + Vite + Tailwind + React Three Fiber + Zustand |
 | `services/api/` | Spring Boot (Java 21) modular monolith: platform core, domains, WebSocket hub ([README](services/api/README.md)) |
 | `services/simulation/` | Pure-Java deterministic discrete-event simulation library ([README](services/simulation/README.md)) |
-| `services/optimization/` | Pure-Java OR-Tools CP-SAT dock/forklift re-assignment optimizer (Phase 8, in progress) |
+| `services/optimization/` | Pure-Java OR-Tools CP-SAT dock/forklift re-assignment optimizer ([README](services/optimization/README.md)) |
 | `packages/contracts/` | Language-neutral JSON Schemas (event envelope, problems, command acks), permission matrix, event catalog |
 | `packages/twin-schema/` | Coordinate system and world-to-renderer helpers |
 | `infra/docker/` | `compose.yaml` for local infrastructure (+ `observability` profile) |

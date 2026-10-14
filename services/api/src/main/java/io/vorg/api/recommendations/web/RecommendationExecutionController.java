@@ -78,7 +78,7 @@ public class RecommendationExecutionController {
             resimulate.put("href", "/api/scenarios/" + scenarioId + "/runs");
             Map<String, Object> props = new LinkedHashMap<>();
             props.put("recommendation_id", id.toString());
-            props.put("status", text(result, "status"));
+            props.put("recommendation_status", text(result, "status"));
             props.put("stale", stale);
             props.put("resimulate", resimulate);
             throw RecommendationProblems.of(HttpStatus.CONFLICT, "Stale baseline",
