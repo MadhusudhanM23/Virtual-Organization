@@ -1,7 +1,7 @@
 # Plan 9.2 — Tool allowlist, identity passthrough, evidence model, action safety
 
 Working plan (brief). Source: REQ-102, REQ-103, REQ-104, REQ-105, REQ-106; BLUEPRINT §13 "AI tool architecture" and
-"AI security"; ADR-12. New: ADR-65 (offline provider and tool contract, Proposed). Wave B — after 9.1.
+"AI security"; ADR-12. New: ADR-66 (offline provider and tool contract, Proposed). Wave B — after 9.1.
 
 ## Tasks
 

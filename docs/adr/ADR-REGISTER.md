@@ -724,3 +724,57 @@ times are only as good as the minutes-per-batch assumption and model one visit p
 arrival times) would replace (4) without changing the contract. Overrides are never deleted; compensation writes the
 previous dock as a new override version. Verification depends on the live sync loop (or a test calling `syncOnce`);
 without syncs an execution stays `EXECUTING`.
+
+### ADR-64 AI gateway placement: `services/ai` (Python, FastAPI) as a token-passthrough client of the API — Proposed
+**Context:** Phase 9 needs a provider-neutral LLM gateway (ADR-17) whose tools run as the human user (ADR-12,
+BLUEPRINT §13). STACK and ARCHITECTURE already place AI in `services/ai` (Python 3.12, port 8090), calling the API
+over HTTP with user-token passthrough, while ARCHITECTURE also reserves a Java `ai` module for conversation
+persistence. Open choices: where the gateway runs, how it authenticates, how the browser reaches it and where exchanges
+are stored.
+**Decision:**
+- The gateway is `services/ai` (package `vorg_ai`, FastAPI, port 8090). It is stateless. It never connects to
+  PostgreSQL or Redis and holds **no service account**: every platform call carries the caller's own bearer token,
+  unchanged (`platform_client.py`). Roles are read from `GET /api/me` with that token only to decide which tools to
+  *offer*; the API still authorizes every call.
+- The tenant LLM flag `llm_external_allowed` is added to `GET /api/me` (`tenant.llm_external_allowed`), so the
+  gateway reads it with the caller's token. A missing flag counts as false.
+- The browser reaches the gateway at `POST /api/assistant/messages`. The Vite dev server proxies `/api/assistant` to
+  8090 (`VITE_AI_ORIGIN`) and the rest of `/api` to 8080. A production ingress uses the same path split.
+- Exchanges are persisted by the Java `ai` module (`ai.exchanges`, `POST /api/ai/exchanges`, ADR-65), so tenancy (RLS),
+  the command gateway and audit stay in one place. The gateway records each exchange with the caller's token.
+- Vendor code stays in `vorg_ai/providers/`, and OpenAI is called over raw HTTPS (httpx, no SDK).
+**Alternatives:** a Java gateway inside the monolith (rejected: STACK/ARCHITECTURE put AI in Python, and it would
+couple vendor HTTP and model iteration to the API release); a privileged service account for tools (rejected: ADR-12,
+since the assistant could then see more than the user).
+**Consequences:** the assistant can never see or do more than the user. A user without `VIEW_OPERATIONAL_STATE` on the
+site gets no data, and their exchange record is refused (the gateway then logs metadata only). One more process to run
+locally (`uvicorn vorg_ai.app:app --port 8090`).
+
+### ADR-65 AI redaction, tenant LLM policy and the exchange record — Proposed
+**Context:** BLUEPRINT §18 "External LLM data policy" requires PII minimization before external transmission,
+provider-region configuration and configurable retention. REQ-101 and REQ-106 require tenant-scoped, permission-aware
+persistence of exchanges with no raw secrets.
+**Decision:**
+- *Provider policy* (`policy.py`): `openai` is used only when `VO_AI_PROVIDER=auto` **and** `OPENAI_API_KEY` is set
+  **and** the tenant's `llm_external_allowed` is true. Otherwise `offline`, with the reason in `provider.reason`
+  (`offline_mode_configured`, `no_api_key`, `tenant_external_disallowed`). Refusals of approve/execute requests are
+  always answered offline (deterministic). An external answer that fails the groundedness check, or a provider error,
+  falls back to offline (`external_answer_ungrounded`, `external_provider_failed`).
+- *Redaction* (`redaction.py`, one `Redactor` per exchange): secrets (JWT, bearer tokens, `sk-` keys,
+  `password=`/`api_key=`/`secret=` values) are replaced by `[SECRET_REDACTED]` and never restored. PII (e-mail, phone,
+  Aadhaar-like and PAN-like ids, card-like numbers) is tokenized `[EMAIL_1]`, and the mapping stays in process to
+  restore the answer for the user. UUIDs, hashes and ISO timestamps are protected from false positives. It applies to
+  the user text and to every tool result before an external call, and to everything stored. Only counts per kind are
+  recorded. Free-text names are not detected (the seeded world uses pseudonymous codes and actor refs). A tenant whose
+  data contains personal names must keep external use off until a name detector exists.
+- *Exchange record* (`ai.exchanges`, `V9_1_01`): exchange and conversation ids, site, actor (from the token),
+  provider, model, external flag and reason, retention, `question_sha256`, the redacted question/answer text (or none
+  with `VO_AI_RETENTION=none`), prompt/completion tokens and `token_count_method` (`provider`, or `regex_word_v1` for
+  the offline provider, which has no model), tool calls (name, validated arguments, status, citation ids, duration),
+  citation refs, redaction counts, flags, groundedness and latency. Forced RLS, no UPDATE/DELETE grant.
+  `POST /api/ai/exchanges` is a command (`Idempotency-Key` = exchange id) authorized `VIEW_OPERATIONAL_STATE` on the
+  site, and it answers `400 secret_detected` when a body still matches a secret pattern (`SecretPatterns`).
+  `GET /api/ai/exchanges` returns only the caller's own records.
+- *Region:* `VO_AI_PROVIDER_REGION` is configuration; it is returned in `provider.region` on external answers.
+**Consequences:** a key in a question can never reach OpenAI or the database. Retention `none` keeps only hashes and
+metadata. Raw prompts are not kept for evaluation; the eval suite uses fixed cases instead.

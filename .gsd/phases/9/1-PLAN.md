@@ -1,7 +1,7 @@
 # Plan 9.1 — `services/ai` gateway, providers, tenant LLM policy, redaction, exchange audit
 
 Working plan (brief). Source: REQ-100, REQ-101, REQ-106 (audit part), NFR-07; BLUEPRINT §13, §18 "External LLM data
-policy"; ADR-12, ADR-15, ADR-17. New: ADR-64 (gateway placement), ADR-66 (redaction and exchange audit), both Proposed.
+policy"; ADR-12, ADR-15, ADR-17. New: ADR-64 (gateway placement), ADR-65 (redaction and exchange audit), both Proposed.
 Wave A — first; 9.2 builds the tools on it.
 
 ## Key decision (ADR-64)
