@@ -41,6 +41,11 @@ public class PolicyService {
         this.audit = audit;
     }
 
+    /** Version of the permission matrix this engine evaluates ({@link PermissionMatrix#version()}). */
+    public int matrixVersion() {
+        return matrix.version();
+    }
+
     /**
      * {@link #authorize} plus an append-only audit row for every denial (decision DENIED, with actor, action,
      * resource, reason, and the request's correlation id). Controllers and the command gateway use this form; the

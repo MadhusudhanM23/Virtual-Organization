@@ -185,6 +185,25 @@ An unknown or `InvalidInputException`-rejected scenario field is `400` naming th
 an unknown site is `404`; a site outside the caller's role scope is `403`; another tenant's scenario or run is `404`
 (RLS).
 
+## Implemented: recommendations & approvals (Phase 8, plan 8.1)
+
+Recommendations and approvals (REQ-090..094, ADR-61). The binding recommendation shape, the approval rules (state,
+expiry and re-evaluation, separation of duties, approver eligibility) and the typed problems are in
+[`recommendations.md`](recommendations.md). Reads need `PROPOSE_RECOMMENDATION` on the site. Approve and reject need
+`APPROVE_CONSEQUENTIAL_ACTION`. Every recommendation, approval and event is `data_mode = SIMULATED`. There is never a
+confidence percentage.
+
+| Endpoint | Notes |
+|---|---|
+| `POST /api/recommendations` | command (`Idempotency-Key`); body `{site_id, simulation_run_id}`; recommendation + `PENDING` approval + `RECOMMENDATION_PROPOSED`/`APPROVAL_REQUESTED` in one transaction; `503 generator_unavailable` without a generator, `409 run_not_succeeded`, `409 proposal_pending` |
+| `GET /api/recommendations?site_id=[&status=][&limit=&cursor=]` | `{items[<recommendation>], next_cursor}` |
+| `GET /api/recommendations/{id}` | the BLUEPRINT section 9 decision package plus bookkeeping (`execution` is `null` until Plan 8.3) |
+| `GET /api/recommendations/{id}/dry-run` | `{recommendation_id, computed_at, diff[{entity, field, before, after}], stale[...]}` against current values; changes nothing |
+| `GET /api/approvals?site_id=[&status=][&limit=&cursor=]` | `{items[<approval>], next_cursor}` |
+| `GET /api/approvals/{id}` | approval detail |
+| `POST /api/approvals/{id}/approve` | command; `403 separation_of_duties`, `403 approver_not_eligible`, `409 invalid_state`, `409 approval_expired` with `re_evaluate` |
+| `POST /api/approvals/{id}/reject` | command; body `{reason}` required; same rules as approve |
+
 ## Planned query endpoints
 
 | Resource | Endpoint | Purpose |
@@ -192,7 +211,6 @@ an unknown site is `404`; a site outside the caller's role scope is `403`; anoth
 | Organizations | `GET /api/organizations` | Organization and scope metadata |
 | World state | `GET /api/twin/world` | Current normalized twin state within authorized scope |
 | Entities | `GET /api/entities/{id}` | Canonical entity inspector |
-| Recommendations | `GET /api/recommendations/{id}` | Decision package and evidence |
 | Cameras | `GET /api/cameras` | Camera registry and streams |
 | Analytics | `GET /api/metrics/...` | Governed KPI definitions and values |
 
@@ -200,7 +218,6 @@ an unknown site is `404`; a site outside the caller's role scope is `403`; anoth
 
 | Command | Endpoint | Rule |
 |---|---|---|
-| Approve proposal | `POST /api/approvals/{id}/approve` | Checks scope, separation of duties and expiry |
 | Execute proposal | `POST /api/recommendations/{id}/execute` | Checks baseline entity versions and policy versions |
 
 These endpoints are a baseline, not a commitment: each is built in the phase that owns it (see

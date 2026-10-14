@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vorg.dev/schemas/problem.v1.json",
   "title": "Problem",
-  "description": "RFC 9457 problem details (application/problem+json) with the platform's correlation_id and field errors.",
+  "description": "RFC 9457 problem details (application/problem+json) with the platform's correlation_id and field errors. A typed problem adds a machine-readable code and may add the extension members documented for that code (docs/api); extension member names are snake_case.",
   "type": "object",
-  "additionalProperties": false,
+  "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" },
   "required": ["type", "title", "status"],
   "properties": {
     "type": {
@@ -35,6 +35,27 @@
       "description": "Matches the X-Correlation-Id response header.",
       "type": "string",
       "format": "uuid"
+    },
+    "code": {
+      "description": "Stable machine-readable problem code (snake_case, e.g. separation_of_duties); absent for untyped problems.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "re_evaluate": {
+      "description": "For approval_expired: how to re-evaluate the plan (POST href with body).",
+      "type": "object",
+      "required": ["href", "body"],
+      "properties": {
+        "href": { "type": "string" },
+        "body": {
+          "type": "object",
+          "required": ["site_id", "simulation_run_id"],
+          "properties": {
+            "site_id": { "type": "string", "format": "uuid" },
+            "simulation_run_id": { "type": "string", "format": "uuid" }
+          }
+        }
+      }
     },
     "errors": {
       "description": "Field-level validation errors.",

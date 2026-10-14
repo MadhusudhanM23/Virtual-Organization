@@ -1,4 +1,4 @@
-﻿package io.vorg.api.scenarios;
+package io.vorg.api.scenarios;
 
 import static io.vorg.api.platform.identity.seed.DemoIds.SITE_BLR;
 import static io.vorg.api.platform.identity.seed.DemoIds.SITE_MUM;
