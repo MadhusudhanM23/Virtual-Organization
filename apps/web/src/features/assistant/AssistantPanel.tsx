@@ -36,8 +36,14 @@ const SUGGESTIONS = [
  */
 export function AssistantPanel({ variant = 'panel' }: { variant?: 'panel' | 'page' }) {
   const siteId = useUiStore((s) => s.selectedSiteId);
-  const roles = useSessionStore((s) => (s.me?.roles ?? []).map((r) => r.role));
-  const canPropose = canUse(roles, 'PROPOSE_RECOMMENDATION');
+  // Select a primitive: a selector that builds a new array on every call never settles under useSyncExternalStore
+  // ("getSnapshot should be cached") and crashed the panel with "Maximum update depth exceeded" on the real stack.
+  const canPropose = useSessionStore((s) =>
+    canUse(
+      (s.me?.roles ?? []).map((r) => r.role),
+      'PROPOSE_RECOMMENDATION',
+    ),
+  );
   const messages = useAssistantStore((s) => s.messages);
   const pending = useAssistantStore((s) => s.pending);
   const send = useAssistantStore((s) => s.send);
@@ -59,13 +65,20 @@ export function AssistantPanel({ variant = 'panel' }: { variant?: 'panel' | 'pag
   const page = variant === 'page';
 
   return (
-    <div className={cn('flex min-h-0 flex-col gap-3 p-4', page && 'p-0')} data-testid="assistant-panel">
+    <div
+      className={cn('flex min-h-0 flex-col gap-3 p-4', page && 'p-0')}
+      data-testid="assistant-panel"
+    >
       <p className="flex items-start gap-2 text-xs text-ink-600">
         <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-600" />
         {t('assistant.safety')}
       </p>
       {messages.length === 0 ? (
-        <div className="flex flex-wrap gap-2" role="group" aria-label={t('assistant.suggest.label')}>
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label={t('assistant.suggest.label')}
+        >
           {SUGGESTIONS.map((id) => (
             <button
               key={id}
@@ -188,7 +201,8 @@ function Answer({
   const hasDirectives = response.directives.length > 0;
 
   const showInTwin = () => {
-    if (applyDirectives(response, { showAssistantHighlight, focusPoint })) void navigate('/twin/live');
+    if (applyDirectives(response, { showAssistantHighlight, focusPoint }))
+      void navigate('/twin/live');
   };
 
   return (
@@ -277,7 +291,15 @@ function Answer({
   );
 }
 
-function CitationRow({ citation, n, exchangeId }: { citation: Citation; n: number; exchangeId: string }) {
+function CitationRow({
+  citation,
+  n,
+  exchangeId,
+}: {
+  citation: Citation;
+  n: number;
+  exchangeId: string;
+}) {
   const mode = citationDataMode(citation);
   const route = citationRoute(citation);
   return (
@@ -287,7 +309,10 @@ function CitationRow({ citation, n, exchangeId }: { citation: Citation; n: numbe
       <span className="text-ink-900">{citation.label}</span>
       {mode ? <DataModeBadge dataMode={mode} /> : null}
       {route ? (
-        <Link to={route} className="font-semibold text-accent-700 underline-offset-2 hover:underline">
+        <Link
+          to={route}
+          className="font-semibold text-accent-700 underline-offset-2 hover:underline"
+        >
           {t('assistant.action.viewDetails')}
         </Link>
       ) : null}
