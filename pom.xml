@@ -19,6 +19,7 @@
 
   <modules>
     <module>services/simulation</module>
+    <module>services/optimization</module>
     <module>services/api</module>
   </modules>
 

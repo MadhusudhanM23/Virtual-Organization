@@ -1,0 +1,15 @@
+{
+  "schema": "vorg.optimization.dock-reassignment.problem.v1",
+  "description": "SYNTHETIC test instance: one inbound dock closed from minute 60 to the end of a 240 min horizon, three trucks arriving at 0 that need 30 min each. 90 min of work fits in no 60 min window, so no assignment exists.",
+  "docks": [
+    { "code": "IN-01", "kind": "INBOUND", "closures": [ { "start_min": 60, "end_min": 240, "reason": "synthetic closure" } ] }
+  ],
+  "trips": [
+    { "trip_code": "T-001", "truck_code": "TR-001", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 0, "service_min": 30 },
+    { "trip_code": "T-002", "truck_code": "TR-002", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 0, "service_min": 30 },
+    { "trip_code": "T-003", "truck_code": "TR-003", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 0, "service_min": 30 }
+  ],
+  "forklifts": [ { "code": "FL-01", "current_dock": "IN-01" } ],
+  "horizon_min": 240,
+  "params": { "reassignment_penalty_min": 10, "max_solve_ms": 10000, "random_seed": 1 }
+}

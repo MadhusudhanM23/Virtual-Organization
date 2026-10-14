@@ -598,3 +598,34 @@ through the API exactly as the CLI reports them, byte-for-byte. The isolation gu
 (`has_table_privilege('vo_sim', 'world.sites', 'SELECT')` is false) rather than only inferred from code review. If a
 future phase needs a true point-in-time snapshot baseline, it is an additive `ModelInput` producer behind the same
 `baseline`/`model` choice `Scenario` already supports — this ADR's isolation mechanism does not change.
+
+### ADR-62 Dock and forklift re-assignment on OR-Tools CP-SAT: determinism, gap reporting, no confidence % — Proposed
+**Context:** REQ-091 asks for an optimizer that re-assigns trips and forklifts when a dock closes and reports feasibility,
+the objective before/after and the constraints checked, in the recommendation contract of Plan 8.1. `.gsd/STACK.md`
+names OR-Tools (Java). Open choices: which OR-Tools solver, how to make the answer reproducible, how to report a solve
+that the time limit cut short, whether to attach a confidence figure, and how to ship the native library.
+**Decision (conservative default):** a pure-Java library module `services/optimization` (`io.vorg:vorg-optimization`,
+no Spring, no DB, no I/O) on `com.google.ortools:ortools-java` 9.15.6755 using **CP-SAT**: trip-to-dock choice is a
+disjunctive scheduling problem (optional intervals per trip and dock, `NoOverlap` per dock, closures as fixed
+intervals), which CP-SAT handles natively and exactly, unlike a MIP big-M formulation or a heuristic. Three solves:
+`current_plan` (assignments fixed, gives `objective_before`), `reassignment` (free dock choice, `objective_after`,
+`trip_moves`) and `forklift_balance` (min max trips per forklift, exactly linearized, then fewest moves).
+**Determinism:** `num_workers = 1`, `random_seed` and `max_time_in_seconds = max_solve_ms / 1000` from the caller's
+params (no module defaults), models built in input order. `result_hash` is the SHA-256 of the canonical JSON (ADR-47
+approach) of the whole result except `feasibility.solve_time_ms`; a solve that completes (OPTIMAL/INFEASIBLE) gives the
+same hash for the same input and OR-Tools version.
+**Gap reporting:** the status is CP-SAT's and never upgraded; a time-limited solve with a solution is FEASIBLE with its
+measured relative gap `|objective - best_bound| / max(1, |objective|)`, without one UNKNOWN (never INFEASIBLE). The
+overall status is the worse of the reassignment and forklift stages; `null` means "not available", never 0.
+**No confidence %:** the result has no confidence or probability field. The solver is deterministic given its inputs;
+the uncertainty lies in the inputs (arrival and service times), which an optimality gap does not measure. Uncertainty
+belongs to the simulation module's replications and intervals (ADR-49), not to the optimizer.
+**Native-library packaging risk:** `ortools-java` pulls per-OS native jars (Windows x64, Linux and macOS x86-64/aarch64)
+that `Loader.loadNativeLibraries()` unpacks to a temp directory at first use; they add tens of MB to the API's fat jar,
+need a writable temp directory, and do not support musl (Alpine) images, so container images must use a glibc base.
+The protobuf runtime may be raised by Spring Boot's dependency management above the version OR-Tools was built
+against (same major version). A native-load test guards the build machine.
+**Consequences:** the API (Plan 8.3) calls `DockReassignmentSolver.solve` in-process on a bounded executor (it blocks
+for up to three times `max_solve_ms`) and maps the result onto a recommendation. A time-limited result may differ between
+machines; callers must show the status and gap rather than present a FEASIBLE plan as optimal. Upgrading OR-Tools may
+change optimal tie-breaking and therefore `result_hash`; the version is in `feasibility.solver`.

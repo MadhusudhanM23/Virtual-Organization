@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.vorg</groupId>
+    <artifactId>virtual-organization</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>vorg-optimization</artifactId>
+  <name>Virtual Organization Optimization</name>
+  <description>Pure Java 21 dock and forklift re-assignment optimizer on OR-Tools CP-SAT (REQ-091, ADR-62). No Spring,
+    no database, no I/O.</description>
+
+  <properties>
+    <!-- Latest stable on Maven Central when Plan 8.2 was executed. ortools-java pulls the per-OS native jars
+         (linux/darwin x86-64 + aarch64, win32-x86-64) at runtime scope. -->
+    <ortools.version>9.15.6755</ortools.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.google.ortools</groupId>
+      <artifactId>ortools-java</artifactId>
+      <version>${ortools.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-launcher</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <includes>
+            <include>**/*Test.java</include>
+          </includes>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

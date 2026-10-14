@@ -1,0 +1,50 @@
+{
+  "schema": "vorg.optimization.dock-reassignment.problem.v1",
+  "description": "IN-02 closed 60-240 min (leveller repair) in a 480 min shift. Dock codes/kinds, the closure, the horizon, TR-01/TR-02 docked at IN-01/IN-02 and TR-05 waiting (booked to the free IN-03) come from the SYNTHETIC world seed and services/simulation/scenarios/dock-closure-in-02.json; trips TRIP-00007..TRIP-00032 (TR-07..TR-32) are a SYNTHETIC deterministic arrival stream at the simulation ASSUMPTION rate of 3.5 trucks/h, booked round-robin; service_min 25 and two forklifts per door derive from simulation ASSUMPTIONS; reassignment_penalty_min 15 is a test ASSUMPTION. See services/optimization/README.md.",
+  "docks": [
+    { "code": "IN-01", "kind": "INBOUND", "closures": [] },
+    { "code": "IN-02", "kind": "INBOUND", "closures": [ { "start_min": 60, "end_min": 240, "reason": "leveller repair" } ] },
+    { "code": "IN-03", "kind": "INBOUND", "closures": [] }
+  ],
+  "trips": [
+    { "trip_code": "TRIP-00001", "truck_code": "TR-01", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 0, "service_min": 25 },
+    { "trip_code": "TRIP-00002", "truck_code": "TR-02", "direction": "INBOUND", "current_dock": "IN-02", "arrival_min": 0, "service_min": 25 },
+    { "trip_code": "TRIP-00005", "truck_code": "TR-05", "direction": "INBOUND", "current_dock": "IN-03", "arrival_min": 0, "service_min": 25 },
+    { "trip_code": "TRIP-00007", "truck_code": "TR-07", "direction": "INBOUND", "current_dock": "IN-02", "arrival_min": 17, "service_min": 25 },
+    { "trip_code": "TRIP-00008", "truck_code": "TR-08", "direction": "INBOUND", "current_dock": "IN-03", "arrival_min": 34, "service_min": 25 },
+    { "trip_code": "TRIP-00009", "truck_code": "TR-09", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 51, "service_min": 25 },
+    { "trip_code": "TRIP-00010", "truck_code": "TR-10", "direction": "INBOUND", "current_dock": "IN-02", "arrival_min": 69, "service_min": 25 },
+    { "trip_code": "TRIP-00011", "truck_code": "TR-11", "direction": "INBOUND", "current_dock": "IN-03", "arrival_min": 86, "service_min": 25 },
+    { "trip_code": "TRIP-00012", "truck_code": "TR-12", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 103, "service_min": 25 },
+    { "trip_code": "TRIP-00013", "truck_code": "TR-13", "direction": "INBOUND", "current_dock": "IN-02", "arrival_min": 120, "service_min": 25 },
+    { "trip_code": "TRIP-00014", "truck_code": "TR-14", "direction": "INBOUND", "current_dock": "IN-03", "arrival_min": 137, "service_min": 25 },
+    { "trip_code": "TRIP-00015", "truck_code": "TR-15", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 154, "service_min": 25 },
+    { "trip_code": "TRIP-00016", "truck_code": "TR-16", "direction": "INBOUND", "current_dock": "IN-02", "arrival_min": 171, "service_min": 25 },
+    { "trip_code": "TRIP-00017", "truck_code": "TR-17", "direction": "INBOUND", "current_dock": "IN-03", "arrival_min": 189, "service_min": 25 },
+    { "trip_code": "TRIP-00018", "truck_code": "TR-18", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 206, "service_min": 25 },
+    { "trip_code": "TRIP-00019", "truck_code": "TR-19", "direction": "INBOUND", "current_dock": "IN-02", "arrival_min": 223, "service_min": 25 },
+    { "trip_code": "TRIP-00020", "truck_code": "TR-20", "direction": "INBOUND", "current_dock": "IN-03", "arrival_min": 240, "service_min": 25 },
+    { "trip_code": "TRIP-00021", "truck_code": "TR-21", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 257, "service_min": 25 },
+    { "trip_code": "TRIP-00022", "truck_code": "TR-22", "direction": "INBOUND", "current_dock": "IN-02", "arrival_min": 274, "service_min": 25 },
+    { "trip_code": "TRIP-00023", "truck_code": "TR-23", "direction": "INBOUND", "current_dock": "IN-03", "arrival_min": 291, "service_min": 25 },
+    { "trip_code": "TRIP-00024", "truck_code": "TR-24", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 309, "service_min": 25 },
+    { "trip_code": "TRIP-00025", "truck_code": "TR-25", "direction": "INBOUND", "current_dock": "IN-02", "arrival_min": 326, "service_min": 25 },
+    { "trip_code": "TRIP-00026", "truck_code": "TR-26", "direction": "INBOUND", "current_dock": "IN-03", "arrival_min": 343, "service_min": 25 },
+    { "trip_code": "TRIP-00027", "truck_code": "TR-27", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 360, "service_min": 25 },
+    { "trip_code": "TRIP-00028", "truck_code": "TR-28", "direction": "INBOUND", "current_dock": "IN-02", "arrival_min": 377, "service_min": 25 },
+    { "trip_code": "TRIP-00029", "truck_code": "TR-29", "direction": "INBOUND", "current_dock": "IN-03", "arrival_min": 394, "service_min": 25 },
+    { "trip_code": "TRIP-00030", "truck_code": "TR-30", "direction": "INBOUND", "current_dock": "IN-01", "arrival_min": 411, "service_min": 25 },
+    { "trip_code": "TRIP-00031", "truck_code": "TR-31", "direction": "INBOUND", "current_dock": "IN-02", "arrival_min": 429, "service_min": 25 },
+    { "trip_code": "TRIP-00032", "truck_code": "TR-32", "direction": "INBOUND", "current_dock": "IN-03", "arrival_min": 446, "service_min": 25 }
+  ],
+  "forklifts": [
+    { "code": "FL-01", "current_dock": "IN-01" },
+    { "code": "FL-02", "current_dock": "IN-01" },
+    { "code": "FL-03", "current_dock": "IN-02" },
+    { "code": "FL-04", "current_dock": "IN-02" },
+    { "code": "FL-05", "current_dock": "IN-03" },
+    { "code": "FL-06", "current_dock": "IN-03" }
+  ],
+  "horizon_min": 480,
+  "params": { "reassignment_penalty_min": 15, "max_solve_ms": 10000, "random_seed": 20261012 }
+}
