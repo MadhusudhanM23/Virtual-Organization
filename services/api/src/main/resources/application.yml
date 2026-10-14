@@ -103,3 +103,17 @@ vo:
     max-attempts: 8
     backoff-base: PT1S
     backoff-max: PT5M
+  recommendations:
+    # Plan 8.3, ADR-63. Every generator value is required (no defaults in code).
+    generator:
+      # ASSUMPTION: plan minutes per simulated adapter batch (the simulated TMS runs compressed time; ADR-63).
+      minutes-per-batch: 30
+      # ASSUMPTION: objective minutes charged per moved trip (no cost data for a dock change exists).
+      reassignment-penalty-min: 15
+      max-solve-ms: 10000
+      random-seed: 20261012
+      solver-threads: 2
+      solver-queue: 4
+    verification:
+      # SIM-TMS batches (15 s each in the live loop) within which every target must show its new dock.
+      timeout-batches: 2

@@ -19,6 +19,14 @@ public final class RecommendationProblems {
     public static final String SEPARATION_OF_DUTIES = "separation_of_duties";
     public static final String APPROVER_NOT_ELIGIBLE = "approver_not_eligible";
     public static final String APPROVAL_EXPIRED = "approval_expired";
+    // Plan 8.3 (ADR-63)
+    public static final String OPTIMIZATION_INPUT_MISSING = "optimization_input_missing";
+    public static final String OPTIMIZATION_INPUT_INVALID = "optimization_input_invalid";
+    public static final String OPTIMIZER_BUSY = "optimizer_busy";
+    public static final String OPTIMIZER_UNAVAILABLE = "optimizer_unavailable";
+    public static final String NOT_APPROVED = "not_approved";
+    public static final String STALE_BASELINE = "stale_baseline";
+    public static final String LIVE_SOURCE_REFUSED = "live_source_refused";
 
     private RecommendationProblems() {}
 
