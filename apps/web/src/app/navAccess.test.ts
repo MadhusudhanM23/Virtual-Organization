@@ -39,6 +39,14 @@ describe('visibleNavEntries (UX hints from the permission matrix)', () => {
     expect(ids(visibleNavEntries(['PLATFORM_ADMIN']))).not.toContain('incidents');
   });
 
+  it('Recommendations: the roles that may read them (PROPOSE_RECOMMENDATION), never Driver/Operator', () => {
+    for (const role of ['EXECUTIVE', 'REGIONAL_MANAGER', 'WAREHOUSE_MANAGER', 'ANALYST', 'SAFETY_COMPLIANCE']) {
+      expect(ids(visibleNavEntries([role]))).toContain('recommendations');
+    }
+    expect(ids(visibleNavEntries(['DRIVER_OPERATOR']))).not.toContain('recommendations');
+    expect(ids(visibleNavEntries(['PLATFORM_ADMIN']))).not.toContain('recommendations');
+  });
+
   it('shows only Overview with no roles', () => {
     expect(ids(visibleNavEntries([]))).toEqual(['overview']);
   });
