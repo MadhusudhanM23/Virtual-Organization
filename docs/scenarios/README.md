@@ -11,7 +11,7 @@ For each scenario, add a page here that states:
 - the exact commands to reproduce it from a clean checkout;
 - which truth label every entity and event carries (table below).
 
-Scenario pages: [demo tenants](demo-tenants.md), [Bengaluru Warehouse 01 world seed](bengaluru-warehouse-01.md) (Phase 2), [live operations](live-operations.md) (Phase 3: simulated movement, WMS/TMS mirrors, tasks, events).
+Scenario pages: [demo tenants](demo-tenants.md), [Bengaluru Warehouse 01 world seed](bengaluru-warehouse-01.md) (Phase 2), [live operations](live-operations.md) (Phase 3: simulated movement, WMS/TMS mirrors, tasks, events), [vision demo assets](vision-demo-clip.md) (Phase 7: stock clip and model provenance, synthetic camera scene).
 The MCD runbook arrives in Phase 10. Demo seed data is never a database migration; it is a deterministic seeder active only in the `local` and
 `demo` profiles.
 

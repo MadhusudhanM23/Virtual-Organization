@@ -13,6 +13,8 @@ const REQUIRED_ACTION: Record<string, string | null | ((roles: readonly string[]
   organization: 'ANALYZE_QUERY',
   operations: 'ANALYZE_QUERY',
   incidents: canViewIncidents,
+  // Camera media is sensitive (REQ-084): the incident audience, not Driver/Operator or Platform Administrator.
+  cameras: canViewIncidents,
   // Reading recommendations needs PROPOSE_RECOMMENDATION on the site (docs/api/recommendations.md), so a role that
   // only views operational state (Driver/Operator) would get 403 from every call.
   recommendations: (roles) => canUse(roles, 'VIEW_OPERATIONAL_STATE') && canUse(roles, 'PROPOSE_RECOMMENDATION'),

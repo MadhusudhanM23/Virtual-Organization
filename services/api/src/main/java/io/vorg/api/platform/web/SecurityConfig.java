@@ -2,6 +2,8 @@ package io.vorg.api.platform.web;
 
 import io.vorg.api.platform.identity.SubjectService;
 import io.vorg.api.platform.identity.TenantSubjectFilter;
+import io.vorg.api.platform.identity.service.ServiceCredentialFilter;
+import io.vorg.api.platform.identity.service.ServiceCredentials;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,13 +22,15 @@ import tools.jackson.databind.json.JsonMapper;
  * Stateless resource server (ADR-16): bearer JWT everywhere except health/info, the auth endpoints and JWKS.
  * CSRF is disabled for the bearer API; the cookie-based refresh/logout endpoints require the custom
  * {@code X-Requested-With: vorg-web} header and a SameSite=Strict cookie instead. {@code /actuator/prometheus} is public only when {@code vo.security.permit-prometheus=true} (local);
- * production deployments must protect it (network policy or auth).
+ * production deployments must protect it (network policy or auth). {@code /api/vision/**} accepts only a service
+ * credential ({@link ServiceCredentialFilter}, ADR-69), never a user token.
  */
 @Configuration
 public class SecurityConfig {
 
     @Bean
     SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, JsonMapper jsonMapper, SubjectService subjects,
+            ServiceCredentials serviceCredentials,
             @Value("${vo.security.permit-prometheus:false}") boolean permitPrometheus) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -46,6 +50,8 @@ public class SecurityConfig {
                         .authenticationEntryPoint(entryPoint(jsonMapper))
                         .accessDeniedHandler((req, res, ex) -> Problems.write(jsonMapper, res,
                                 HttpStatus.FORBIDDEN, "Forbidden", "Access is denied.")))
+                .addFilterBefore(new ServiceCredentialFilter(serviceCredentials, jsonMapper),
+                        BearerTokenAuthenticationFilter.class)
                 .addFilterAfter(new TenantSubjectFilter(subjects, jsonMapper), BearerTokenAuthenticationFilter.class)
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(entryPoint(jsonMapper))

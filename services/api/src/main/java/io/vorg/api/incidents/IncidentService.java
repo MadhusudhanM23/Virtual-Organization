@@ -54,8 +54,9 @@ public class IncidentService {
     public static final String ESTOP_NOTICE = "Advisory request only. It is recorded and notified; it does not stop any"
             + " machine and needs confirmation by a person on site. This platform is not a safety-rated function"
             + " and does not replace hardware emergency stops or certified safety systems.";
-    public static final String CLIP_NOTICE = "No video clip is available for this incident: camera feeds are"
-            + " placeholders until camera ingestion exists, and no recording is fabricated.";
+    public static final String CLIP_NOTICE = "No video clip is available for this incident from the nearest"
+            + " camera: that reference is positional only, and no recording is fabricated. A camera that observed the"
+            + " pair is linked separately as evidence.";
 
     /** The minimum an authorization check needs: where the incident is and what it concerns. */
     public record Ref(UUID id, UUID siteId, Status status, UUID forkliftEntityId, UUID workerEntityId,
@@ -274,6 +275,43 @@ public class IncidentService {
         if (first && p.hasNonNull("nearest_camera")) {
             addCameraReference(alert, incidentId);
         }
+        for (String who : List.of("forklift", "worker")) {
+            JsonNode cam = p.get(who).get("camera");
+            if (cam != null && cam.hasNonNull("camera_id")) {
+                addObservingCamera(alert, incidentId, who, cam);
+            }
+        }
+    }
+
+    /** Seconds of camera media shown around the observation that triggered the alert (REQ-085). */
+    static final double CAMERA_WINDOW_S = 5.0;
+
+    /**
+     * The camera that actually observed a party of the alert (vision observations, ADR-69): a link into the camera
+     * panel at the media time of the triggering observation. The clip is the camera's registered local media; nothing
+     * is recorded or cut for the incident (ADR-68).
+     */
+    private void addObservingCamera(EventEnvelope alert, UUID incidentId, String who, JsonNode cam) {
+        double t = cam.path("media_time_s").asDouble(0.0);
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("role", "OBSERVING_CAMERA");
+        detail.put("party", who.toUpperCase(java.util.Locale.ROOT));
+        detail.put("camera_id", cam.get("camera_id").asString());
+        detail.put("code", cam.path("code").asString());
+        detail.put("session_id", cam.path("session_id").asString());
+        detail.put("track_id", cam.path("track_id").asInt());
+        detail.put("object_class", cam.path("object_class").asString());
+        detail.put("media_time_s", t);
+        detail.put("window", Map.of("from_s", Math.max(0.0, t - CAMERA_WINDOW_S), "to_s", t + CAMERA_WINDOW_S));
+        detail.put("observed_at", cam.path("observed_at").asString());
+        detail.put("data_mode", alert.dataMode().name());
+        detail.put("source", "CAMERA");
+        detail.put("placeholder", false);
+        detail.put("clip", Map.of("available", true, "status", "REGISTERED_MEDIA",
+                "href", "/api/cameras/" + cam.get("camera_id").asString() + "/media",
+                "note", "The camera's registered local media; frames are not stored with the incident."));
+        evidence(alert, incidentId, "CAMERA_REFERENCE", "OBSERVED:" + cam.path("code").asString() + ":"
+                + cam.path("session_id").asString() + ":" + who, alert.occurredAt(), detail);
     }
 
     private void addCameraReference(EventEnvelope alert, UUID incidentId) {

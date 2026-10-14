@@ -223,6 +223,19 @@ or executes anything; at most it proposes through `POST /api/scenarios` and `POS
 `GET /api/me` includes `tenant.llm_external_allowed`. External LLM use needs that flag, `OPENAI_API_KEY` and
 `VO_AI_PROVIDER=auto`; otherwise the deterministic offline provider answers.
 
+## Implemented: cameras and vision ingestion (Phase 7, plan 7.3)
+
+Details, shapes and rules: [`vision.md`](vision.md) (ADR-67/68/69).
+
+| Endpoint | Notes |
+|---|---|
+| `GET /api/cameras?site_id=` | camera registry: pose, calibration, class map, feed, truth label, privacy |
+| `GET /api/cameras/{id}` | one camera |
+| `GET /api/cameras/{id}/observations?[session_id=][&from_s=&to_s=][&limit=]` | privacy-safe observations of a session (overlays) |
+| `GET /api/cameras/{id}/media` | the camera's registered local media; every access audited |
+| `GET /api/vision/cameras/{id}` | **service credential only**: calibration and class map for the pipeline |
+| `POST /api/vision/cameras/{id}/observations` | **service credential only**; command (`Idempotency-Key`); whitelist `400`, `422 data_mode_mismatch`/`media_mismatch`, `409 camera_not_active` |
+
 ## Planned query endpoints
 
 | Resource | Endpoint | Purpose |
@@ -230,7 +243,6 @@ or executes anything; at most it proposes through `POST /api/scenarios` and `POS
 | Organizations | `GET /api/organizations` | Organization and scope metadata |
 | World state | `GET /api/twin/world` | Current normalized twin state within authorized scope |
 | Entities | `GET /api/entities/{id}` | Canonical entity inspector |
-| Cameras | `GET /api/cameras` | Camera registry and streams |
 | Analytics | `GET /api/metrics/...` | Governed KPI definitions and values |
 
 ## Planned command endpoints

@@ -17,6 +17,7 @@ import {
   Sparkles,
   Truck,
   Users,
+  Video,
   ChartColumn,
   type LucideIcon,
 } from 'lucide-react';
@@ -79,6 +80,15 @@ export const NAV_ENTRIES: NavEntry[] = [
     descriptionId: 'page.incidents.description',
     icon: ShieldAlert,
     arrivesInPhase: 4,
+  },
+  {
+    kind: 'item',
+    id: 'cameras',
+    path: '/cameras',
+    labelId: 'nav.cameras',
+    descriptionId: 'page.cameras.description',
+    icon: Video,
+    arrivesInPhase: 7,
   },
   {
     kind: 'item',

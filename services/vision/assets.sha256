@@ -1,0 +1,4 @@
+# SHA-256 of the downloaded vision assets (untrusted data; checked, never executed). See docs/scenarios/vision-demo-clip.md.
+c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063  yolox_s.onnx
+c789161ed43c8269fcd4e67c67eeeb4e80c622da2eb296a20bc6007bd18a0b7d  yolox_nano.onnx
+cfaa552f02eb032464ca3736130bbaf60b023534764d79700d5f8b06a3062e9a  pexels-4280746-1920x1080.mp4

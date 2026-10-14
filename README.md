@@ -23,7 +23,7 @@ events) that later domains reuse.
 | 4 Incidents & safety | Proximity rule, incident lifecycle + evidence, alert UX, camera focus, advisory e-stop request | Built |
 | 5 Replay | Snapshots + state-delta replay, timeline UI, REPLAY lens | Built |
 | 6 Simulation | Deterministic DES engine (`services/simulation`), isolated scenario/run APIs, dock-closure scenario, SIMULATE lens with baseline-vs-scenario compare | Built |
-| 7 Computer vision | Recorded-camera detection/tracking → privacy-safe observations | Waiting on owner: licensing choice (OD-6) and a demo video clip |
+| 7 Computer vision | YOLOX (Apache-2.0) on CPU, own IoU tracker, floor homography, privacy-safe observations via a service credential, camera registry, vision proximity incidents, camera panel with overlays | Built (compiles; vision integration test and Python tests pass) |
 | 8 Recommendations & approvals | OR-Tools optimizer, recommendation contract, approvals (separation of duties, expiry), stale-baseline check, verified execution, recommendations UI | Built (compiles; test pass pending) |
 | 9 AI assistant | Provider-neutral LLM gateway (`services/ai`: deterministic offline provider + OpenAI), allowlisted identity-scoped tools, cited grounded answers that highlight and frame the twin, assistant panel, eval suite | Built (offline by default; OpenAI turns on when the owner adds `OPENAI_API_KEY` and allows the tenant, see [docs/api/assistant.md](docs/api/assistant.md)) |
 | 10 MCD integration | All 12 MCD steps automated end to end, truth-label audit, SLO report, demo runbook | Not started |
@@ -42,6 +42,7 @@ Layout follows blueprint §20.
 | `services/simulation/` | Pure-Java deterministic discrete-event simulation library ([README](services/simulation/README.md)) |
 | `services/optimization/` | Pure-Java OR-Tools CP-SAT dock/forklift re-assignment optimizer ([README](services/optimization/README.md)) |
 | `services/ai/` | Python FastAPI AI assistant gateway on port 8090: offline + OpenAI providers, tool allowlist, evidence, redaction ([README](services/ai/README.md)) |
+| `services/vision/` | Python vision pipeline: YOLOX ONNX detection, tracking, homography, observation CLI ([README](services/vision/README.md)) |
 | `packages/contracts/` | Language-neutral JSON Schemas (event envelope, problems, command acks), permission matrix, event catalog |
 | `packages/twin-schema/` | Coordinate system and world-to-renderer helpers |
 | `infra/docker/` | `compose.yaml` for local infrastructure (+ `observability` profile) |
@@ -55,7 +56,7 @@ Layout follows blueprint §20.
 | `scripts/` | Maven wrapper helpers and GSD validation scripts |
 | `.gsd/` | Spec, requirements, roadmap, architecture conventions, phase plans |
 
-Planned, not yet present: `services/vision/` (Phase 7), `apps/operator-pwa/` (Milestone 2).
+Planned, not yet present: `apps/operator-pwa/` (Milestone 2).
 
 ## Prerequisites
 
@@ -113,6 +114,18 @@ Planned, not yet present: `services/vision/` (Phase 7), `apps/operator-pwa/` (Mi
    the demo users in [docs/scenarios/demo-tenants.md](docs/scenarios/demo-tenants.md). For example,
    `wm.blr@demo.invalid` is the Bengaluru warehouse manager and `exec@demo.invalid` is an org-wide executive.
 
+6. **Vision (optional, Phase 7).** Download the model weights and the demo clip (SHA-256 checked, never committed),
+   start the API with `$env:VO_VISION_INGEST_SECRET` set (at least 24 characters), then run the pipeline with the
+   same secret. Details: [services/vision/README.md](services/vision/README.md) and
+   [docs/api/vision.md](docs/api/vision.md).
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-vision-assets.ps1
+   cd services/vision; python -m venv .venv; .venv\Scripts\python.exe -m pip install -e ".[dev]"
+   .venv\Scripts\python.exe -m vorg_vision synth --background --out assets/synthetic-cam-01.png
+   .venv\Scripts\python.exe -m vorg_vision run --camera-id <CAM-01 id> --synthetic --media-name synthetic-cam-01.png --realtime
+   ```
+
 | Service | Port |
 |---|---|
 | postgres | 5432 |
@@ -126,6 +139,7 @@ Planned, not yet present: `services/vision/` (Phase 7), `apps/operator-pwa/` (Mi
 | Suite | Command |
 |---|---|
 | Java unit + integration (integration tests need Docker for Testcontainers) | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/mvnw.ps1 -B verify` |
+| Vision (Python) unit tests / lint | in `services/vision`: `.venv\Scripts\python.exe -m pytest`, `.venv\Scripts\python.exe -m ruff check .` |
 | Web typecheck / lint / unit | `npm run typecheck`, `npm run lint`, `npm test` (repo root, all workspaces) |
 | Web end-to-end (Playwright, mocked API) | in `apps/web`: `npm run e2e`, plus one config per feature suite: `e2e:live`, `e2e:incidents`, `e2e:replay`, `npx playwright test -c playwright.simulate.config.ts` |
 | Web end-to-end against the real stack | in `apps/web`: `npm run e2e:real` (API and infrastructure running) |
@@ -138,4 +152,5 @@ Planned, not yet present: `services/vision/` (Phase 7), `apps/operator-pwa/` (Mi
 - [.gsd/ARCHITECTURE.md](.gsd/ARCHITECTURE.md): binding conventions (snake_case JSON, RLS, commands, ports)
 - [docs/api/README.md](docs/api/README.md): endpoint catalog; per-area detail in `docs/api/*.md`
 - [docs/scenarios/README.md](docs/scenarios/README.md): demo data provenance and the dock-closure scenario
+- [docs/scenarios/vision-demo-clip.md](docs/scenarios/vision-demo-clip.md): vision model weights and demo clip provenance
 - [PROJECT_RULES.md](PROJECT_RULES.md): how work is planned, executed, verified and committed

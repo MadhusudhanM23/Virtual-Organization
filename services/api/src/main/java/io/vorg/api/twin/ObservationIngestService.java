@@ -8,6 +8,7 @@ import io.vorg.api.platform.events.DomainEvents;
 import io.vorg.api.platform.events.EventDraft;
 import io.vorg.api.platform.events.EventLocation;
 import io.vorg.api.platform.events.EventSource;
+import io.vorg.api.platform.events.ObservationStatus;
 import io.vorg.api.platform.tenancy.TenantContext;
 import java.time.Duration;
 import java.time.Instant;
@@ -49,13 +50,29 @@ public class ObservationIngestService {
 
     public static final String EVENT_SUFFIX = "_POSITION_UPDATED";
 
-    /** One position observation. {@code speedMps}, {@code status} and {@code confidence} are optional. */
+    /**
+     * One position observation. {@code speedMps}, {@code status} and {@code confidence} are optional. {@code extra} is
+     * optional source-specific provenance merged into the payload under its own keys (vision: {@code camera}); it can
+     * never replace a standard payload field.
+     */
     public record Observation(String observationId, UUID entityId, Instant occurredAt, double x, double y, double z,
-            double headingDeg, Double speedMps, String status, Double confidence) {}
+            double headingDeg, Double speedMps, String status, Double confidence, Map<String, Object> extra) {
 
-    /** Who delivered the observations and how they are labeled. */
+        public Observation(String observationId, UUID entityId, Instant occurredAt, double x, double y, double z,
+                double headingDeg, Double speedMps, String status, Double confidence) {
+            this(observationId, entityId, occurredAt, x, y, z, headingDeg, speedMps, status, confidence, null);
+        }
+    }
+
+    /** Who delivered the observations and how they are labeled ({@code observationStatus} optional, ADR-69). */
     public record IngestSource(String sourceSystem, EventSource source, DataMode dataMode, ActorType actorType,
-            String actorId) {}
+            String actorId, ObservationStatus observationStatus) {
+
+        public IngestSource(String sourceSystem, EventSource source, DataMode dataMode, ActorType actorType,
+                String actorId) {
+            this(sourceSystem, source, dataMode, actorType, actorId, null);
+        }
+    }
 
     public record IngestResult(int received, int accepted, int duplicates, int coalesced, int rejected, int late) {}
 
@@ -167,13 +184,16 @@ public class ObservationIngestService {
             payload.put("status", o.status());
         }
         payload.put("late", late);
+        if (o.extra() != null) {
+            o.extra().forEach(payload::putIfAbsent);
+        }
         EventDraft draft = EventDraft.of(entity.type(), entity.id(), entity.type() + EVENT_SUFFIX, payload)
                 .source(src.source()).dataMode(src.dataMode()).actor(src.actorType(), src.actorId())
                 .occurredAt(o.occurredAt()).correlationId(correlationId)
                 .location(new EventLocation(siteId, entity.floorId(), zone, new EventLocation.Position(x, y, z),
                         heading));
-        if (o.confidence() != null) {
-            draft.observation(o.confidence(), null);
+        if (o.confidence() != null || src.observationStatus() != null) {
+            draft.observation(o.confidence(), src.observationStatus());
         }
         events.record(draft);
     }

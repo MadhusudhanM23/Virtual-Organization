@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
@@ -72,11 +73,30 @@ public class CommandGateway {
 
     private record Outcome(Kind kind, CommandAck ack, String detail, RuntimeException failure) {}
 
+    /** How a command is authorized and audited: a human subject through the policy engine, or a service credential. */
+    private record Mode(String actorType, String auditAction, Function<UUID, Decision> authorizer) {}
+
     public CommandAck execute(CommandSpec spec, Supplier<CommandResult> handler) {
+        return execute(spec, new Mode("HUMAN", spec.action().name(), commandId -> policy.authorizeAudited(
+                spec.subject(), spec.action(), spec.resource(), spec.policyContext(), commandId)), handler);
+    }
+
+    /**
+     * A command sent by an authenticated service credential (ADR-69), not a human: same idempotency, transaction and
+     * command record, but authorization is the credential's own scope check ({@code authorized}, decided by the
+     * caller from the server-loaded resource) instead of the role matrix, and the audit rows carry actor type
+     * {@code SERVICE} and {@code auditAction}. {@code spec.subject()} is the service's pseudonymous actor (no roles).
+     */
+    public CommandAck executeAsService(CommandSpec spec, String auditAction, Decision authorized,
+            Supplier<CommandResult> handler) {
+        return execute(spec, new Mode("SERVICE", auditAction, commandId -> authorized), handler);
+    }
+
+    private CommandAck execute(CommandSpec spec, Mode mode, Supplier<CommandResult> handler) {
         long start = System.nanoTime();
         String outcome = "error";
         try {
-            CommandAck ack = TenantContext.callWith(spec.subject().tenantId(), () -> run(spec, handler));
+            CommandAck ack = TenantContext.callWith(spec.subject().tenantId(), () -> run(spec, mode, handler));
             outcome = ack.status().equals("SUCCEEDED") ? "succeeded" : ack.status().toLowerCase();
             return ack;
         } catch (ApiProblemException ex) {
@@ -90,14 +110,14 @@ public class CommandGateway {
         }
     }
 
-    private CommandAck run(CommandSpec spec, Supplier<CommandResult> handler) {
+    private CommandAck run(CommandSpec spec, Mode mode, Supplier<CommandResult> handler) {
         String key = requireKey(spec.idempotencyKey());
         UUID tenantId = spec.subject().tenantId();
         UUID correlationId = CorrelationContext.current().map(UUID::fromString).orElseGet(Ids::newId);
         String canonicalPayload = codec.write(canonical(spec.payload()));
         String hash = sha256(spec.commandType() + "\n" + canonicalPayload);
 
-        Outcome outcome = tx.execute(status -> attempt(status, spec, handler, key, tenantId, correlationId,
+        Outcome outcome = tx.execute(status -> attempt(status, spec, mode, handler, key, tenantId, correlationId,
                 canonicalPayload, hash));
         if (outcome == null) {
             throw new IllegalStateException("Command transaction returned no outcome");
@@ -109,13 +129,13 @@ public class CommandGateway {
             case REJECTED, REJECTED_REPLAY -> throw new ApiProblemException(HttpStatus.FORBIDDEN, "Forbidden",
                     outcome.detail());
             case FAILED -> {
-                recordFailure(spec, key, tenantId, correlationId, canonicalPayload, hash, outcome.failure());
+                recordFailure(spec, mode, key, tenantId, correlationId, canonicalPayload, hash, outcome.failure());
                 throw outcome.failure();
             }
         };
     }
 
-    private Outcome attempt(org.springframework.transaction.TransactionStatus status, CommandSpec spec,
+    private Outcome attempt(org.springframework.transaction.TransactionStatus status, CommandSpec spec, Mode mode,
             Supplier<CommandResult> handler, String key, UUID tenantId, UUID correlationId, String canonicalPayload,
             String hash) {
         UUID commandId = Ids.newId();
@@ -125,8 +145,7 @@ public class CommandGateway {
             return replay(tenantId, key, hash);
         }
 
-        Decision decision = policy.authorizeAudited(spec.subject(), spec.action(), spec.resource(),
-                spec.policyContext(), commandId);
+        Decision decision = mode.authorizer().apply(commandId);
         if (!decision.allowed()) {
             complete(commandId, "REJECTED", codec.write(Map.of("code", decision.code(), "reason", decision.reason())));
             return new Outcome(Kind.REJECTED, null, decision.reason(), null);
@@ -141,7 +160,7 @@ public class CommandGateway {
         }
         JsonNode resultNode = codec.toTree(result.data());
         complete(commandId, "SUCCEEDED", resultNode.toString());
-        audit.record(allowedEntry(spec, tenantId, commandId, correlationId, Map.of("outcome", "SUCCEEDED")));
+        audit.record(allowedEntry(spec, mode, tenantId, commandId, correlationId, Map.of("outcome", "SUCCEEDED")));
         return new Outcome(Kind.SUCCEEDED, new CommandAck(commandId, "SUCCEEDED", correlationId, resultNode), null,
                 null);
     }
@@ -170,7 +189,7 @@ public class CommandGateway {
                 new CommandAck(stored.commandId(), stored.status(), stored.correlationId(), result), null, null);
     }
 
-    private void recordFailure(CommandSpec spec, String key, UUID tenantId, UUID correlationId,
+    private void recordFailure(CommandSpec spec, Mode mode, String key, UUID tenantId, UUID correlationId,
             String canonicalPayload, String hash, RuntimeException failure) {
         String error = failure.getClass().getSimpleName();
         tx.executeWithoutResult(status -> {
@@ -178,17 +197,17 @@ public class CommandGateway {
             int inserted = insertCommand(commandId, tenantId, key, spec, canonicalPayload, hash, "FAILED",
                     codec.write(Map.of("error", error)), correlationId);
             if (inserted == 1) {
-                audit.record(allowedEntry(spec, tenantId, commandId, correlationId,
+                audit.record(allowedEntry(spec, mode, tenantId, commandId, correlationId,
                         Map.of("outcome", "FAILED", "error", error)));
             }
         });
     }
 
-    private AuditEntry allowedEntry(CommandSpec spec, UUID tenantId, UUID commandId, UUID correlationId,
+    private AuditEntry allowedEntry(CommandSpec spec, Mode mode, UUID tenantId, UUID commandId, UUID correlationId,
             Map<String, Object> details) {
         Map<String, Object> merged = new LinkedHashMap<>(details);
         merged.put("command_type", spec.commandType());
-        return new AuditEntry(tenantId, spec.subject().actorRef().toString(), "HUMAN", spec.action().name(),
+        return new AuditEntry(tenantId, spec.subject().actorRef().toString(), mode.actorType(), mode.auditAction(),
                 spec.resource().kind().name(), spec.resource().siteId(), AuditEntry.Decision.ALLOWED,
                 "Allowed by policy", commandId, correlationId, merged);
     }

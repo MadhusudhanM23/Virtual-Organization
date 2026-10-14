@@ -36,6 +36,10 @@ __pycache__/
 data/
 *.onnx
 *.pt
+# Phase 7 vision assets (downloaded by scripts/fetch-vision-assets.*; never committed)
+services/vision/assets/
+*.mp4
+*.webm
 infra/docker/volumes/
 
 # IDE / OS
@@ -53,3 +57,4 @@ Thumbs.db
 # Logs
 *.log
 logs/
+*.egg-info/

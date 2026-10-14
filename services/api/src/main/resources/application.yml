@@ -117,3 +117,12 @@ vo:
     verification:
       # SIM-TMS batches (15 s each in the live loop) within which every target must show its new dock.
       timeout-batches: 2
+  vision:
+    # Plan 7.3, ADR-68/69. Local media directory of the registered camera media (blank: no media served).
+    media-dir: ${VO_VISION_MEDIA_DIR:}
+    max-batch: 500
+    # Observations older than their camera's retention_days are deleted at this interval.
+    prune-interval: 1h
+  # Machine clients (ADR-69): tenant-bound service credentials. None by default; a client without a secret is disabled.
+  service-clients:
+    clients: []
