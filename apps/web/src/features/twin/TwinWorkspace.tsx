@@ -16,7 +16,12 @@ import { FloorMap2D, type FloorMap2DProps } from './FloorMap2D';
 import { Legend } from './Legend';
 import { countByType, entitiesOnFloor, resolveFloor, sortFloors } from './sceneModel';
 import { CameraToolbar, FloorSwitcher, ViewToggle, type ViewMode } from './TwinControls';
-import { useTwinStore, type IncidentOverlay, type TwinViewState } from './twinStore';
+import {
+  useTwinStore,
+  type AssistantHighlight,
+  type IncidentOverlay,
+  type TwinViewState,
+} from './twinStore';
 import { useTwinData } from './useTwinData';
 import { isWebGLAvailable } from './webgl';
 
@@ -101,6 +106,8 @@ export function TwinWorkspace({ titleId, descriptionId, defaultView }: TwinWorks
   const incident = useTwinStore((s) => s.incident);
   const clearIncident = useTwinStore((s) => s.clearIncident);
   const focusRequest = useTwinStore((s) => s.focusRequest);
+  const assistantHighlight = useTwinStore((s) => s.assistantHighlight);
+  const clearAssistantHighlight = useTwinStore((s) => s.clearAssistantHighlight);
   const restEntities = state.status === 'ready' ? state.entities : NO_ENTITIES;
   // Newest live pose merged over the REST snapshot (at most once a second); the viewport animates on top of this.
   const loaded = useMergedEntities(restEntities);
@@ -208,7 +215,32 @@ export function TwinWorkspace({ titleId, descriptionId, defaultView }: TwinWorks
       incident={incident}
       onClearIncident={clearIncident}
       focusRequest={focusRequest}
+      assistant={assistantHighlight}
+      onClearAssistant={clearAssistantHighlight}
     />
+  );
+}
+
+/** States that the assistant's highlight is shown, with a way back to the assistant and a way to clear it. */
+function AssistantBanner({ onClear }: { onClear: () => void }) {
+  return (
+    <div
+      role="status"
+      data-testid="twin-assistant-banner"
+      className="flex flex-wrap items-center gap-3 rounded-control border border-line bg-surface px-3 py-2 text-sm text-ink-800"
+    >
+      <span className="font-semibold">{t('assistant.twin.banner')}</span>
+      <Link to="/assistant" className="font-semibold text-accent-700 underline-offset-2 hover:underline">
+        {t('assistant.twin.open')}
+      </Link>
+      <button
+        type="button"
+        onClick={onClear}
+        className="rounded-control border border-line px-2 py-1 text-xs font-semibold hover:bg-surface-sunken"
+      >
+        {t('assistant.twin.clear')}
+      </button>
+    </div>
   );
 }
 
@@ -275,6 +307,8 @@ type ReadyProps = {
   incident: IncidentOverlay | null;
   onClearIncident: () => void;
   focusRequest: TwinViewState['focusRequest'];
+  assistant: AssistantHighlight | null;
+  onClearAssistant: () => void;
 };
 
 function ReadyView(p: ReadyProps) {
@@ -341,6 +375,7 @@ function ReadyView(p: ReadyProps) {
       </div>
 
       {p.incident ? <IncidentBanner overlay={p.incident} onClear={p.onClearIncident} /> : null}
+      {p.assistant ? <AssistantBanner onClear={p.onClearAssistant} /> : null}
 
       {p.noWebgl || p.sceneFailed ? (
         <p
@@ -385,6 +420,7 @@ function ReadyView(p: ReadyProps) {
                   panRequest={p.panRequest}
                   onTarget={p.onTarget}
                   incident={p.incident}
+                  assistant={p.assistant}
                   focusRequest={p.focusRequest}
                 />
               </Suspense>
@@ -402,6 +438,7 @@ function ReadyView(p: ReadyProps) {
                 cameraTarget={p.target}
                 onPanTo={panTo}
                 incident={p.incident}
+                assistant={p.assistant}
               />
             </div>
           </section>
@@ -416,6 +453,7 @@ function ReadyView(p: ReadyProps) {
             onSelect={p.onSelect}
             siteName={world.site.name}
             incident={p.incident}
+            assistant={p.assistant}
           />
         )}
       </div>

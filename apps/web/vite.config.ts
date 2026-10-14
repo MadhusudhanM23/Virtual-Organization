@@ -6,6 +6,8 @@ import tailwindcss from '@tailwindcss/vite';
 // 8080 so the browser sees a single origin and session cookies stay same-origin (Plan 1.6).
 // VITE_API_ORIGIN overrides it (the Playwright suite points it at a throwaway API instance).
 const API_ORIGIN = process.env.VITE_API_ORIGIN ?? 'http://localhost:8080';
+// The AI assistant gateway (services/ai, ADR-64) serves `/api/assistant`; it must be listed before `/api`.
+const AI_ORIGIN = process.env.VITE_AI_ORIGIN ?? 'http://localhost:8090';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -13,6 +15,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      '/api/assistant': { target: AI_ORIGIN, changeOrigin: false },
       '/api': { target: API_ORIGIN, changeOrigin: false },
       '/ws': { target: API_ORIGIN.replace('http', 'ws'), ws: true, changeOrigin: false },
     },
