@@ -220,27 +220,51 @@ test('MCD 5: trigger a worker/forklift proximity situation; the alert appears at
   });
   const demo = page.getByTestId('demo-control');
   await expect(demo).toContainText('DEMO CONTROL');
+  const demoResponse = page.waitForResponse(
+    (r) => r.url().includes('/api/demo/incidents/proximity') && r.request().method() === 'POST',
+  );
   await demo.getByRole('button', { name: 'Trigger proximity situation' }).click();
+  const staged = (await (await demoResponse).json()) as {
+    result: { forklift: { code: string }; worker: { code: string }; data_mode: string };
+  };
+  expect(staged.result.data_mode).toBe('SYNTHETIC');
   await expect(demo.getByTestId('demo-countdown')).toContainText(/Alert expected in about \d+ s/);
   const triggered = Date.now();
 
-  const toast = page.getByTestId('proximity-alert').first();
+  // The toast of the staged pair (other pairs of the simulated movement may raise alerts of their own).
+  const toast = page
+    .getByTestId('proximity-alert')
+    .filter({
+      hasText: `Forklift ${staged.result.forklift.code} and worker ${staged.result.worker.code}`,
+    })
+    .first();
   await expect(toast).toBeVisible({ timeout: 30_000 });
   const alertMs = Date.now() - triggered;
   measure('mcd5_trigger_to_alert_visible_ms', alertMs);
   await expect(toast).toContainText(/Proximity alert: (HIGH|CRITICAL)/);
+  await expect(toast).toContainText('Unconfirmed: not yet checked by a person');
   await expect(toast.getByRole('img', { name: /synthetic/i })).toBeVisible();
+  await expect(toast.getByRole('button', { name: 'View incident' })).toBeVisible({
+    timeout: 15_000,
+  });
   await shot(page, '05-alert');
 
-  // The incident behind the alert is UNCONFIRMED (detected, not yet confirmed by a person).
+  // The incident behind the alert is UNCONFIRMED (detected, not yet confirmed by a person). The demo always stages
+  // the same pair, so on a repeated run the alert joins the pair's open incident: its data mode is then MIXED when the
+  // simulated movement also brought the pair close (alerts of both modes), otherwise SYNTHETIC.
+  await toast.getByRole('button', { name: 'View incident' }).click();
+  await expect(page).toHaveURL(/\/incidents\/[0-9a-f-]{36}$/);
+  const incidentId = page.url().split('/').pop()!;
   const tok = await token(request, USERS.safety);
-  const list = await apiGet<{
-    items: { id: string; status: string; source: string; data_mode: string }[];
-  }>(request, tok, `/api/incidents?site_id=${SITE_ID}&limit=5`);
-  const latest = list.items.find((i) => i.source !== 'CAMERA');
-  expect(latest?.status).toBe('UNCONFIRMED');
-  expect(latest?.data_mode).toBe('SYNTHETIC');
-  saveStory({ demoIncidentId: latest!.id });
+  const incident = await apiGet<{ status: string; data_mode: string; forklift: { code: string } }>(
+    request,
+    tok,
+    `/api/incidents/${incidentId}`,
+  );
+  expect(incident.status).toBe('UNCONFIRMED');
+  expect(incident.forklift.code).toBe(staged.result.forklift.code);
+  expect(['SYNTHETIC', 'MIXED']).toContain(incident.data_mode);
+  saveStory({ demoIncidentId: incidentId });
   await expectNoLiveLabel(page);
 });
 
