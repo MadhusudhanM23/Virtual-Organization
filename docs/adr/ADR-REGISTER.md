@@ -749,3 +749,63 @@ The MCD processes recorded clips offline, so real time is not required.
 **Consequences:** the MCD shows real detections of people on a stock clip and a forklift/worker proximity incident
 only on synthetic data, both labelled. Real forklift detection needs a permissively licensed forklift checkpoint or
 fine-tuning on owned data (open item); swapping the ONNX file does not change the pipeline or the contract.
+
+### ADR-65 Vision privacy: observation whitelist, no frames, audited media, retention — Proposed
+**Context:** REQ-084 and BLUEPRINT section 18: no faces or biometric identifiers by default, frames not stored by
+default, access to footage separately audited, retention configurable; worker movement must not turn into individual
+performance scoring.
+**Decision (conservative default):**
+(1) *Whitelist on both sides.* An observation is exactly `observation_id, track_id, object_class, identity_status,
+confidence, observed_at, media_time_s, frame_index, bbox {x, y, w, h} (normalised), spatial_status,
+floor_position {x, y, z}, speed_mps, heading_deg`. `services/vision` builds it from that list and
+`assert_privacy_safe` rejects anything else; the API rejects any other field (batch, media, observation, bbox or floor)
+with `400` before anything is stored. No frame, crop, thumbnail, embedding, face box or re-identification feature
+exists in the pipeline output, the database (`cam` schema) or any event.
+(2) *No frames stored.* The API stores no image data. The camera panel plays the camera's *registered local media*
+(the downloaded stock clip, the synthetic still) from `vo.vision.media-dir`, which is the source footage itself, not
+a recording made by the platform. Incidents reference the camera and a media time window; nothing is cut or copied.
+(3) *Audited media access.* `GET /api/cameras/{id}/media` requires site view permission and writes an `ALLOWED` audit
+row (`VIEW_CAMERA_MEDIA`, resource `CAMERA_MEDIA`, camera id, pseudonymous actor) on every access; denials are audited
+by the policy engine as usual.
+(4) *Retention.* `cam.cameras.retention_days` (1–365, demo 7) per camera; `CameraRetentionJob` deletes older
+observations every `vo.vision.prune-interval`. Events stay: they carry no image data.
+(5) *No identity of people.* A person track is a camera track slot (`V-<camera>-T<track>`), never linked to a
+person record, user or worker profile; track ids restart per session. Nothing aggregates per-track statistics.
+**Consequences:** the MCD cannot show "the clip of the incident" beyond the camera's own media; a real deployment that
+needs evidence clips adds an explicit, retention-bound, audited clip store (a new ADR). Per-tenant/site purpose
+limitation (turning camera tracking off) is the camera `status` (`DISABLED` refuses ingestion).
+
+### ADR-66 Vision ingestion: service credential, derived provisional identity, camera provenance — Proposed
+**Context:** ADR-32 promised "a service-actor path" for vision on the single observation ingestion service, and says no
+human role may assert device positions. The platform has no machine identity yet; the dev issuer only signs user tokens.
+COCO tracks are not twin entities, but the proximity rule (REQ-050) and incidents need twin entity ids (REQ-086).
+**Decision (conservative default):**
+(1) *Service credential.* `vo.service-clients.clients[]` = `{client_id, tenant_id, secret, scopes}`; the secret comes
+from the environment (`VO_VISION_INGEST_SECRET`, at least 24 characters, else the client is disabled; only its SHA-256
+is kept, compared in constant time). Requests send `Authorization: Service <client_id>:<secret>`.
+`ServiceCredentialFilter` handles only `/api/vision/**`: there it requires that credential (a user bearer token is
+`401`), elsewhere it does nothing, so a credential can never reach a human endpoint. The local profile defines
+`svc-vision-local` for the demo tenant with scope `vision:ingest`. A real identity provider (client-credentials
+tokens) can replace the header later without changing the endpoints.
+(2) *Command.* `POST /api/vision/cameras/{id}/observations` runs through the command gateway
+(`executeAsService`): Idempotency-Key required, command record with the service's pseudonymous actor ref, audit rows
+with actor type `SERVICE` and action `INGEST_CAMERA_OBSERVATIONS`; authorization is the credential's tenant and scope
+plus the camera being registered and `ACTIVE` in that tenant (RLS), not the human role matrix. The CLI derives the key
+from (camera, session, batch number), so retries cannot double-ingest; `(camera, observation_id)` is unique as well.
+(3) *Data mode.* The batch `data_mode` must equal the camera's registered one: the recorded stock clip is
+`SIMULATED` (a recorded clip played as a simulated feed, REQ-083), the generated scene `SYNTHETIC` (ADR-27); `LIVE` is
+refused (no real camera integration in the MCD). `REPLAY` is allowed for a camera registered as such.
+(4) *Derived provisional identity.* Only a `STABLE` track (the tracker's stable-hits rule), `MAPPED` to the floor,
+of a class the camera's `class_map` maps to a twin entity type, is associated with a twin entity: the world module's
+`DerivedEntityService` creates (or reuses) `V-<camera code>-T<track 4 digits>` with status `PROVISIONAL` and
+`attributes.derived=true`. Its pose moves only through `ObservationIngestService` (`source=CAMERA`,
+`source_system=VISION-<camera>`, `observation_status=DETECTED`, `confidence` = detection score, heading 0 with
+`camera.heading_observed=false` when the track is too slow for a heading), called once per frame so frames are never
+coalesced. Track slots are reused across sessions (track ids restart at 1), which bounds the number of derived
+entities; a slot is an identity of a *track*, not of a person or a machine.
+(5) *Incident path and evidence.* The proximity rule consumes these events unchanged; the alert copies each party's
+`camera` provenance, and the incident gains a `CAMERA_REFERENCE` evidence item (`role: OBSERVING_CAMERA`, camera id,
+session, track, media time, a ±5 s window, the media href) next to the nearest-camera placeholder.
+**Consequences:** vision and simulated movement can both move twin entities, but never the same ones (derived entities
+are only fed by their camera). Real multi-camera identity (BLUEPRINT section 11) would replace (4) with an association
+step to canonical entities; the contract of the endpoint does not change.

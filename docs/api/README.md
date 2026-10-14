@@ -206,6 +206,19 @@ confidence percentage.
 | `POST /api/recommendations/{id}/execute` | command (`Idempotency-Key`); `EXECUTE_STANDARD_COMMAND` with an approved workflow; stale check on affected-entity and policy versions (`409 stale_baseline` with `stale[]` and `resimulate`), `409 not_approved`, `422 live_source_refused`; applies the steps through the simulated source systems with compensation; verification moves it to `VERIFIED`, `FAILED` or `PARTIAL` (plan 8.3, ADR-63) |
 | `POST /api/demo/integration/tms-change` | **DEMO CONTROL** command; demo tenants only; body `{site_id, trip_code, to_dock}`; the simulated TMS moves a trip by itself (drives the stale path) |
 
+## Implemented: cameras and vision ingestion (Phase 7, plan 7.3)
+
+Details, shapes and rules: [`vision.md`](vision.md) (ADR-64/65/66).
+
+| Endpoint | Notes |
+|---|---|
+| `GET /api/cameras?site_id=` | camera registry: pose, calibration, class map, feed, truth label, privacy |
+| `GET /api/cameras/{id}` | one camera |
+| `GET /api/cameras/{id}/observations?[session_id=][&from_s=&to_s=][&limit=]` | privacy-safe observations of a session (overlays) |
+| `GET /api/cameras/{id}/media` | the camera's registered local media; every access audited |
+| `GET /api/vision/cameras/{id}` | **service credential only**: calibration and class map for the pipeline |
+| `POST /api/vision/cameras/{id}/observations` | **service credential only**; command (`Idempotency-Key`); whitelist `400`, `422 data_mode_mismatch`/`media_mismatch`, `409 camera_not_active` |
+
 ## Planned query endpoints
 
 | Resource | Endpoint | Purpose |
@@ -213,7 +226,6 @@ confidence percentage.
 | Organizations | `GET /api/organizations` | Organization and scope metadata |
 | World state | `GET /api/twin/world` | Current normalized twin state within authorized scope |
 | Entities | `GET /api/entities/{id}` | Canonical entity inspector |
-| Cameras | `GET /api/cameras` | Camera registry and streams |
 | Analytics | `GET /api/metrics/...` | Governed KPI definitions and values |
 
 ## Planned command endpoints

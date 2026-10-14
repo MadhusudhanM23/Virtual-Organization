@@ -22,9 +22,10 @@
 The clip is a high, roughly overhead view of a warehouse aisle with three workers walking. It was **not** filmed in
 the demo site. CAM-03's calibration (`services/vision/config/cam-03-pexels-4280746.calibration.json`, also seeded into
 the camera registry) **asserts** that a floor patch of the clip lies in the Storage A aisle of the synthetic
-Bengaluru Warehouse 01 (x 31 to 37.5 m, y 35 to 39.5 m). The six control points were picked by hand on the first
-frame; the mapping is illustrative, documented and unit-tested, not a survey (BLUEPRINT section 11, "demo spatial
-mapping"). The camera drifts slightly during the clip, which the fixed homography does not model.
+Bengaluru Warehouse 01 (x 31 to 37.5 m, y 35 to 39.2 m: the aisle between rack rows 34 and 40). The six control points
+were picked by hand on the first frame; the mapping is illustrative, documented and unit-tested, not a survey
+(BLUEPRINT section 11, "demo spatial mapping"). The camera drifts slightly during the clip, which the fixed homography
+does not model.
 
 COCO-80 has no forklift class, so this clip yields **worker observations only**; persons in it are never identified,
 and no frame, crop or face is stored (ADR-65).

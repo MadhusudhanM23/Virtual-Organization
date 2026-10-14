@@ -46,6 +46,8 @@ public class ProximityAlertHandler implements EventHandler {
     private final DomainEvents events;
     private final CameraDirectory cameras;
     private final MeterRegistry meters;
+    /** Per entity: the position event that last carried camera provenance, and that provenance (vision, ADR-66). */
+    private final Map<java.util.UUID, Map.Entry<java.util.UUID, JsonNode>> cameraByEntity = new java.util.HashMap<>();
 
     public ProximityAlertHandler(SafetyProperties props, DomainEvents events, CameraDirectory cameras,
             MeterRegistry meters) {
@@ -78,6 +80,11 @@ public class ProximityAlertHandler implements EventHandler {
                 loc.zoneId(), loc.position().x(), loc.position().y(), loc.position().z(),
                 loc.headingDeg() == null ? 0.0 : loc.headingDeg(), speed, event.occurredAt(), event.eventId(),
                 event.dataMode(), event.source(), event.confidence());
+        if (p.hasNonNull("camera")) {
+            cameraByEntity.put(event.aggregateId(), Map.entry(event.eventId(), p.get("camera")));
+        } else {
+            cameraByEntity.remove(event.aggregateId());
+        }
         List<Pending> pending = detector.observe(pose);
         for (Pending hit : pending) {
             emit(event, hit.alert());
@@ -117,7 +124,7 @@ public class ProximityAlertHandler implements EventHandler {
         meters.counter("vo.safety.proximity.alerts", "kind", a.kind(), "severity", a.severity()).increment();
     }
 
-    private static Map<String, Object> entity(Pose pose) {
+    private Map<String, Object> entity(Pose pose) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("entity_id", pose.entityId().toString());
         m.put("code", pose.code());
@@ -132,6 +139,10 @@ public class ProximityAlertHandler implements EventHandler {
         m.put("position_event_id", pose.eventId().toString());
         m.put("data_mode", pose.dataMode().name());
         m.put("source", pose.source().name());
+        Map.Entry<java.util.UUID, JsonNode> cam = cameraByEntity.get(pose.entityId());
+        if (cam != null && cam.getKey().equals(pose.eventId())) {
+            m.put("camera", cam.getValue());
+        }
         return m;
     }
 }

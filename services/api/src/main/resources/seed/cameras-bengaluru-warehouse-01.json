@@ -1,0 +1,142 @@
+{
+  "$comment": "SYNTHETIC demo camera registry for Bengaluru Warehouse 01 (local/demo/test profiles; CameraSeeder). Calibrations mirror services/vision/config/*.calibration.json.",
+  "cameras": [
+    {
+      "code": "CAM-01",
+      "status": "ACTIVE",
+      "feed_kind": "SYNTHETIC",
+      "media_name": "synthetic-cam-01.png",
+      "media_kind": "STILL",
+      "data_mode": "SYNTHETIC",
+      "class_map": {
+        "person": "WORKER",
+        "forklift": "FORKLIFT"
+      },
+      "retention_days": 7,
+      "calibration": {
+        "image_width": 1280,
+        "image_height": 720,
+        "floor_z_m": 0.0,
+        "points": [
+          {
+            "u": 100.0,
+            "v": 700.0,
+            "x": 34.0,
+            "y": 4.0
+          },
+          {
+            "u": 1180.0,
+            "v": 700.0,
+            "x": 46.0,
+            "y": 4.0
+          },
+          {
+            "u": 900.0,
+            "v": 240.0,
+            "x": 44.0,
+            "y": 14.0
+          },
+          {
+            "u": 380.0,
+            "v": 240.0,
+            "x": 36.0,
+            "y": 14.0
+          },
+          {
+            "u": 640.0,
+            "v": 581.71,
+            "x": 40.0,
+            "y": 6.0
+          },
+          {
+            "u": 640.0,
+            "v": 348.73,
+            "x": 40.0,
+            "y": 11.0
+          }
+        ],
+        "method": "SYNTHETIC_EXACT",
+        "note": "Synthetic camera: control points computed from the scene's own homography (exact by construction)."
+      }
+    },
+    {
+      "code": "CAM-02",
+      "status": "PLACEHOLDER",
+      "feed_kind": "NONE",
+      "media_name": null,
+      "media_kind": null,
+      "data_mode": "SYNTHETIC",
+      "class_map": {},
+      "retention_days": 7,
+      "calibration": null
+    },
+    {
+      "code": "CAM-03",
+      "status": "ACTIVE",
+      "feed_kind": "RECORDED",
+      "media_name": "pexels-4280746-1920x1080.mp4",
+      "media_kind": "VIDEO",
+      "data_mode": "SIMULATED",
+      "class_map": {
+        "person": "WORKER"
+      },
+      "retention_days": 7,
+      "calibration": {
+        "image_width": 1920,
+        "image_height": 1080,
+        "floor_z_m": 0.0,
+        "points": [
+          {
+            "u": 650,
+            "v": 250,
+            "x": 31.0,
+            "y": 39.2
+          },
+          {
+            "u": 1650,
+            "v": 250,
+            "x": 37.5,
+            "y": 39.2
+          },
+          {
+            "u": 1700,
+            "v": 1000,
+            "x": 37.0,
+            "y": 35.0
+          },
+          {
+            "u": 600,
+            "v": 1000,
+            "x": 31.5,
+            "y": 35.0
+          },
+          {
+            "u": 1150,
+            "v": 620,
+            "x": 34.3,
+            "y": 37.2
+          },
+          {
+            "u": 900,
+            "v": 450,
+            "x": 32.6,
+            "y": 38.4
+          }
+        ],
+        "method": "MANUAL_DEMO",
+        "note": "Demo calibration: six points picked by hand on frame 0 of Pexels clip 4280746; the clip was not filmed in this site (docs/scenarios/vision-demo-clip.md)."
+      }
+    },
+    {
+      "code": "CAM-04",
+      "status": "PLACEHOLDER",
+      "feed_kind": "NONE",
+      "media_name": null,
+      "media_kind": null,
+      "data_mode": "SYNTHETIC",
+      "class_map": {},
+      "retention_days": 7,
+      "calibration": null
+    }
+  ]
+}

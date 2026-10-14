@@ -51,3 +51,13 @@ vo:
     simulated:
       # Every 12th batch carries one deliberately invalid inventory record to demonstrate data-quality findings.
       fault-every: 12
+  # Vision (Plan 7.3): media served from the downloaded assets (scripts/fetch-vision-assets.ps1); the demo tenant's
+  # vision service credential is enabled only when VO_VISION_INGEST_SECRET (at least 24 characters) is set.
+  vision:
+    media-dir: ${VO_VISION_MEDIA_DIR:../vision/assets}
+  service-clients:
+    clients:
+      - client-id: svc-vision-local
+        tenant-id: 018f0000-0000-7000-8000-00000000a001
+        secret: ${VO_VISION_INGEST_SECRET:}
+        scopes: [ "vision:ingest" ]
