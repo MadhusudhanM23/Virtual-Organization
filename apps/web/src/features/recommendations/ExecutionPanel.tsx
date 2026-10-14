@@ -10,13 +10,20 @@ import { fetchSimulationRun, startSimulationRun, type RunStatus } from '../simul
 import { useRunPolling } from '../simulate/useSimulateData';
 import { GenerateRecommendationButton } from './parts';
 import { executeRecommendation, postLink, type DryRun, type Recommendation, type StaleEntry } from './recommendationApi';
-import { commandErrorId, parseStaleProblem, type StaleProblem } from './recommendationModel';
+import { commandErrorId, evidenceLines, parseStaleProblem, type StaleProblem } from './recommendationModel';
 import type { RecommendationPermissions } from './useRecommendationPermissions';
 
 function StaleTable({ stale }: { stale: StaleEntry[] }) {
   if (stale.length === 0) return null;
   return (
-    <div className="overflow-x-auto">
+    <div
+      // Scrollable region: keyboard reachable (axe scrollable-region-focusable).
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+      tabIndex={0}
+      role="region"
+      aria-label={t('rec.stale.caption', { count: stale.length })}
+      className="overflow-x-auto"
+    >
       <table className="w-full min-w-[24rem] text-left text-sm" data-testid="stale-table">
         <caption className="sr-only">{t('rec.stale.caption', { count: stale.length })}</caption>
         <thead className="border-b border-warning-line text-xs">
@@ -222,7 +229,8 @@ export function ExecutionPanel({
               <ul className="mt-1 flex flex-col gap-0.5">
                 {e.steps.map((s) => (
                   <li key={s.seq} data-testid="execution-step" data-status={s.status}>
-                    #{s.seq} <span className="font-semibold">{s.status}</span>
+                    #{s.seq} {s.target ? <span className="font-mono">{s.target}</span> : null}{' '}
+                    <span className="font-semibold">{s.status}</span>
                     {s.observed_event_id ? (
                       <>
                         {' · '}
@@ -232,6 +240,16 @@ export function ExecutionPanel({
                   </li>
                 ))}
               </ul>
+            ) : null}
+            {evidenceLines(e.evidence).length > 0 ? (
+              <div data-testid="execution-failure-evidence" className="mt-1">
+                <p className="font-semibold text-ink-900">{t('rec.evidence.title')}</p>
+                <ul className="flex flex-col gap-0.5">
+                  {evidenceLines(e.evidence).map((line, i) => (
+                    <li key={i}>{t(line.id, line.params)}</li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
           </div>
         ) : rec.status !== 'APPROVED' && !outcome && !showStale && rec.status !== 'EXECUTING' ? (

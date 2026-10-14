@@ -30,7 +30,8 @@ import {
 } from './recommendationModel';
 import type { RecommendationPermissions } from './useRecommendationPermissions';
 
-const MAX_REASON = 1000;
+/** The API's limit for a decision reason (docs/api/recommendations.md: at most 500 characters). */
+const MAX_REASON = 500;
 
 /**
  * Approval panel (REQ-094): approve / reject (reason required), the expiry countdown from the served `expires_at`, the

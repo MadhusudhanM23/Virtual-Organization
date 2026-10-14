@@ -34,6 +34,9 @@ public abstract class AbstractIntegrationTest {
         } catch (java.io.IOException ex) {
             throw new IllegalStateException(ex);
         }
+        // Several Spring test contexts stay cached for the whole JVM, each with its own vo_app, vo_outbox and vo_sim
+        // pools; the default 100 connections run out once the suite grows past about seven contexts.
+        POSTGRES.withCommand("postgres", "-c", "fsync=off", "-c", "max_connections=400");
         POSTGRES.start();
     }
 

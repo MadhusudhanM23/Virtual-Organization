@@ -1,5 +1,6 @@
 package io.vorg.api.recommendations;
 
+import static io.vorg.api.platform.identity.seed.DemoIds.REGIONAL_SOUTH;
 import static io.vorg.api.platform.identity.seed.DemoIds.SITE_BLR;
 import static io.vorg.api.platform.identity.seed.DemoIds.TENANT_A;
 import static io.vorg.api.platform.identity.seed.DemoIds.TENANT_A_SLUG;
@@ -230,7 +231,214 @@ class RecommendationApiIT extends AbstractApiIntegrationTest {
         }
     }
 
+    // ---- approvals ------------------------------------------------------------------------------------------------
+
+    @Test
+    void aSecondEligibleUserApproves() throws Exception {
+        String wm = wm();
+        JsonNode proposed = proposeOk(wm, succeededRun(wm));
+        String recId = proposed.get("recommendation_id").asString();
+        String approvalId = proposed.get("approval_id").asString();
+        String regional = regional();
+
+        JsonNode pending = json(get("/api/approvals/" + approvalId, regional));
+        assertThat(pending.get("status").asString()).isEqualTo("PENDING");
+        assertThat(pending.get("requested_by").asString()).isEqualTo(WM_BLR.toString());
+        assertThat(pending.get("policy").get("name").asString()).isEqualTo("dock-reassignment");
+        assertThat(json(get("/api/approvals?site_id=" + SITE_BLR + "&status=PENDING", regional)).get("items"))
+                .anyMatch(i -> i.get("approval_id").asString().equals(approvalId));
+
+        HttpResponse<String> res = decide(regional, approvalId, "approve", "{\"reason\":\"IN-03 is free\"}", key());
+        assertThat(res.statusCode()).as(res.body()).isEqualTo(200);
+        JsonNode result = json(res).get("result");
+        assertThat(result.get("outcome").asString()).isEqualTo("DECIDED");
+        assertThat(result.get("status").asString()).isEqualTo("APPROVED");
+        assertThat(result.get("recommendation_status").asString()).isEqualTo("APPROVED");
+        assertThat(result.get("version").asInt()).isEqualTo(2);
+        assertThat(result.get("recommendation_version").asInt()).isEqualTo(2);
+
+        JsonNode approval = json(get("/api/approvals/" + approvalId, wm));
+        assertThat(approval.get("status").asString()).isEqualTo("APPROVED");
+        assertThat(approval.get("decided_by").asString()).isEqualTo(REGIONAL_SOUTH.toString());
+        assertThat(approval.get("decided_at").asString()).isNotBlank();
+        assertThat(approval.get("reason").asString()).isEqualTo("IN-03 is free");
+        JsonNode rec = json(get("/api/recommendations/" + recId, wm));
+        assertThat(rec.get("status").asString()).isEqualTo("APPROVED");
+        assertThat(rec.get("version").asInt()).isEqualTo(2);
+
+        List<Map<String, Object>> evts = ownerQuery("""
+                select event_type, actor_id from evt.events where tenant_id = ? and aggregate_id = ?
+                  and event_type = 'APPROVAL_GRANTED'
+                """, TENANT_A, UUID.fromString(approvalId));
+        assertThat(evts).hasSize(1);
+        assertThat(evts.get(0)).containsEntry("actor_id", REGIONAL_SOUTH.toString());
+
+        // Decided: a second decision is a conflict.
+        HttpResponse<String> again = decide(regional, approvalId, "reject", "{\"reason\":\"changed my mind\"}", key());
+        assertThat(again.statusCode()).as(again.body()).isEqualTo(409);
+        assertThat(json(again).get("code").asString()).isEqualTo("invalid_state");
+        assertThat(json(again).get("approval_status").asString()).isEqualTo("APPROVED");
+    }
+
+    @Test
+    void theProposerCannotApproveTheirOwnSensitiveRecommendation() throws Exception {
+        String wm = wm();
+        JsonNode proposed = proposeOk(wm, succeededRun(wm));
+        String approvalId = proposed.get("approval_id").asString();
+
+        HttpResponse<String> res = decide(wm, approvalId, "approve", null, key());
+        assertThat(res.statusCode()).as(res.body()).isEqualTo(403);
+        assertThat(json(res).get("code").asString()).isEqualTo("separation_of_duties");
+        HttpResponse<String> reject = decide(wm, approvalId, "reject", "{\"reason\":\"no\"}", key());
+        assertThat(reject.statusCode()).as(reject.body()).isEqualTo(403);
+        assertThat(json(reject).get("code").asString()).isEqualTo("separation_of_duties");
+
+        assertThat(json(get("/api/approvals/" + approvalId, wm)).get("status").asString()).isEqualTo("PENDING");
+        assertThat(ownerCount("select count(*) from evt.events where aggregate_id = ? and event_type in"
+                + " ('APPROVAL_GRANTED', 'APPROVAL_REJECTED')", UUID.fromString(approvalId))).isZero();
+    }
+
+    @Test
+    void aRoleThePolicyDoesNotListIsNotEligibleAndADriverIsForbidden() throws Exception {
+        String wm = wm();
+        String approvalId = proposeOk(wm, succeededRun(wm)).get("approval_id").asString();
+
+        // Safety & Compliance has an R* cell, but the dock-reassignment policy does not list the role.
+        HttpResponse<String> safety = decide(token(TENANT_A_SLUG, "safety@demo.invalid"), approvalId, "approve", null,
+                key());
+        assertThat(safety.statusCode()).as(safety.body()).isEqualTo(403);
+        assertThat(json(safety).get("code").asString()).isEqualTo("approver_not_eligible");
+        HttpResponse<String> driver = decide(token(TENANT_A_SLUG, "driver.blr@demo.invalid"), approvalId, "approve",
+                null, key());
+        assertThat(driver.statusCode()).as(driver.body()).isEqualTo(403);
+        assertThat(json(get("/api/approvals/" + approvalId, wm)).get("status").asString()).isEqualTo("PENDING");
+    }
+
+    @Test
+    void rejectNeedsAReasonAndRejectsTheRecommendation() throws Exception {
+        String wm = wm();
+        JsonNode proposed = proposeOk(wm, succeededRun(wm));
+        String recId = proposed.get("recommendation_id").asString();
+        String approvalId = proposed.get("approval_id").asString();
+        String regional = regional();
+
+        HttpResponse<String> noReason = decide(regional, approvalId, "reject", "{}", key());
+        assertThat(noReason.statusCode()).as(noReason.body()).isEqualTo(400);
+        assertThat(json(noReason).get("errors").get(0).get("field").asString()).isEqualTo("reason");
+        HttpResponse<String> tooLong = decide(regional, approvalId, "reject",
+                "{\"reason\":\"" + "x".repeat(501) + "\"}", key());
+        assertThat(tooLong.statusCode()).as(tooLong.body()).isEqualTo(400);
+
+        HttpResponse<String> res = decide(regional, approvalId, "reject", "{\"reason\":\"IN-03 is reserved\"}",
+                key());
+        assertThat(res.statusCode()).as(res.body()).isEqualTo(200);
+        assertThat(json(res).get("result").get("status").asString()).isEqualTo("REJECTED");
+        assertThat(json(res).get("result").get("recommendation_status").asString()).isEqualTo("REJECTED");
+        JsonNode approval = json(get("/api/approvals/" + approvalId, wm));
+        assertThat(approval.get("status").asString()).isEqualTo("REJECTED");
+        assertThat(approval.get("reason").asString()).isEqualTo("IN-03 is reserved");
+        assertThat(json(get("/api/recommendations/" + recId, wm)).get("status").asString()).isEqualTo("REJECTED");
+        assertThat(ownerCount("select count(*) from evt.events where aggregate_id = ? and event_type ="
+                + " 'APPROVAL_REJECTED'", UUID.fromString(approvalId))).isEqualTo(1);
+
+        HttpResponse<String> approve = decide(regional, approvalId, "approve", null, key());
+        assertThat(approve.statusCode()).as(approve.body()).isEqualTo(409);
+        assertThat(json(approve).get("code").asString()).isEqualTo("invalid_state");
+    }
+
+    @Test
+    void anExpiredApprovalIs409WithAReEvaluateLinkAndReProposingSupersedesIt() throws Exception {
+        String wm = wm();
+        String runId = succeededRun(wm);
+        JsonNode proposed = proposeOk(wm, runId);
+        String recId = proposed.get("recommendation_id").asString();
+        String approvalId = proposed.get("approval_id").asString();
+        expire(recId, approvalId);
+        String regional = regional();
+
+        String k = key();
+        HttpResponse<String> res = decide(regional, approvalId, "approve", null, k);
+        assertThat(res.statusCode()).as(res.body()).isEqualTo(409);
+        JsonNode problem = json(res);
+        assertThat(problem.get("code").asString()).isEqualTo("approval_expired");
+        assertThat(problem.get("approval_id").asString()).isEqualTo(approvalId);
+        assertThat(problem.get("recommendation_id").asString()).isEqualTo(recId);
+        assertThat(problem.get("re_evaluate").get("href").asString()).isEqualTo("/api/recommendations");
+        assertThat(problem.get("re_evaluate").get("body").get("site_id").asString()).isEqualTo(SITE_BLR.toString());
+        assertThat(problem.get("re_evaluate").get("body").get("simulation_run_id").asString()).isEqualTo(runId);
+
+        // Committed: the approval and the recommendation are EXPIRED, with one APPROVAL_EXPIRED event.
+        assertThat(json(get("/api/approvals/" + approvalId, wm)).get("status").asString()).isEqualTo("EXPIRED");
+        assertThat(json(get("/api/recommendations/" + recId, wm)).get("status").asString()).isEqualTo("EXPIRED");
+        assertThat(ownerCount("select count(*) from evt.events where aggregate_id = ? and event_type ="
+                + " 'APPROVAL_EXPIRED'", UUID.fromString(approvalId))).isEqualTo(1);
+
+        // A replay of the same key answers the same way and records nothing new.
+        HttpResponse<String> replay = decide(regional, approvalId, "approve", null, k);
+        assertThat(replay.statusCode()).as(replay.body()).isEqualTo(409);
+        assertThat(json(replay).get("code").asString()).isEqualTo("approval_expired");
+        assertThat(ownerCount("select count(*) from evt.events where aggregate_id = ? and event_type ="
+                + " 'APPROVAL_EXPIRED'", UUID.fromString(approvalId))).isEqualTo(1);
+
+        // Re-evaluate: post the body to the href.
+        HttpResponse<String> again = post(problem.get("re_evaluate").get("href").asString(), wm,
+                mapper.writeValueAsString(problem.get("re_evaluate").get("body")), "Idempotency-Key", key());
+        assertThat(again.statusCode()).as(again.body()).isEqualTo(200);
+        String newId = json(again).get("result").get("recommendation_id").asString();
+        assertThat(json(again).get("result").get("supersedes_id").asString()).isEqualTo(recId);
+        assertThat(json(get("/api/recommendations/" + newId, wm)).get("supersedes_id").asString()).isEqualTo(recId);
+    }
+
+    @Test
+    void anApprovalReplayReturnsTheStoredAckAndDecidesOnce() throws Exception {
+        String wm = wm();
+        String approvalId = proposeOk(wm, succeededRun(wm)).get("approval_id").asString();
+        String regional = regional();
+        String k = key();
+
+        HttpResponse<String> first = decide(regional, approvalId, "approve", null, k);
+        assertThat(first.statusCode()).as(first.body()).isEqualTo(200);
+        HttpResponse<String> second = decide(regional, approvalId, "approve", null, k);
+        assertThat(second.statusCode()).as(second.body()).isEqualTo(200);
+        assertThat(json(second).get("command_id").asString()).isEqualTo(json(first).get("command_id").asString());
+        assertThat(json(second).get("result").get("event_id").asString())
+                .isEqualTo(json(first).get("result").get("event_id").asString());
+        assertThat(json(get("/api/approvals/" + approvalId, wm)).get("version").asInt()).isEqualTo(2);
+        assertThat(ownerCount("select count(*) from evt.events where aggregate_id = ? and event_type ="
+                + " 'APPROVAL_GRANTED'", UUID.fromString(approvalId))).isEqualTo(1);
+
+        // The same key with a different payload is a conflict.
+        HttpResponse<String> different = decide(regional, approvalId, "approve", "{\"reason\":\"other\"}", k);
+        assertThat(different.statusCode()).as(different.body()).isEqualTo(409);
+    }
+
+    @Test
+    void anotherTenantCannotReadOrDecideAnApproval() throws Exception {
+        String wm = wm();
+        String approvalId = proposeOk(wm, succeededRun(wm)).get("approval_id").asString();
+        String tenantB = token(TENANT_B_SLUG, "wm@demo.invalid");
+        assertThat(get("/api/approvals/" + approvalId, tenantB).statusCode()).isEqualTo(404);
+        assertThat(decide(tenantB, approvalId, "approve", null, key()).statusCode()).isEqualTo(404);
+    }
+
     // ---- helpers --------------------------------------------------------------------------------------------------
+
+    private String regional() throws Exception {
+        return token(TENANT_A_SLUG, "regional.south@demo.invalid");
+    }
+
+    private HttpResponse<String> decide(String token, String approvalId, String verb, String body, String k)
+            throws Exception {
+        return post("/api/approvals/" + approvalId + "/" + verb, token, body, "Idempotency-Key", k);
+    }
+
+    /** Moves the deadline of a proposal into the past (the clock is real, so the data is aged instead). */
+    private void expire(String recId, String approvalId) throws Exception {
+        ownerUpdate("update rec.approvals set expires_at = now() - interval '1 minute' where id = ?",
+                UUID.fromString(approvalId));
+        ownerUpdate("update rec.recommendations set expires_at = now() - interval '1 minute' where id = ?",
+                UUID.fromString(recId));
+    }
 
     private HttpResponse<String> propose(String token, String runId) throws Exception {
         return post("/api/recommendations", token,

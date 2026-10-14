@@ -17,7 +17,8 @@ export default defineConfig({
   // ...and so does the incidents suite (playwright.incidents.config.ts, 5197).
   // ...and so does the replay suite (playwright.replay.config.ts, 5199).
   // ...and so does the simulate suite (playwright.simulate.config.ts, 5200).
-  testIgnore: /(live|incidents|replay|simulate)\.spec\.ts/,
+  // ...and so does the recommendations suite (playwright.recommendations.config.ts, 5201).
+  testIgnore: /(live|incidents|replay|simulate|recommendations)\.spec\.ts/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
