@@ -24,7 +24,7 @@ events) that later domains reuse.
 | 5 Replay | Snapshots + state-delta replay, timeline UI, REPLAY lens | Built |
 | 6 Simulation | Deterministic DES engine (`services/simulation`), isolated scenario/run APIs, dock-closure scenario, SIMULATE lens with baseline-vs-scenario compare | Built |
 | 7 Computer vision | YOLOX (Apache-2.0) on CPU, own IoU tracker, floor homography, privacy-safe observations via a service credential, camera registry, vision proximity incidents, camera panel with overlays | Built (compiles; vision integration test and Python tests pass) |
-| 8 Recommendations & approvals | OR-Tools optimizer, recommendation contract, approvals (separation of duties, expiry), stale-baseline check, verified execution, recommendations UI | Built (compiles; test pass pending) |
+| 8 Recommendations & approvals | OR-Tools optimizer, recommendation contract, approvals (separation of duties, expiry), stale-baseline check, verified execution, recommendations UI | Built and tested |
 | 9 AI assistant | Provider-neutral LLM gateway (`services/ai`: deterministic offline provider + OpenAI), allowlisted identity-scoped tools, cited grounded answers that highlight and frame the twin, assistant panel, eval suite | Built (offline by default; OpenAI turns on when the owner adds `OPENAI_API_KEY` and allows the tenant, see [docs/api/assistant.md](docs/api/assistant.md)) |
 | 10 MCD integration | All 12 MCD steps automated end to end, truth-label audit, SLO report, demo runbook | Not started |
 
