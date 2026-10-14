@@ -5,6 +5,7 @@ import { ConnectedInspector } from '../../features/twin/Inspector';
 import { ConnectedEventsPanel } from '../../features/live/EventsPanel';
 import { HeatmapPanel, OrderFlowPanel, PerformancePanel } from '../../features/kpi/panels';
 import { ConnectedReplayInspector } from '../../features/replay/ReplayInspector';
+import { AssistantPanel } from '../../features/assistant/AssistantPanel';
 import { useUiStore } from '../../stores/uiStore';
 
 /** Body of a panel: always an empty state until real (seeded/simulated) data exists. */
@@ -22,6 +23,8 @@ export function PanelEmpty({ panel }: { panel: PanelDefinition }) {
   if (panel.id === 'performance') return <PerformancePanel />;
   if (panel.id === 'heatmap') return <HeatmapPanel />;
   if (panel.id === 'orderFlow') return <OrderFlowPanel />;
+  // The assistant is live since Plan 9.3 (services/ai).
+  if (panel.id === 'assistant') return <AssistantPanel />;
   return (
     <EmptyState
       compact

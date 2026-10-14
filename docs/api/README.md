@@ -206,6 +206,23 @@ confidence percentage.
 | `POST /api/recommendations/{id}/execute` | command (`Idempotency-Key`); `EXECUTE_STANDARD_COMMAND` with an approved workflow; stale check on affected-entity and policy versions (`409 stale_baseline` with `stale[]` and `resimulate`), `409 not_approved`, `422 live_source_refused`; applies the steps through the simulated source systems with compensation; verification moves it to `VERIFIED`, `FAILED` or `PARTIAL` (plan 8.3, ADR-63) |
 | `POST /api/demo/integration/tms-change` | **DEMO CONTROL** command; demo tenants only; body `{site_id, trip_code, to_dock}`; the simulated TMS moves a trip by itself (drives the stale path) |
 
+## Implemented: AI operations assistant (Phase 9, plans 9.1 and 9.2)
+
+Grounded, read-mostly assistant (REQ-100..108). The full contract, the tool allowlist and how to enable OpenAI are in
+[`assistant.md`](assistant.md). Decisions: ADR-64, ADR-65, ADR-66. The gateway is `services/ai` (port 8090; the web dev
+server proxies `/api/assistant` to it). Every tool call runs with the caller's own token. The assistant never approves
+or executes anything; at most it proposes through `POST /api/scenarios` and `POST /api/recommendations`.
+
+| Endpoint | Service | Notes |
+|---|---|---|
+| `POST /api/assistant/messages` | `services/ai` | body `{site_id, message, conversation_id?}`; returns `{exchange_id, conversation_id, answer, citations[], directives[], provider{name, model, external, reason, region}, grounded, data_modes, flags[], tool_calls[], usage, audit{recorded}, latency_ms}` |
+| `GET /api/assistant/health` | `services/ai` | provider mode and which providers are configured (never the key) |
+| `POST /api/ai/exchanges` | `services/api` | command; exchange record (redacted, token counts, provider used); `VIEW_OPERATIONAL_STATE` on the site; `400 secret_detected` |
+| `GET /api/ai/exchanges?site_id=` | `services/api` | the caller's own exchange records |
+
+`GET /api/me` includes `tenant.llm_external_allowed`. External LLM use needs that flag, `OPENAI_API_KEY` and
+`VO_AI_PROVIDER=auto`; otherwise the deterministic offline provider answers.
+
 ## Planned query endpoints
 
 | Resource | Endpoint | Purpose |

@@ -10,7 +10,7 @@ not track empty folders.
 | `integration/` | Tests that need the running stack (compose Postgres/Redis, API, WebSocket): command to outbox to event to projection flows | Phase 1 (first slice), widened in Phases 3 to 5 |
 | `simulation/` | Simulation and replay determinism: same inputs and seed give identical results and state hash | Phase 5 (replay) and Phase 6 (simulation) |
 | `security/` | Authorization-matrix exhaustive test, cross-tenant isolation (API, SQL RLS, cache, events, WebSocket) | Phase 1 (tenancy and authz), extended every phase |
-| `ai-eval/` | AI assistant evaluation: groundedness, permission leakage, prompt injection, action safety, regression set | Phase 9 |
+| `ai-eval/` | AI assistant evaluation: groundedness, permission leakage, prompt injection, action safety, regression set ([README](ai-eval/README.md)) | Phase 9 (Plan 9.4) |
 
 Today the only executable tests for this plan are the contract schema tests in
 [`packages/contracts`](../packages/contracts/README.md) (`npm test` there).

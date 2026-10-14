@@ -30,6 +30,8 @@ export interface TenantInfo {
   slug: string;
   name: string;
   demo_mode: boolean;
+  /** Tenant LLM policy (REQ-101): external LLM transmission allowed for this tenant. */
+  llm_external_allowed?: boolean;
 }
 
 export interface RoleInfo {

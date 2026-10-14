@@ -30,6 +30,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+*.egg-info/
 
 # Data, models, media produced at runtime
 data/

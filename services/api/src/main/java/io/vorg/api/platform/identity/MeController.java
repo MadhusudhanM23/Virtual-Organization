@@ -10,7 +10,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class MeController {
 
-    public record TenantInfo(UUID id, String slug, String name, boolean demoMode) {}
+    /**
+     * {@code llm_external_allowed} is the tenant's external-LLM policy flag (REQ-101, ADR-12/17): the AI gateway reads
+     * it here with the caller's own token and only then may use an external provider.
+     */
+    public record TenantInfo(UUID id, String slug, String name, boolean demoMode, boolean llmExternalAllowed) {}
 
     public record RoleInfo(Role role, ScopeType scopeType, UUID scopeId) {}
 
@@ -24,10 +28,11 @@ public class MeController {
 
     @GetMapping("/api/me")
     public MeResponse me(@AuthenticationPrincipal Subject subject) {
-        TenantInfo tenant = jdbc.sql("select id, slug, name, demo_mode from iam.tenants where id = :id")
+        TenantInfo tenant = jdbc.sql("select id, slug, name, demo_mode, llm_external_allowed from iam.tenants where id = :id")
                 .param("id", subject.tenantId())
                 .query((rs, n) -> new TenantInfo(rs.getObject("id", UUID.class), rs.getString("slug"),
-                        rs.getString("name"), rs.getBoolean("demo_mode")))
+                        rs.getString("name"), rs.getBoolean("demo_mode"),
+                        rs.getBoolean("llm_external_allowed")))
                 .single();
         List<RoleInfo> roles = subject.roles().stream()
                 .map(r -> new RoleInfo(r.role(), r.scopeType(), r.scopeId())).toList();

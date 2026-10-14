@@ -10,7 +10,7 @@ import {
   type WorldResponse,
 } from '@vo/twin-schema';
 import { t } from '../../i18n';
-import type { IncidentOverlay } from './twinStore';
+import type { AssistantHighlight, IncidentOverlay } from './twinStore';
 import {
   desiredPose,
   effectiveMode,
@@ -48,6 +48,8 @@ export interface Scene3DProps {
   onTarget?: (x: number, y: number) => void;
   /** Incident marker and pair highlight (shown when on this floor). */
   incident?: IncidentOverlay | null;
+  /** What the AI assistant pointed at (Plan 9.3): zone/dock outlines and entity outlines, with labels. */
+  assistant?: AssistantHighlight | null;
   /** One-shot cinematic flight to an incident's evidence point. */
   focusRequest?: { x: number; y: number; z: number; nonce: number } | null;
   /** Scene background; the REPLAY lens tints it so playback never looks like the live view. */
@@ -144,7 +146,7 @@ function InstancedLayer({
   );
 }
 
-type LabelTone = 'zone' | 'floor' | 'dock' | 'select' | 'alert';
+type LabelTone = 'zone' | 'floor' | 'dock' | 'select' | 'alert' | 'assistant';
 
 const LABEL_STYLE: Record<LabelTone, { bg: string; fg: string; height: number; font: number }> = {
   zone: { bg: 'rgba(255,255,255,0.78)', fg: '#2b3a52', height: 2.6, font: 30 },
@@ -152,10 +154,12 @@ const LABEL_STYLE: Record<LabelTone, { bg: string; fg: string; height: number; f
   dock: { bg: 'rgba(255,255,255,0.92)', fg: '#0f1b2d', height: 1.6, font: 30 },
   select: { bg: '#1f5fd1', fg: '#ffffff', height: 1.9, font: 32 },
   alert: { bg: '#b42318', fg: '#ffffff', height: 1.15, font: 32 },
+  assistant: { bg: '#6d28d9', fg: '#ffffff', height: 1.6, font: 30 },
 };
 
 const INCIDENT_COLOR = '#b42318';
 const PAIR_COLOR = '#e8590c';
+const ASSISTANT_COLOR = '#6d28d9';
 
 /** Text drawn once to a canvas texture and shown as a sprite: no DOM overlay, one cheap draw per label. */
 function Label({
@@ -362,7 +366,7 @@ function SelectionMarker({ entity }: { entity: Entity }) {
 }
 
 /** Orange outline around each entity of the incident pair (shape and label too, so not color alone). */
-function PairHighlight({ entity }: { entity: Entity }) {
+function PairHighlight({ entity, color = PAIR_COLOR }: { entity: Entity; color?: string }) {
   const spec = useMemo(() => entityInstance(entity), [entity]);
   return (
     <group
@@ -372,8 +376,62 @@ function PairHighlight({ entity }: { entity: Entity }) {
       <mesh scale={[spec.scale[0] * 1.35, spec.scale[1] * 1.3, spec.scale[2] * 1.35]}>
         <boxGeometry args={[1, 1, 1]} />
         <meshBasicMaterial visible={false} />
-        <Edges color={PAIR_COLOR} lineWidth={2} />
+        <Edges color={color} lineWidth={2} />
       </mesh>
+    </group>
+  );
+}
+
+/** The assistant's highlight (REQ-103): violet zone outline and dock ring, each with a text label. */
+function AssistantOverlay3D({
+  assistant,
+  world,
+  floor,
+}: {
+  assistant: AssistantHighlight;
+  world: WorldResponse;
+  floor: Floor;
+}) {
+  const y = floor.elevation_m + 0.12;
+  const zones = world.zones.filter((z) => z.floor_id === floor.id && assistant.zoneIds.includes(z.id));
+  const docks = world.docks.filter((d) => d.floor_id === floor.id && assistant.dockIds.includes(d.id));
+  return (
+    <group name="assistant-highlight">
+      {zones.map((z) => {
+        const b = z.bounds;
+        return (
+          <group key={z.id}>
+            <Line
+              color={ASSISTANT_COLOR}
+              lineWidth={3}
+              dashed
+              dashSize={1.5}
+              gapSize={0.8}
+              points={[
+                [b.min_x, y, -b.min_y],
+                [b.max_x, y, -b.min_y],
+                [b.max_x, y, -b.max_y],
+                [b.min_x, y, -b.max_y],
+                [b.min_x, y, -b.min_y],
+              ]}
+            />
+            <Label tone="assistant" position={[(b.min_x + b.max_x) / 2, y + 2.2, -(b.min_y + b.max_y) / 2]}>
+              {t('assistant.twin.label', { name: z.name })}
+            </Label>
+          </group>
+        );
+      })}
+      {docks.map((d) => (
+        <group key={d.id} position={[d.position.x, y, -d.position.y]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}>
+            <ringGeometry args={[2.6, 3.1, 40]} />
+            <meshBasicMaterial color={ASSISTANT_COLOR} transparent opacity={0.9} depthWrite={false} />
+          </mesh>
+          <Label tone="assistant" position={[0, 3.2, 0]}>
+            {t('assistant.twin.label', { name: d.name })}
+          </Label>
+        </group>
+      ))}
     </group>
   );
 }
@@ -567,6 +625,7 @@ export default function Scene3D(props: Scene3DProps) {
     panRequest,
     onTarget,
     incident = null,
+    assistant = null,
     focusRequest = null,
     background = '#eaeff7',
   } = props;
@@ -574,6 +633,10 @@ export default function Scene3D(props: Scene3DProps) {
   const pair = useMemo(
     () => (overlay ? entities.filter((e) => overlay.entityIds.includes(e.id)) : []),
     [overlay, entities],
+  );
+  const assistantEntities = useMemo(
+    () => (assistant ? entities.filter((e) => assistant.entityIds.includes(e.id)) : []),
+    [assistant, entities],
   );
   const initial = useMemo(
     () => overviewPose(floor.bounds, floor.elevation_m),
@@ -602,6 +665,10 @@ export default function Scene3D(props: Scene3DProps) {
       {overlay ? <IncidentMarker3D overlay={overlay} elevation={floor.elevation_m} /> : null}
       {pair.map((e) => (
         <PairHighlight key={e.id} entity={e} />
+      ))}
+      {assistant ? <AssistantOverlay3D assistant={assistant} world={world} floor={floor} /> : null}
+      {assistantEntities.map((e) => (
+        <PairHighlight key={`ai-${e.id}`} entity={e} color={ASSISTANT_COLOR} />
       ))}
       <CameraController
         floor={floor}

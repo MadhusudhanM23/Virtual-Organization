@@ -3,7 +3,7 @@ import type { Dock, Entity, Floor, Rack, Zone } from '@vo/twin-schema';
 import { t } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { nextSelection } from './mapModel';
-import type { IncidentOverlay } from './twinStore';
+import type { AssistantHighlight, IncidentOverlay } from './twinStore';
 import { DOCK_COLORS, ENTITY_STYLES, ZONE_COLORS, entityColor } from './sceneModel';
 
 export interface FloorMap2DProps {
@@ -23,6 +23,8 @@ export interface FloorMap2DProps {
   className?: string;
   /** Incident marker and pair highlight (drawn when on this floor). */
   incident?: IncidentOverlay | null;
+  /** What the AI assistant pointed at (Plan 9.3): zone and dock outlines, entity rings. */
+  assistant?: AssistantHighlight | null;
 }
 
 /**
@@ -44,6 +46,7 @@ export function FloorMap2D({
   onPanTo,
   className,
   incident = null,
+  assistant = null,
 }: FloorMap2DProps) {
   const overlay = incident && (!incident.floorId || incident.floorId === floor.id) ? incident : null;
   const pairIds = overlay?.entityIds ?? [];
@@ -199,6 +202,15 @@ export function FloorMap2D({
           />
         </g>
       ) : null}
+      {assistant ? (
+        <AssistantOverlay2D
+          assistant={assistant}
+          zones={zoneList}
+          docks={dockList}
+          entities={entities}
+          compact={compact}
+        />
+      ) : null}
       {entities.map((e) => {
         const style = ENTITY_STYLES[e.entity_type];
         const selected = e.id === selectedId;
@@ -277,5 +289,97 @@ export function FloorMap2D({
         </g>
       ) : null}
     </svg>
+  );
+}
+
+/** Assistant highlight (REQ-103): dashed violet outlines plus a text label, so it never relies on color alone. */
+function AssistantOverlay2D({
+  assistant,
+  zones,
+  docks,
+  entities,
+  compact,
+}: {
+  assistant: AssistantHighlight;
+  zones: Zone[];
+  docks: Dock[];
+  entities: Entity[];
+  compact: boolean;
+}) {
+  const stroke = '#6d28d9';
+  const width = compact ? 0.9 : 0.45;
+  return (
+    <g data-testid={compact ? 'assistant-highlight-minimap' : 'assistant-highlight-2d'} pointerEvents="none">
+      {zones
+        .filter((z) => assistant.zoneIds.includes(z.id))
+        .map((z) => (
+          <g key={z.id} data-assistant-zone={z.id}>
+            <rect
+              x={z.bounds.min_x}
+              y={-z.bounds.max_y}
+              width={z.bounds.max_x - z.bounds.min_x}
+              height={z.bounds.max_y - z.bounds.min_y}
+              fill={stroke}
+              fillOpacity={0.08}
+              stroke={stroke}
+              strokeWidth={width}
+              strokeDasharray="2 1"
+            />
+            {compact ? null : (
+              <text
+                x={z.bounds.min_x + 1}
+                y={-z.bounds.max_y + 2.6}
+                fontSize={1.8}
+                fontWeight={700}
+                fill={stroke}
+              >
+                {t('assistant.twin.label', { name: z.name })}
+              </text>
+            )}
+          </g>
+        ))}
+      {docks
+        .filter((d) => assistant.dockIds.includes(d.id))
+        .map((d) => (
+          <g key={d.id} data-assistant-dock={d.id}>
+            <circle
+              cx={d.position.x}
+              cy={-d.position.y}
+              r={compact ? 4 : 3}
+              fill="none"
+              stroke={stroke}
+              strokeWidth={width}
+              strokeDasharray="1.2 0.6"
+            />
+            {compact ? null : (
+              <text
+                x={d.position.x}
+                y={-d.position.y + (d.position.y > 1 ? -4 : 5.2)}
+                fontSize={1.8}
+                fontWeight={700}
+                textAnchor="middle"
+                fill={stroke}
+              >
+                {t('assistant.twin.label', { name: d.name })}
+              </text>
+            )}
+          </g>
+        ))}
+      {entities
+        .filter((e) => assistant.entityIds.includes(e.id))
+        .map((e) => (
+          <circle
+            key={e.id}
+            data-assistant-entity={e.id}
+            cx={e.pose.x}
+            cy={-e.pose.y}
+            r={compact ? 3.2 : 2}
+            fill="none"
+            stroke={stroke}
+            strokeWidth={width}
+            strokeDasharray="0.8 0.4"
+          />
+        ))}
+    </g>
   );
 }

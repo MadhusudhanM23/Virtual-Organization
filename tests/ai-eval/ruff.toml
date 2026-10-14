@@ -1,0 +1,2 @@
+extend = "../../services/ai/pyproject.toml"
+src = ["../../services/ai/src", "."]

@@ -48,3 +48,24 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  ai:
+    name: ai (services/ai pytest + ruff, tests/ai-eval with the offline provider)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install -e "services/ai[dev]"
+      - name: Ruff (services/ai)
+        run: ruff check src tests
+        working-directory: services/ai
+      - name: Ruff (tests/ai-eval)
+        run: ruff check tests/ai-eval
+      - name: Unit tests
+        run: pytest services/ai
+      - name: Eval suite (offline; never needs OPENAI_API_KEY)
+        run: python tests/ai-eval/run_eval.py

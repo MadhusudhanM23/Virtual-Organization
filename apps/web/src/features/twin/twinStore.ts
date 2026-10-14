@@ -22,6 +22,19 @@ export interface IncidentOverlay {
   pinned?: boolean;
 }
 
+/**
+ * What the AI assistant pointed at (Plan 9.3, REQ-103): entities, zones and docks taken from the cited evidence of
+ * one answer. Display only; it never changes data.
+ */
+export interface AssistantHighlight {
+  /** Exchange this highlight came from. */
+  exchangeId: string;
+  entityIds: string[];
+  zoneIds: string[];
+  dockIds: string[];
+  floorId: string | null;
+}
+
 export interface TwinViewState {
   /** Chosen by the user; null = first floor of the world. */
   floorId: string | null;
@@ -35,6 +48,7 @@ export interface TwinViewState {
   incident: IncidentOverlay | null;
   /** One-shot request: fly the camera to frame this world point (cinematic incident focus, REQ-053). */
   focusRequest: { x: number; y: number; z: number; nonce: number } | null;
+  assistantHighlight: AssistantHighlight | null;
 
   setFloorId: (id: string | null) => void;
   select: (id: string | null) => void;
@@ -47,6 +61,11 @@ export interface TwinViewState {
   /** Highlights, switches to its floor, selects the forklift and requests the camera flight. */
   focusIncident: (overlay: IncidentOverlay) => void;
   clearIncident: () => void;
+  /** Shows the assistant's highlight and switches to its floor (no camera move). */
+  showAssistantHighlight: (highlight: AssistantHighlight) => void;
+  clearAssistantHighlight: () => void;
+  /** Requests a camera flight to a world point (meters), optionally switching floors first. */
+  focusPoint: (point: { x: number; y: number; z: number }, floorId?: string | null) => void;
   reset: () => void;
 }
 
@@ -59,6 +78,7 @@ const initial = {
   panRequest: null,
   incident: null as IncidentOverlay | null,
   focusRequest: null as TwinViewState['focusRequest'],
+  assistantHighlight: null as AssistantHighlight | null,
 };
 
 export const useTwinStore = create<TwinViewState>()((set) => ({
@@ -105,5 +125,17 @@ export const useTwinStore = create<TwinViewState>()((set) => ({
         : s.focusRequest,
     })),
   clearIncident: () => set({ incident: null }),
+  showAssistantHighlight: (assistantHighlight) =>
+    set((s) => ({
+      assistantHighlight,
+      floorId: assistantHighlight.floorId ?? s.floorId,
+    })),
+  clearAssistantHighlight: () => set({ assistantHighlight: null }),
+  focusPoint: (point, floorId) =>
+    set((s) => ({
+      floorId: floorId ?? s.floorId,
+      cameraMode: 'explore',
+      focusRequest: { ...point, nonce: (s.focusRequest?.nonce ?? 0) + 1 },
+    })),
   reset: () => set(initial),
 }));
