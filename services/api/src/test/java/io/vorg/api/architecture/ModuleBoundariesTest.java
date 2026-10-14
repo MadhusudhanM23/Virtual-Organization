@@ -71,4 +71,17 @@ class ModuleBoundariesTest {
                     "io.vorg.api.integration..", "io.vorg.api.replay..", "io.vorg.api.kpi..")
             .orShould().dependOnClassesThat().haveFullyQualifiedName("io.vorg.api.platform.events.DomainEvents")
             .allowEmptyShould(true);
+
+    /**
+     * Plan 8.3 (ADR-63): the outbound source-system SPI is used only by the recommendation execution code (and by the
+     * integration module itself: its implementations and its demo control). Nothing else may send commands to a
+     * source system.
+     */
+    @ArchTest
+    static final ArchRule onlyRecommendationExecutionUsesAdapterCommandPort = noClasses()
+            .that().resideOutsideOfPackage("io.vorg.api.integration..")
+            .and().doNotHaveFullyQualifiedName("io.vorg.api.recommendations.RecommendationExecutionService")
+            .should().dependOnClassesThat()
+            .haveNameMatching("io\\.vorg\\.api\\.integration\\.core\\.AdapterCommandPort(\\$.*)?")
+            .allowEmptyShould(true);
 }
