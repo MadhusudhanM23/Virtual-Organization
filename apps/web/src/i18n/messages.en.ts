@@ -57,8 +57,8 @@ export const messagesEn = {
   'panel.inspector.title': 'Inspector',
   'panel.inspector.description':
     'Details of the selected entity appear here and stay until dismissed.',
-  'panel.camera.title': 'Live camera',
-  'panel.camera.description': 'Camera feed with labeled detections and evidence links.',
+  'panel.camera.title': 'Cameras',
+  'panel.camera.description': 'Recorded and synthetic camera feeds with labeled detections and evidence links.',
   'panel.events.title': 'Live events',
   'panel.events.description': 'Operational events stream here with their data-mode label.',
   'panel.assistant.title': 'AI operations assistant',
@@ -95,6 +95,17 @@ export const messagesEn = {
   'dataMode.aria.replay': 'Data mode: replay of historical data, not live',
   'dataMode.aria.simulation': 'Data mode: simulation result, not live',
   'dataMode.aria.mixed': 'Data mode: mixed sources, source labels shown per entity or event',
+
+  // Event envelope `source` (BLUEPRINT §7) in words. The raw codes are never shown next to a truth label: the code
+  // SIMULATION would read as the SIMULATION label, which ADR-27 reserves for scenario results (plan 10.2 audit).
+  'source.API': 'API',
+  'source.CAMERA': 'camera',
+  'source.DEVICE': 'device',
+  'source.SIMULATION': 'simulator',
+  'source.IMPORT': 'import',
+  'source.SYSTEM': 'system',
+  'source.HUMAN': 'person',
+  'source.label': 'Source: {source}',
 
   // Mobile drawer
   'drawer.label': 'Context panels',
@@ -816,6 +827,8 @@ export const messagesEn = {
   'cameras.lastObservation': 'Last observation {at}',
   'cameras.noObservations': 'No observations yet',
   'cameras.panel.label': 'Camera {code}',
+  'cameras.panel.open': 'Open the camera view',
+  'cameras.panel.unavailable': 'The camera registry could not be loaded.',
   'cameras.source': 'Source: {source}',
   'cameras.detector': 'Detector: {detector}',
   'cameras.noFeed': 'No feed: this camera is a placeholder without media.',

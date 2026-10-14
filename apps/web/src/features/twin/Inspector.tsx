@@ -10,6 +10,7 @@ import { useTwinStore } from './twinStore';
 import { fetchEntityDetail } from './twinApi';
 import { formatAge } from '../live/formatAge';
 import { useNow } from '../live/useNow';
+import { sourceName } from '../../lib/eventSource';
 
 type DetailState =
   { id: string; status: 'ok'; detail: EntityDetail } | { id: string; status: 'failed' };
@@ -110,7 +111,7 @@ export function InspectorBody({ entity, onClear }: { entity: Entity | null; onCl
               </span>
             </Row>
             <Row label={t('twin.inspector.poseSource')}>
-              <span className="mr-2">{entity.pose.source}</span>
+              <span className="mr-2">{sourceName(entity.pose.source)}</span>
               <DataModeBadge dataMode={entity.pose.data_mode} lens={lens} />
             </Row>
             <Row label={t('twin.inspector.confidence')}>

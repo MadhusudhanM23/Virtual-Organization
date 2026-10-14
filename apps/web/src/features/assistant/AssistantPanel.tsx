@@ -11,10 +11,10 @@ import { canUse } from '../auth/permissionMatrix';
 import { useTwinStore } from '../twin/twinStore';
 import type { AssistantResponse, Citation } from './assistantApi';
 import {
+  answerTruth,
   applyDirectives,
-  asDataMode,
-  citationDataMode,
   citationRoute,
+  citationTruth,
   flagNotes,
   providerLabel,
   splitAnswer,
@@ -220,10 +220,13 @@ function Answer({
           {provider.text}
         </span>
         <span className="text-ink-600">{provider.reason}</span>
-        {response.data_modes.map((value) => {
-          const mode = asDataMode(value);
-          return mode ? <DataModeBadge key={value} dataMode={mode} /> : null;
-        })}
+        {answerTruth(response).map((badge) => (
+          <DataModeBadge
+            key={badge.lens ?? badge.dataMode}
+            dataMode={badge.dataMode}
+            lens={badge.lens}
+          />
+        ))}
         <span className="text-ink-600">
           {response.grounded ? t('assistant.grounded') : t('assistant.notGrounded')}
         </span>
@@ -300,14 +303,14 @@ function CitationRow({
   n: number;
   exchangeId: string;
 }) {
-  const mode = citationDataMode(citation);
+  const truth = citationTruth(citation);
   const route = citationRoute(citation);
   return (
     <li id={`cite-${exchangeId}-${citation.id}`} className="flex flex-wrap items-center gap-2">
       <span className="font-semibold text-ink-800">{n}.</span>
       <span className="text-ink-600">{citation.kind}</span>
       <span className="text-ink-900">{citation.label}</span>
-      {mode ? <DataModeBadge dataMode={mode} /> : null}
+      {truth ? <DataModeBadge dataMode={truth.dataMode} lens={truth.lens} /> : null}
       {route ? (
         <Link
           to={route}
