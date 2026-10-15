@@ -26,7 +26,7 @@ events) that later domains reuse.
 | 7 Computer vision | YOLOX (Apache-2.0) on CPU, own IoU tracker, floor homography, privacy-safe observations via a service credential, camera registry, vision proximity incidents, camera panel with overlays | Built (compiles; vision integration test and Python tests pass) |
 | 8 Recommendations & approvals | OR-Tools optimizer, recommendation contract, approvals (separation of duties, expiry), stale-baseline check, verified execution, recommendations UI | Built and tested |
 | 9 AI assistant | Provider-neutral LLM gateway (`services/ai`: deterministic offline provider + OpenAI), allowlisted identity-scoped tools, cited grounded answers that highlight and frame the twin, assistant panel, eval suite | Built (offline by default; OpenAI turns on when the owner adds `OPENAI_API_KEY` and allows the tenant, see [docs/api/assistant.md](docs/api/assistant.md)) |
-| 10 MCD integration | All 12 MCD steps automated end to end, truth-label audit, SLO report, demo runbook | Not started |
+| 10 MCD integration | All 12 MCD steps automated end to end on the real stack (`npm run e2e:mcd`), truth-label audit of every screen, measured SLO report, presenter runbook, stack scripts `scripts/mcd-*.ps1` | Built and tested (last run 2026-10-14: 14 of 14 passed; SLOs measured on one dev machine, availability and the OpenAI path not measured; see [docs/reports/mcd-slo-report.md](docs/reports/mcd-slo-report.md)) |
 
 Milestone 2 (hardening, offline operator PWA, scenario library and scale) follows the MCD. Phase plans live in
 `.gsd/phases/{N}/`; decisions in [docs/adr/ADR-REGISTER.md](docs/adr/ADR-REGISTER.md).
@@ -51,9 +51,10 @@ Layout follows blueprint §20.
 | `docs/product/` | Master blueprint (source of truth) |
 | `docs/adr/` | Architecture decision records |
 | `docs/api/` | HTTP/JSON conventions and endpoint catalog ([README](docs/api/README.md)) |
-| `docs/scenarios/` | Demo data provenance and scenario reproduction steps |
+| `docs/scenarios/` | Demo data provenance, scenario reproduction steps and the MCD runbook |
+| `docs/reports/` | Measured reports (MCD SLO and readiness report) |
 | `tests/` | Cross-cutting suites (contract tests, AI evaluation in `tests/ai-eval`) |
-| `scripts/` | Maven wrapper helpers and GSD validation scripts |
+| `scripts/` | Maven wrapper helpers, MCD stack scripts (`mcd-up`, `mcd-check`, `mcd-down`, `mcd-vision`), SLO measurement (`scripts/slo/`), GSD validation scripts |
 | `.gsd/` | Spec, requirements, roadmap, architecture conventions, phase plans |
 
 Planned, not yet present: `apps/operator-pwa/` (Milestone 2).
@@ -132,7 +133,39 @@ Planned, not yet present: `apps/operator-pwa/` (Milestone 2).
 | redis | 6379 |
 | api | 8080 |
 | web | 5173 |
+| ai (assistant gateway) | 8090 |
 | prometheus / grafana (`observability` profile) | 9090 / 3000 |
+
+## Run the MCD (Minimum Credible Demonstration)
+
+One script starts the whole stack. Docker Desktop must be running. All values are dev-only, and the secrets come from
+the process environment, never from a committed file.
+
+```powershell
+$env:DEMO_USER_PASSWORD = "<any dev-only password>"
+$env:VO_VISION_INGEST_SECRET = "<24+ dev-only characters>"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-vision-assets.ps1      # once
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/mcd-up.ps1 -Vision          # compose, API, AI, web, one CAM-01 run
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/mcd-check.ps1               # every service: OK / FAIL
+```
+
+Then follow the presenter script in [docs/scenarios/mcd-runbook.md](docs/scenarios/mcd-runbook.md). It gives the 12
+steps, the expected screen and the truth label of each. Stop with `scripts/mcd-down.ps1` (add `-Infra -Volumes` for a
+fresh database). If a port is taken, pass `-ApiPort`, `-AiPort` and `-WebPort` to `mcd-up` and `mcd-check`. Git Bash
+or Linux: `scripts/mcd-up.sh` (and `--down`).
+
+To run the same 12 steps and the truth-label audit automatically against the running stack:
+
+```powershell
+cd apps/web
+$env:E2E_DEMO_PASSWORD = $env:DEMO_USER_PASSWORD
+$env:E2E_API_ORIGIN = "http://localhost:8080"; $env:E2E_AI_ORIGIN = "http://localhost:8090"
+npm run e2e:mcd
+```
+
+To measure the SLOs: `python scripts/slo/measure.py --api http://127.0.0.1:8080 --ai http://127.0.0.1:8090` and
+`node scripts/slo/ws_latency.mjs --api http://localhost:8080`. The method and results are in
+[docs/reports/mcd-slo-report.md](docs/reports/mcd-slo-report.md).
 
 ## Tests
 
@@ -143,6 +176,7 @@ Planned, not yet present: `apps/operator-pwa/` (Milestone 2).
 | Web typecheck / lint / unit | `npm run typecheck`, `npm run lint`, `npm test` (repo root, all workspaces) |
 | Web end-to-end (Playwright, mocked API) | in `apps/web`: `npm run e2e`, plus one config per feature suite: `e2e:live`, `e2e:incidents`, `e2e:replay`, `npx playwright test -c playwright.simulate.config.ts` |
 | Web end-to-end against the real stack | in `apps/web`: `npm run e2e:real` (API and infrastructure running) |
+| MCD: 12 steps + truth-label audit, real stack | in `apps/web`: `npm run e2e:mcd` (stack from `scripts/mcd-up.ps1`; see above) |
 
 ## Documentation
 
@@ -153,4 +187,6 @@ Planned, not yet present: `apps/operator-pwa/` (Milestone 2).
 - [docs/api/README.md](docs/api/README.md): endpoint catalog; per-area detail in `docs/api/*.md`
 - [docs/scenarios/README.md](docs/scenarios/README.md): demo data provenance and the dock-closure scenario
 - [docs/scenarios/vision-demo-clip.md](docs/scenarios/vision-demo-clip.md): vision model weights and demo clip provenance
+- [docs/scenarios/mcd-runbook.md](docs/scenarios/mcd-runbook.md): MCD presenter script (12 steps, expected screens, truth labels)
+- [docs/reports/mcd-slo-report.md](docs/reports/mcd-slo-report.md): MCD suite result, truth-label audit and measured SLOs
 - [PROJECT_RULES.md](PROJECT_RULES.md): how work is planned, executed, verified and committed
