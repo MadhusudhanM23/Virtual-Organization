@@ -28,7 +28,8 @@ function Invoke-Compose {
 function Invoke-Psql([string]$Sql, [string]$Db = '') {
     if ($Db -eq '') { $Db = $env:POSTGRES_DB }
     $out = & docker exec -e "PGPASSWORD=$($env:POSTGRES_PASSWORD)" "$(Get-Project)-postgres-1" `
-        psql -U $env:POSTGRES_USER -d $Db -At -F '|' -c $Sql
+        psql -U $env:POSTGRES_USER -d $Db -At -F '|' -v ON_ERROR_STOP=1 -c $Sql
+    if ($LASTEXITCODE -ne 0) { throw "psql failed: $Sql" }
     return $out
 }
 

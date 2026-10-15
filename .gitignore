@@ -64,3 +64,4 @@ logs/
 
 # Local per-machine Prometheus overrides (PROMETHEUS_CONFIG), Plan 11.1
 infra/monitoring/prometheus.p[0-9]*.yml
+backups/
