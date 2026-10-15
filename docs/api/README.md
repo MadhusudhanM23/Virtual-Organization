@@ -75,6 +75,7 @@ Driver/Operator or Platform Administrator). Event types are catalogued in
 | `GET /api/tasks/{id}` | task with `from`/`to` places, assignee (`assigned_entity_code`, `assigned_actor_ref`), `source_system`/`source_record_id`, `allowed_transitions`, `issues` |
 | `POST /api/tasks/{id}/accept`, `start`, `pause`, `resume`, `complete`, `fail`, `cancel` | command; body optional `{"reason": "..."}` (required for `fail`); `Idempotency-Key` required; `200` with the command ack and `result {task_id, previous_status, status, changed, version, event_id, sequence}`; illegal transition `409`; a repeated transition returns `changed: false` |
 | `POST /api/tasks/{id}/issues` | body `{"issue_type": BLOCKED, DAMAGED_GOODS, WRONG_LOCATION, EQUIPMENT_FAULT, SAFETY_CONCERN or OTHER, "description": "..."}`; records a `TASK_ISSUE_REPORTED` event and never changes the task status; `409` on a closed task |
+| Offline field sync (`queued_offline` / `base_version` on the commands above, `POST /api/tasks/{id}/evidence`, `GET /api/tasks/{id}/evidence`, `GET /api/evidence/{id}/content`, `POST /api/field/inventory-scans`, `POST /api/field/urgent-records`) | the Operator PWA's server contract and the BLUEPRINT section 12 conflict rules: see [field-sync.md](field-sync.md) |
 
 Commands use `EXECUTE_STANDARD_COMMAND` on the task's site: allowed for a Warehouse Manager of the site and for a
 Driver/Operator on tasks assigned to them; denied (and audited) for Analyst, Executive, Regional Manager, Safety and

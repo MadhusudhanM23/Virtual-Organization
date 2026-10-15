@@ -921,6 +921,83 @@ changes the objective's meaning and needs an ADR-62 revision.
 **Consequences:** with the default, a whole-shift closure cannot produce a recommendation through the API; the
 simulation comparison (Phase 6) still shows its impact.
 
+### ADR-75 Offline sync contract: stable Idempotency-Key, `queued_offline` context, conflicts are acknowledged not errored — Proposed
+**Context:** BLUEPRINT section 12 fixes the conflict outcomes (server assignment wins; first valid server command wins and
+the later one "becomes a conflict event and is not applied twice"; inventory scans never overwrite the authoritative
+quantity; proof of delivery is PENDING_SYNC until the server confirms). It does not say how a client signals "this was
+captured offline" or how a conflict is reported. A thrown error rolls back the command transaction, which would also
+roll back the conflict event the blueprint asks for.
+**Decision (conservative default):**
+- Every queued item gets its `Idempotency-Key` once, at enqueue, and keeps it for every retry (ordering is the capture
+  order `seq`; a failed item holds back later items of the same task).
+- Task commands accept the optional `queued_offline`, `base_version`, `captured_at`. `queued_offline: true` turns on the
+  rules; without it nothing changes for existing clients.
+- Reassigned (rule 1): `409 task_reassigned`, nothing applied (client marks the item STALE and blocks the task's later
+  commands until the operator refreshes).
+- Already terminal (rule 4): `200` with `result.applied=false, conflict="already_terminal"`, a `TASK_SYNC_CONFLICT` event
+  and a `SYNC_CONFLICT` field record in the same transaction. A conflict is therefore an acknowledged outcome, replayed
+  identically for the same key, never applied twice. A stale `base_version` on an open task is flagged
+  (`base_version_stale`) but the state machine decides, because the version only counts writes, not their meaning.
+- Inventory (rule 2): `POST /api/field/inventory-scans` compares the scanned inventory version to the mirrored one and
+  records either `INVENTORY_SCAN_RECORDED` or `INVENTORY_EXCEPTION_RECORDED` with the local evidence refs.
+**Options for the owner:** (a) return 409 for the terminal conflict instead (simpler client, but the conflict event
+cannot commit); (b) a server-side manager resolution queue for `SYNC_CONFLICT` records (not built); (c) reject a stale
+`base_version` outright.
+**Consequences:** old clients are unaffected. The reassigned 409 is not recorded as an audited command (it is raised
+before the gateway); the 403 path of the gateway is still audited when a non-offline command is sent for someone else's task.
+
+### ADR-76 Evidence photos: privacy-minded, database-stored, size-bounded, EXIF/GPS stripped on the device — Proposed
+**Context:** Offline proof-of-delivery photos can carry GPS position, device identifiers, timestamps and thumbnails, and
+sometimes show people. The blueprint asks for local capture and later upload but sets no storage or retention policy.
+**Decision (conservative default):**
+- The PWA decodes the image, re-encodes it as JPEG at most 1600 px on the long side and about 1.5 MiB (hard server limit
+  2 MiB), then removes EXIF/XMP/IPTC/comment/text segments at byte level and verifies none remain; a file the browser
+  cannot decode is stripped at byte level only. A notice states this before the photo is saved.
+- The server verifies the SHA-256, the magic bytes against `content_type` (JPEG, PNG, WebP) and refuses a file that still
+  contains EXIF (`422 exif_present`) rather than storing location data.
+- Stored as `bytea` in `ops.task_evidence` (forced RLS, no UPDATE/DELETE for the application role), idempotent per
+  `(task, client_ref)`, served with `Cache-Control: no-store`. Events carry hashes and sizes, never bytes or notes.
+- No face blurring or content analysis; no retention job yet.
+**Options for the owner:** (a) object storage (S3-compatible) once photos are numerous; (b) a retention period with a
+purge job; (c) face/person blurring before upload (ties into ADR-68 vision privacy).
+**Consequences:** database growth is bounded by 2 MiB per photo; operators cannot upload an original with metadata even
+with a modified client.
+
+### ADR-77 Offline refusals: no approvals, no emergency-stop execution, urgent records are advisory only — Proposed
+**Context:** Section 12: "Approval while offline: not allowed for consequential actions" and "Emergency action while
+offline: no promise of execution; the client may display last-known instructions and create an urgent local record for
+sync". ADR-05 makes every emergency-stop path advisory.
+**Decision (conservative default):** the PWA has no approval or emergency-stop control at all. The queue refuses the
+kinds `APPROVAL` and `EMERGENCY_STOP` (and any action word matching them) at enqueue, and the sync engine re-checks every
+stored row and marks such a row `REFUSED` without sending it, so a tampered IndexedDB cannot send one. The only emergency
+item is an urgent record (`POST /api/field/urgent-records`), saved locally with an ADVISORY chip and PENDING_SYNC, filed as
+`URGENT_FIELD_RECORD_FILED` with `advisory: true, executed: false`. The UI states the limits on the task, queue and urgent
+screens. The existing online `/api/safety/emergency-stop-request` is not used by the PWA.
+**Options for the owner:** (a) let the PWA call the existing advisory e-stop request when online (needs an incident and the
+`EMERGENCY_STOP_REQUEST` permission, which Driver/Operator does not have); (b) push-notify safety staff on an urgent record.
+**Consequences:** an operator offline cannot "request" an emergency stop, only record it; the screen says to use the site
+procedure and radio first.
+
+### ADR-78 Operator PWA session, service worker and local-data policy — Proposed
+**Context:** BLUEPRINT section 18 keeps the access token in memory only. An offline-first client must still reopen, show
+cached work and queue items without a token, and must not upload anything on behalf of nobody.
+**Decision (conservative default):**
+- The access token stays in memory; the httpOnly refresh cookie restores it online. Offline, the app reopens with a
+  remembered profile (`actor_ref`, display name, tenant; no credentials) in IndexedDB and a session status `offline`:
+  reading cached tasks and queueing are allowed, sending is not. A server refusal of the silent refresh (401) signs out.
+- The sync engine uploads only when the session is `authenticated`, and only items whose `ownerActorRef` equals the
+  signed-in actor; another user's items are held (and listed as such) until that user signs in. Sign-out drops the profile
+  and cached tasks but keeps the queue (so work is not lost), which the login screen announces.
+- The service worker (workbox `generateSW`, update mode "prompt") precaches only the built app shell and never handles
+  `/api`; operational data lives in IndexedDB under the app's control. `clientsClaim` and `skipWaiting` are off so a new
+  version never takes over a screen mid-task.
+- Cached tasks show their age and a "may be out of date" notice; the PWA uses the same truth labels as the web app.
+**Options for the owner:** (a) encrypt the IndexedDB queue at rest with a key derived from the session (needs a PIN or
+WebAuthn; not built); (b) a kiosk/shared-device mode with a forced queue drain at sign-out; (c) background sync API on
+platforms that support it (the engine already runs on the `online` event and a timer).
+**Consequences:** a lost or shared phone exposes the cached tasks and the saved queue to anyone who can open the browser
+profile; device lock and MDM remain the control until (a) is decided.
+
 
 ### ADR-79 Signature scenarios: typed overlays over the existing engine, route blockage, no recommendation coupling yet — Proposed
 **Context:** REQ-140 asks for four signature scenarios (demand surge, forklift outage, route blockage, shift shortage).

@@ -49,6 +49,25 @@ jobs:
       - name: Build
         run: npm run build
 
+  operator-pwa:
+    name: operator-pwa (Playwright, offline/online, 390px axe)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/operator-pwa
+      - name: E2E (builds the PWA, serves it on port 5210, API mocked)
+        run: npm run e2e
+        working-directory: apps/operator-pwa
+
   ai:
     name: ai (services/ai pytest + ruff, tests/ai-eval with the offline provider)
     runs-on: ubuntu-latest
