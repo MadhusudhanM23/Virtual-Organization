@@ -16,17 +16,24 @@ public record Overlay(
         List<UnitWindow> dockClosures,
         List<UnitWindow> forkliftOutages,
         List<WorkerReduction> workerReductions,
+        List<RouteBlockage> routeBlockages,
         DemandMultiplier demandMultiplier,
         Map<String, Object> parameterOverrides) {
 
     private static final Set<String> FIELDS = Set.of("dock_closures", "forklift_outages", "worker_reductions",
-            "demand_multiplier", "parameter_overrides");
+            "demand_multiplier", "parameter_overrides", "route_blockages");
 
     /** A window during which one named unit (dock or forklift) takes no new work. */
     public record UnitWindow(String unitId, double startMin, double endMin, String reason) {}
 
     /** {@code count} workers of {@code role} unavailable during the window (the highest-numbered ones). */
     public record WorkerReduction(String role, int count, double startMin, double endMin, String reason) {}
+
+    /**
+     * The forklift route to/from a storage zone is blocked in {@code [startMin, endMin)}: putaway into and retrieval
+     * from {@code zone} that start in the window take {@code detourFactor} times their layout travel time (ADR-79).
+     */
+    public record RouteBlockage(String zone, double startMin, double endMin, double detourFactor, String reason) {}
 
     /** Order arrival rate multiplied by {@code factor} during the window. */
     public record DemandMultiplier(double factor, double startMin, double endMin) {}
@@ -35,16 +42,17 @@ public record Overlay(
         dockClosures = List.copyOf(dockClosures);
         forkliftOutages = List.copyOf(forkliftOutages);
         workerReductions = List.copyOf(workerReductions);
+        routeBlockages = List.copyOf(routeBlockages);
         parameterOverrides = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(parameterOverrides));
     }
 
     public static Overlay empty() {
-        return new Overlay(List.of(), List.of(), List.of(), null, Map.of());
+        return new Overlay(List.of(), List.of(), List.of(), List.of(), null, Map.of());
     }
 
     public boolean isEmpty() {
         return dockClosures.isEmpty() && forkliftOutages.isEmpty() && workerReductions.isEmpty()
-                && demandMultiplier == null && parameterOverrides.isEmpty();
+                && routeBlockages.isEmpty() && demandMultiplier == null && parameterOverrides.isEmpty();
     }
 
     static Overlay fromMap(Map<String, Object> m) {
@@ -64,6 +72,16 @@ public record Overlay(
                     Fields.num(w, p, "start_min"), Fields.num(w, p, "end_min"),
                     Fields.optStr(w, p, "reason", "worker_reduction")));
         }
+        List<RouteBlockage> blockages = new ArrayList<>();
+        List<?> bl = Fields.optList(m, "overlay", "route_blockages");
+        for (int i = 0; i < bl.size(); i++) {
+            String p = "overlay.route_blockages[" + i + "]";
+            Map<String, Object> b = Fields.asMap(bl.get(i), p);
+            Fields.allowOnly(b, p, Set.of("zone", "start_min", "end_min", "detour_factor", "reason"));
+            blockages.add(new RouteBlockage(Fields.str(b, p, "zone"), Fields.num(b, p, "start_min"),
+                    Fields.num(b, p, "end_min"), Fields.num(b, p, "detour_factor"),
+                    Fields.optStr(b, p, "reason", "route_blockage")));
+        }
         DemandMultiplier dm = null;
         Map<String, Object> d = Fields.optMap(m, "overlay", "demand_multiplier");
         if (d != null) {
@@ -73,7 +91,7 @@ public record Overlay(
                     Fields.optNum(d, p, "end_min", Double.POSITIVE_INFINITY));
         }
         Map<String, Object> po = Fields.optMap(m, "overlay", "parameter_overrides");
-        return new Overlay(closures, outages, reductions, dm, po == null ? Map.of() : po);
+        return new Overlay(closures, outages, reductions, blockages, dm, po == null ? Map.of() : po);
     }
 
     private static List<UnitWindow> windows(Map<String, Object> m, String key, String idField) {
@@ -119,6 +137,18 @@ public record Overlay(
             }
             window(p, w.startMin(), w.endMin(), run);
         }
+        for (int i = 0; i < routeBlockages.size(); i++) {
+            RouteBlockage b = routeBlockages.get(i);
+            String p = "overlay.route_blockages[" + i + "]";
+            if (!model.storage().zones().contains(b.zone())) {
+                throw Fields.invalid(p + ".zone", "unknown storage zone '" + b.zone() + "' (one of "
+                        + model.storage().zones() + ")");
+            }
+            if (!(b.detourFactor() > 1) || b.detourFactor() > 10) {
+                throw Fields.invalid(p + ".detour_factor", "in (1, 10]: the travel-time multiplier of the detour");
+            }
+            window(p, b.startMin(), b.endMin(), run);
+        }
         if (demandMultiplier != null) {
             DemandMultiplier d = demandMultiplier;
             if (!(d.factor() > 0) || d.factor() > 10) {
@@ -146,6 +176,7 @@ public record Overlay(
         dockClosures.forEach(w -> s.add(w.unitId()));
         forkliftOutages.forEach(w -> s.add(w.unitId()));
         workerReductions.forEach(w -> s.add("ROLE:" + w.role()));
+        routeBlockages.forEach(b -> s.add(b.zone()));
         return List.copyOf(s);
     }
 
@@ -164,6 +195,19 @@ public record Overlay(
             wl.add(wm);
         }
         m.put("worker_reductions", wl);
+        if (!routeBlockages.isEmpty()) {
+            List<Object> bl = new ArrayList<>();
+            for (RouteBlockage b : routeBlockages) {
+                Map<String, Object> bm = new LinkedHashMap<>();
+                bm.put("zone", b.zone());
+                bm.put("start_min", b.startMin());
+                bm.put("end_min", b.endMin());
+                bm.put("detour_factor", b.detourFactor());
+                bm.put("reason", b.reason());
+                bl.add(bm);
+            }
+            m.put("route_blockages", bl);
+        }
         if (demandMultiplier == null) {
             m.put("demand_multiplier", null);
         } else {
