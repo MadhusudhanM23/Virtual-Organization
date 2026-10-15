@@ -854,6 +854,41 @@ export const messagesEn = {
   'cameras.advisory': 'Computer vision is advisory monitoring, not a safety-rated sensor.',
   'incident.evidence.observedBy': 'Observed by camera {code}: {cls} track {track} at {t} s',
   'incident.evidence.openCamera': 'Open camera at this moment',
+  // Simulate: signature scenarios and Monte Carlo distributions (REQ-140)
+  'sim.sig.legend': 'Scenario type',
+  'sim.sig.custom': 'Custom overlay (dock closures, outages, reductions, demand)',
+  'sim.sig.type.demand_surge': 'Demand surge',
+  'sim.sig.type.forklift_outage': 'Forklift outage',
+  'sim.sig.type.route_blockage': 'Route blockage',
+  'sim.sig.type.shift_shortage': 'Shift shortage',
+  'sim.sig.desc.demand_surge': 'Customer order arrivals run at a multiple of the baseline rate for a window.',
+  'sim.sig.desc.forklift_outage': 'Several forklifts are out of service for a window; work in progress finishes.',
+  'sim.sig.desc.route_blockage':
+    'The forklift route to and from one storage zone is blocked; putaway and retrieval there take a detour.',
+  'sim.sig.desc.shift_shortage': 'Workers of one role are absent for a window; work in progress finishes.',
+  'sim.sig.field.factor': 'Order-rate multiplier (x)',
+  'sim.sig.field.forkliftCount': 'Forklifts out of service',
+  'sim.sig.field.zone': 'Blocked storage zone',
+  'sim.sig.field.detour': 'Detour travel-time multiplier (x)',
+  'sim.sig.field.role': 'Absent worker role',
+  'sim.sig.field.workerCount': 'Workers absent',
+  'sim.sig.field.from': 'Window from (min)',
+  'sim.sig.field.to': 'Window until (min)',
+  'sim.sig.label': 'SIMULATION',
+  'sim.sig.assumption':
+    'The values are inputs you choose; the defaults are the documented fixture, an ASSUMPTION and not a measurement. Rates, resources and layout come from the SYNTHETIC world seed. Results are labelled SIMULATION, never live.',
+  'sim.sig.customHidden': 'The typed scenario replaces the custom overlay: the overlay sections are not used.',
+  'sim.dist.title': 'Distribution over seeded replications',
+  'sim.dist.caption':
+    'Monte Carlo over {n} replications (one seed each, same seeds for baseline and scenario). Median with the 5th to 95th percentile band, and the mean with its 95% confidence interval. SIMULATED.',
+  'sim.dist.onlyMoved': 'Only KPIs whose paired 5-95 band excludes zero',
+  'sim.dist.col.kpi': 'KPI',
+  'sim.dist.col.baseline': 'Baseline median (p5 to p95)',
+  'sim.dist.col.scenario': 'Scenario median (p5 to p95)',
+  'sim.dist.col.delta': 'Paired delta mean [95% CI]',
+  'sim.dist.col.plot': 'Plot',
+  'sim.dist.plotLabel': 'Baseline and scenario 5th to 95th percentile bands on a shared scale; text equivalent in the row.',
+  'sim.dist.hash': 'Distributions hash {hash}',
 } as const;
 
 export type MessageId = keyof typeof messagesEn;

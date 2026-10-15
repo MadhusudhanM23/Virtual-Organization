@@ -35,7 +35,17 @@ export interface DemandMultiplierOverlay {
   end_min?: number;
 }
 
+export interface RouteBlockageOverlay {
+  zone: string;
+  start_min: number;
+  end_min: number;
+  /** Travel-time multiplier of the detour, in (1, 10]. */
+  detour_factor: number;
+  reason?: string;
+}
+
 export interface ScenarioOverlay {
+  route_blockages?: RouteBlockageOverlay[];
   dock_closures?: DockClosureOverlay[];
   forklift_outages?: ForkliftOutageOverlay[];
   worker_reductions?: WorkerReductionOverlay[];
@@ -87,7 +97,42 @@ export interface KpiDelta {
   verdict: 'worse' | 'better' | 'increased' | 'decreased' | 'no_significant_change';
 }
 
+/** Distribution of one KPI over the replications (Monte Carlo, ADR-80). All values SIMULATED. */
+export interface DistributionStats {
+  n: number;
+  mean: number | null;
+  median: number | null;
+  p5: number | null;
+  p95: number | null;
+  min: number | null;
+  max: number | null;
+  sd: number | null;
+  ci95_low: number | null;
+  ci95_high: number | null;
+}
+
+export interface KpiDistribution {
+  key: string;
+  label: string;
+  unit: string;
+  better: 'higher' | 'lower' | 'neutral' | 'none';
+  baseline: DistributionStats;
+  scenario: DistributionStats;
+  /** Paired difference scenario - baseline over replications. */
+  delta: DistributionStats;
+}
+
+export interface DistributionsResult {
+  schema: string;
+  n_replications: number;
+  replication_seeds: number[];
+  quantile_method: string;
+  kpis: KpiDistribution[];
+  distributions_hash: string;
+}
+
 export interface ComparisonResult {
+  distributions?: DistributionsResult;
   pairing: string;
   baseline: Record<string, unknown>;
   scenario: Record<string, unknown>;
@@ -136,11 +181,18 @@ export function fetchScenario(id: string): Promise<Scenario> {
  * The baseline is always the built-in `bengaluru-warehouse-01` model (ADR-60, docs/api/simulation.md): there is
  * no `baseline`/`model` field to choose — the UI only shows and confirms it.
  */
+/** A typed signature scenario (REQ-140, ADR-79): the API expands it to the overlay; exclusive with `overlay`. */
+export interface SignatureRequest {
+  type: 'demand_surge' | 'forklift_outage' | 'route_blockage' | 'shift_shortage';
+  params: Record<string, number | string>;
+}
+
 export interface CreateScenarioBody {
   site_id: string;
   name: string;
   description?: string;
-  overlay: ScenarioOverlay;
+  overlay?: ScenarioOverlay;
+  signature?: SignatureRequest;
   run: RunSettings;
 }
 

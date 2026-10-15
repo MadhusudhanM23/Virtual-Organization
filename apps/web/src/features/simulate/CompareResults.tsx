@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, CircleAlert, Minus } from 'lucide-react';
 import { DataModeBadge } from '../../components/DataModeBadge';
 import { cn } from '../../lib/cn';
 import { ciHalfWidth, ciUndefined, formatCi, formatNum, formatSignedDelta, verdictLabel, verdictTone } from './deltaModel';
+import { DistributionView } from './DistributionView';
 import { isMovedVerdict } from './scenarioModel';
 import type { ComparisonResult, KpiDelta } from './simulationApi';
 
@@ -143,6 +144,8 @@ export function CompareResults({ results, scenarioName, actions }: CompareResult
           <DeltaCard key={d.key} delta={d} />
         ))}
       </div>
+
+      {results.distributions ? <DistributionView distributions={results.distributions} /> : null}
 
       <details className="rounded-control border border-line bg-surface p-3">
         <summary className="cursor-pointer text-sm font-semibold text-ink-900">Data table (accessible fallback)</summary>
