@@ -1,0 +1,92 @@
+name: supply-chain
+
+# SBOMs (CycloneDX) and vulnerability scans (Trivy, npm audit) plus the repository secrets scan (Phase 11, plan 11.5).
+# The same steps run locally with scripts/supply-chain.ps1. HIGH and CRITICAL findings fail the job unless they are
+# listed, with a reason, in scripts/supply-chain-allowlist.json.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supply-chain-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets-scan:
+    name: secrets scan (tracked files)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/security/secrets-scan.mjs --self-test
+      - run: node scripts/security/secrets-scan.mjs
+
+  sbom-and-scan:
+    name: SBOM + Trivy + npm audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Maven SBOM (CycloneDX, aggregate)
+        run: ./mvnw -B -q org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
+      - name: npm SBOM (CycloneDX)
+        run: npx --yes @cyclonedx/cyclonedx-npm@1.19.3 --output-file sbom/npm.cdx.json --spec-version 1.6 --omit dev
+      - name: Python SBOM (services/ai)
+        run: |
+          pip install -q cyclonedx-bom ./services/ai
+          cyclonedx-py environment --of JSON -o sbom/python-ai.cdx.json
+      - name: Collect the Maven SBOM
+        run: mkdir -p sbom && cp target/bom.json sbom/maven.cdx.json
+      - name: npm audit (production dependencies, high and above)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Trivy, SBOMs (HIGH and CRITICAL with a fix fail the job)
+        run: |
+          for bom in maven npm python-ai; do
+            docker run --rm -v "$PWD/sbom:/sbom:ro" aquasec/trivy:0.58.1 sbom               --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "/sbom/$bom.cdx.json"
+          done
+      - name: Trivy, repository (secrets and misconfiguration)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scanners: secret,misconfig
+          skip-dirs: '**/node_modules,**/target,**/.venv,sbom,**/secrets'
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+      - name: Trivy, compose images (informational)
+        # Third-party images: the findings are in the base OS or in upstream Go binaries and are fixed by an upstream
+        # rebuild, so they are reported, not gated. Each image is accepted, with a reason, in
+        # scripts/supply-chain-allowlist.json and docs/reports/hardening-supply-chain.md.
+        run: |
+          for img in postgis/postgis:16-3.5 redis:7-alpine prom/prometheus:v3.15.0 grafana/grafana:13.2.4; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.1 image               --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 "$img"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbom
+          path: sbom/*.json

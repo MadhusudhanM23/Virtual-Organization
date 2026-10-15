@@ -1,0 +1,109 @@
+# Prometheus alert rules for the section 17 SLOs (REQ-130, Plan 11.1). Validated with `promtool check rules`.
+# Metric names are the Micrometer exports of the API (services/api) and the AI gateway (services/ai /api/assistant/metrics).
+# Thresholds restate the provisional targets of BLUEPRINT section 17 / NFR-01..NFR-09; they are hypotheses to be
+# re-tuned from the measurements in docs/reports/hardening-load-report.md.
+
+groups:
+  - name: vorg-slo
+    rules:
+      - alert: VorgApiDown
+        expr: up{job="vorg-api"} == 0
+        for: 1m
+        labels: { severity: critical, slo: NFR-08 }
+        annotations:
+          summary: "API scrape target is down"
+          description: "Prometheus cannot scrape the API for 1 minute (availability objective 99.5 % monthly, NFR-08)."
+
+      - alert: VorgOutboxLagHigh
+        # NFR-03: outbox publish p95 < 2 s. The oldest pending row is the direct lag signal.
+        expr: max(vo_outbox_oldest_age_seconds) > 5
+        for: 2m
+        labels: { severity: warning, slo: NFR-03 }
+        annotations:
+          summary: "Outbox publisher is lagging"
+          description: "The oldest unpublished outbox event is {{ $value }} s old (target: p95 publish < 2 s)."
+
+      - alert: VorgOutboxPublishP95High
+        expr: histogram_quantile(0.95, sum by (le) (rate(vo_outbox_publish_latency_seconds_bucket[5m]))) > 2
+        for: 5m
+        labels: { severity: warning, slo: NFR-03 }
+        annotations:
+          summary: "Outbox publish p95 above 2 s"
+          description: "5 minute p95 of created_at to published_at is {{ $value }} s."
+
+      - alert: VorgOutboxDeadEvents
+        expr: increase(vo_outbox_dead_total[10m]) > 0
+        labels: { severity: critical, slo: NFR-09 }
+        annotations:
+          summary: "Outbox events were moved to DEAD"
+          description: "At least one event exhausted its delivery attempts; investigate before data is considered lost."
+
+      - alert: VorgApiReadP95High
+        # NFR-01: standard API p95 < 500 ms. Command POSTs are excluded (they have their own alert).
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job="vorg-api",method="GET",uri=~"/api/.*"}[5m]))) > 0.5
+        for: 5m
+        labels: { severity: warning, slo: NFR-01 }
+        annotations:
+          summary: "API read p95 above 500 ms"
+          description: "5 minute p95 of GET /api/** is {{ $value }} s."
+
+      - alert: VorgCommandAckP95High
+        # NFR-02: command ack p95 < 1 s.
+        expr: histogram_quantile(0.95, sum by (le) (rate(vo_command_ack_seconds_bucket[5m]))) > 1
+        for: 5m
+        labels: { severity: warning, slo: NFR-02 }
+        annotations:
+          summary: "Command ack p95 above 1 s"
+          description: "5 minute p95 of command acknowledgement is {{ $value }} s."
+
+      - alert: VorgApiErrorRateHigh
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="vorg-api",status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_server_requests_seconds_count{job="vorg-api"}[5m])), 0.001) > 0.01
+        for: 5m
+        labels: { severity: critical, slo: NFR-08 }
+        annotations:
+          summary: "API 5xx rate above 1 %"
+          description: "{{ $value | humanizePercentage }} of API responses were 5xx over 5 minutes."
+
+      - alert: VorgWsLagHigh
+        # NFR-04: event to UI p95 < 2 s; the server-side share is the ingestion-to-socket-write time.
+        expr: histogram_quantile(0.95, sum by (le) (rate(vo_live_ws_lag_seconds_bucket[5m]))) > 2
+        for: 5m
+        labels: { severity: warning, slo: NFR-04 }
+        annotations:
+          summary: "WebSocket delivery lag p95 above 2 s"
+          description: "5 minute p95 of ingestion to socket write is {{ $value }} s."
+
+      - alert: VorgDbConnectionsSaturated
+        expr: max(hikaricp_connections_active / hikaricp_connections_max) > 0.8
+        for: 5m
+        labels: { severity: warning, slo: NFR-08 }
+        annotations:
+          summary: "Database connection pool above 80 % in use"
+          description: "A Hikari pool has {{ $value | humanizePercentage }} of its connections active."
+
+      - alert: VorgDbConnectionsPending
+        expr: max(hikaricp_connections_pending) > 0
+        for: 2m
+        labels: { severity: warning, slo: NFR-08 }
+        annotations:
+          summary: "Threads are waiting for a database connection"
+          description: "{{ $value }} threads are waiting on a Hikari pool."
+
+      - alert: VorgAiLatencyHigh
+        # NFR-07: grounded answer < 10 s typical.
+        expr: histogram_quantile(0.95, sum by (le) (rate(vo_ai_request_duration_seconds_bucket{outcome="ok"}[10m]))) > 10
+        for: 10m
+        labels: { severity: warning, slo: NFR-07 }
+        annotations:
+          summary: "AI assistant p95 above 10 s"
+          description: "10 minute p95 of assistant answers is {{ $value }} s."
+
+      - alert: VorgAiGatewayDown
+        expr: up{job="vorg-ai"} == 0
+        for: 2m
+        labels: { severity: warning, slo: NFR-07 }
+        annotations:
+          summary: "AI gateway scrape target is down"
+          description: "The assistant gateway has not answered for 2 minutes (the platform itself keeps working)."

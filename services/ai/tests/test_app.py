@@ -44,3 +44,17 @@ def test_message_requires_token_and_rejects_tenant_in_body() -> None:
         assert ok.status_code == 200
         body = ok.json()
         assert set(body) >= {"answer", "citations", "directives", "provider", "grounded", "exchange_id"}
+
+
+def test_metrics_expose_latency_histogram_after_a_message() -> None:
+    with _client() as c:
+        ok = c.post(
+            "/api/assistant/messages",
+            headers={"Authorization": "Bearer tok-manager-a"},
+            json={"site_id": SITE_A, "message": "hi"},
+        )
+        assert ok.status_code == 200
+        text = c.get("/api/assistant/metrics").text
+    assert 'vo_ai_request_duration_seconds_count{outcome="ok"} 1' in text
+    assert 'vo_ai_requests_total{outcome="ok"} 1' in text
+    assert "tok-manager" not in text

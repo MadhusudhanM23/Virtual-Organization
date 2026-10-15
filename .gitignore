@@ -61,3 +61,9 @@ logs/
 
 # MCD stack runtime state (scripts/mcd-up.ps1: logs, pids)
 .mcd/
+
+# Local per-machine Prometheus overrides (PROMETHEUS_CONFIG), Plan 11.1
+infra/monitoring/prometheus.p[0-9]*.yml
+infra/monitoring/prometheus.local*.yml
+backups/
+sbom/

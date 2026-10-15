@@ -84,7 +84,7 @@ export function EntityTable({
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
         role="region"
-        aria-label={t('twin.table.title')}
+        aria-label={t('twin.table.scroll')}
       >
         <table className="w-full min-w-[40rem] text-left text-sm">
           <caption className="sr-only">

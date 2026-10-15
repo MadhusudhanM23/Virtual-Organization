@@ -205,7 +205,7 @@ export function ReplayTimeline({ engine, markers }: ReplayTimelineProps) {
 
       <div className="px-2">
         {/* Two rows: incidents above, alerts below, so an incident and its alert at the same instant never overlap. */}
-        <div className="relative h-10" aria-label={t('replay.markers.label')} role="group">
+        <div className="relative h-12" aria-label={t('replay.markers.label')} role="group">
           {placed.map((m) => {
             const Icon = m.kind === 'incident' ? OctagonAlert : TriangleAlert;
             const mIso = toIso(m.at);
@@ -225,10 +225,11 @@ export function ReplayTimeline({ engine, markers }: ReplayTimelineProps) {
                 })}
                 title={`${m.label} - ${fmt.timeSeconds(mIso)}`}
                 className={cn(
-                  'absolute grid size-5 -translate-x-1/2 place-items-center rounded-full border bg-surface shadow-card hover:z-10 hover:scale-110',
+                  // 24 px target (WCAG 2.5.8); the two rows are 24 px apart.
+                  'absolute grid size-6 -translate-x-1/2 place-items-center rounded-full border bg-surface shadow-card hover:z-10 hover:scale-110',
                   m.kind === 'incident'
                     ? 'top-0 border-danger-line text-danger-fg'
-                    : 'top-5 border-warning-line text-warning-fg',
+                    : 'top-6 border-warning-line text-warning-fg',
                 )}
                 style={{ left: `${fractionOf(m.at, bounds) * 100}%` }}
               >
@@ -253,7 +254,7 @@ export function ReplayTimeline({ engine, markers }: ReplayTimelineProps) {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          className="relative mt-1 h-8 cursor-pointer touch-none rounded-control outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+          className="relative mt-1 h-8 cursor-pointer touch-none rounded-control outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
         >
           <div className="absolute inset-x-0 top-3 h-2 rounded-full bg-surface ring-1 ring-lens-replay-line" />
           <div

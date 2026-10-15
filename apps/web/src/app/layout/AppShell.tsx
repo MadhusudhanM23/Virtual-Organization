@@ -95,7 +95,8 @@ export function AppShell() {
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
         style={{ gridArea: 'main' }}
-        className="min-h-0 min-w-0 overflow-y-auto outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-500"
+        // outline-none sets Tailwind's outline style variable to none, so a focus ring needs outline-solid again.
+        className="min-h-0 min-w-0 overflow-y-auto outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-500"
       >
         <Outlet />
       </main>

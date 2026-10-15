@@ -151,7 +151,7 @@ export function ReplayEventsList() {
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
         role="region"
-        aria-label={t('replay.events.title')}
+        aria-label={t('replay.events.scroll')}
         className="max-h-80 min-h-0 overflow-y-auto p-2"
       >
         {loaded?.ok && shown.length === 0 ? (

@@ -111,7 +111,7 @@ export function EventsPanelView({
               type="checkbox"
               checked={groups.has(g)}
               onChange={() => onToggleGroup(g)}
-              className="size-3.5 accent-accent-600"
+              className="size-6 accent-accent-600"
             />
             {t(GROUP_LABEL[g])}
           </label>
@@ -134,7 +134,10 @@ export function EventsPanelView({
           aria-label={t('live.events.list')}
           aria-live={paused ? 'off' : 'polite'}
           aria-relevant="additions"
-          className="max-h-96 divide-y divide-line overflow-y-auto"
+          // A scrollable list must be keyboard focusable (axe: scrollable-region-focusable).
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          tabIndex={0}
+          className="max-h-96 divide-y divide-line overflow-y-auto outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-500"
           data-testid="events-list"
         >
           {visible.slice(0, 100).map((e) => {

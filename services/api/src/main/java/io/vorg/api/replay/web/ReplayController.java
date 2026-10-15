@@ -119,11 +119,16 @@ public class ReplayController {
             result.put("site_id", siteId.toString());
             result.put("snapshot_at", m.asOf().toString());
             result.put("origin", m.origin());
-            result.put("entity_count", m.entityCount());
-            result.put("task_count", m.taskCount());
-            result.put("incident_count", m.incidentCount());
-            result.put("alert_count", m.alertCount());
-            result.put("events_applied", m.eventsApplied());
+            if (view.allowed()) {
+                // Counts of operational state only for a caller who may view it. A Platform Administrator, who may
+                // trigger a snapshot (ADR-43 pattern) but has no business-data authority (ADR-06), gets technical
+                // metadata only (Plan 11.3 security suite).
+                result.put("entity_count", m.entityCount());
+                result.put("task_count", m.taskCount());
+                result.put("incident_count", m.incidentCount());
+                result.put("alert_count", m.alertCount());
+                result.put("events_applied", m.eventsApplied());
+            }
             result.put("size_bytes", m.sizeBytes());
             result.put("state_sha256", m.stateSha256());
             return CommandResult.of(result);

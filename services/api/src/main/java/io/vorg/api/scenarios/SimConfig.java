@@ -36,9 +36,11 @@ public class SimConfig {
             @Value("${vo.sim.datasource.url}") String url,
             @Value("${vo.sim.datasource.username:vo_sim}") String username,
             @Value("${vo.sim.datasource.password}") String password,
-            @Value("${vo.sim.datasource.max-pool-size:4}") int maxPoolSize) {
+            @Value("${vo.sim.datasource.max-pool-size:4}") int maxPoolSize,
+            @Value("${vo.db.connection-timeout-ms:3000}") long connectionTimeoutMs) {
         HikariDataSource hikari = new HikariDataSource();
         hikari.setPoolName("sim");
+        hikari.setConnectionTimeout(connectionTimeoutMs);
         hikari.setJdbcUrl(url);
         hikari.setUsername(username);
         hikari.setPassword(password);
