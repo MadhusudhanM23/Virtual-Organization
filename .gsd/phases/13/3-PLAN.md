@@ -8,4 +8,4 @@ Source: REQ-140, docs/api/simulation.md. Owns `services/api/.../scenarios`.
 - A finished run's `results` gains `distributions` (Monte Carlo report) next to the comparison; the comparison hash is
   unchanged.
 - Focused ITs (`SignatureScenarioApiIT`); docs updated.
-- Recommendation generator: consumption documented as future work unless it proves small and safe (ADR-81).
+- Recommendation generator: consumption documented as future work unless it proves small and safe (ADR-79).

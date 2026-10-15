@@ -1,6 +1,6 @@
 ﻿# Plan 13.1 - Signature scenarios in the DES engine
 
-Source: REQ-140; BLUEPRINT section 8; ADR-47/48/49 (engine, overlay, comparison), ADR-79 (Proposed, this plan).
+Source: REQ-140; BLUEPRINT section 8; ADR-47/48/49 (engine, overlay, comparison), ADR-79 (Proposed).
 Owns `services/simulation` (scenario part).
 
 ## Shape
