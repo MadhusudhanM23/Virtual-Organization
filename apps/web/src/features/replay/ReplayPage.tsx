@@ -515,7 +515,7 @@ function ReplayWorkspace({ world, engine }: { world: WorldResponse; engine: Repl
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <ReplayEventsList />
         <EntityTable
           entities={floorEntities}

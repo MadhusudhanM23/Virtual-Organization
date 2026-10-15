@@ -228,6 +228,7 @@ export const messagesEn = {
   'twin.inspector.attributes': 'Attributes',
   'twin.inspector.version': 'Record version',
   'twin.table.title': 'Entities',
+  'twin.table.scroll': 'Entity list (scrollable)',
   'twin.table.caption': 'Entities on {floor}: {shown} shown of {total} on this floor',
   'twin.table.filter': 'Filter by code, name or status',
   'twin.table.type': 'Type',
@@ -581,6 +582,7 @@ export const messagesEn = {
   'replay.inspector.catalogNote':
     'Name and attributes are the entity catalog as recorded; pose, floor, zone and status are reconstructed.',
   'replay.events.title': 'Replay events',
+  'replay.events.scroll': 'Replay event list (scrollable)',
   'replay.events.window': 'Window {from} to {to}: {count} events, newest first.',
   'replay.events.more': 'More events fall in this window than are listed.',
   'replay.events.loading': 'Loading events...',
