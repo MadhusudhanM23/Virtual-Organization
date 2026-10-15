@@ -14,7 +14,11 @@ export function UpdatePrompt() {
 
   if (!offlineReady && !needRefresh) return null;
   return (
-    <div className="banner mx-4 mt-2" role="status" data-testid="pwa-prompt">
+    <div
+      className="banner fixed inset-x-4 bottom-20 z-50 shadow-lg"
+      role="status"
+      data-testid="pwa-prompt"
+    >
       <p className="m-0">{needRefresh ? t('pwa.updateReady') : t('pwa.offlineReady')}</p>
       <div className="mt-2 flex gap-2">
         {needRefresh ? (

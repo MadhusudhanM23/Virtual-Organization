@@ -12,7 +12,6 @@ import { RuntimeProvider } from './runtime';
 export function App() {
   return (
     <RuntimeProvider>
-      <UpdatePrompt />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -31,6 +30,7 @@ export function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      <UpdatePrompt />
     </RuntimeProvider>
   );
 }
