@@ -51,8 +51,14 @@ test.describe('Application shell', () => {
       page.getByRole('region', { name: 'Performance, heatmap and order flow' }),
     ).toBeVisible();
 
-    // No fabricated numbers: empty-state placeholders say "not available yet", never a mock KPI.
-    await expect(page.getByText(/not available yet/i).first()).toBeVisible();
+    // No fabricated numbers: without data a panel states so explicitly, never a mock value. (The camera panel was a
+    // "not available yet" placeholder until plan 10.2; with no camera API in this mocked session it says so.)
+    await expect(
+      page
+        .getByRole('complementary', { name: 'Inspector, camera, events and assistant' })
+        .getByText(/camera registry could not be loaded|Loading cameras|no registered cameras/i)
+        .first(),
+    ).toBeVisible();
   });
 
   test('skip link is reachable by keyboard and moves focus to main content', async ({ page }) => {

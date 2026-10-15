@@ -12,7 +12,7 @@ For each scenario, add a page here that states:
 - which truth label every entity and event carries (table below).
 
 Scenario pages: [demo tenants](demo-tenants.md), [Bengaluru Warehouse 01 world seed](bengaluru-warehouse-01.md) (Phase 2), [live operations](live-operations.md) (Phase 3: simulated movement, WMS/TMS mirrors, tasks, events), [vision demo assets](vision-demo-clip.md) (Phase 7: stock clip and model provenance, synthetic camera scene).
-The MCD runbook arrives in Phase 10. Demo seed data is never a database migration; it is a deterministic seeder active only in the `local` and
+The MCD runbook (Phase 10): [mcd-runbook.md](mcd-runbook.md), the presenter script of the 12 MCD steps with the expected screen and truth label of each, setup, reset and provenance. Demo seed data is never a database migration; it is a deterministic seeder active only in the `local` and
 `demo` profiles.
 
 ## Truth labels (ADR-27)

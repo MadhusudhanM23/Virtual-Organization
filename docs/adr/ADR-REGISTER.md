@@ -902,3 +902,21 @@ session, track, media time, a ±5 s window, the media href) next to the nearest-
 **Consequences:** vision and simulated movement can both move twin entities, but never the same ones (derived entities
 are only fed by their camera). Real multi-camera identity (BLUEPRINT section 11) would replace (4) with an association
 step to canonical entities; the contract of the endpoint does not change.
+
+### ADR-70 Recommendation when the current plan cannot be scheduled at all — Proposed
+**Context:** Plan 10.1 ran the MCD on the real stack. The OR-Tools generator (ADR-62/63) refuses with
+`422 not_actionable` whenever the optimizer's `objective_before` (the current assignment, best schedule) is null.
+`objective_before` is null when the current assignment has *no* feasible schedule within the horizon: for example, a
+dock closed for the whole shift, or two trips booked at a dock that reopens too late for both. That is exactly when a
+re-assignment matters most. The Phase 8 contract states `null` means "not available", never 0, and a recommendation
+carries `objective_before` and `objective_after` as measured values. The MCD avoids the case by closing IN-02 for 0–300
+min, which is actionable in every SIM-TMS phase (see `docs/scenarios/mcd-runbook.md`).
+**Decision (conservative default):** keep today's behaviour. No proposal is made without a measurable
+`objective_before`, so no recommendation compares against an invented baseline. The 422 message says the plan keeps
+every trip where it is or that no plan was found, and the runbook steers demos to an actionable window.
+**Options for the owner:** (a) allow the proposal, with `objective_before.value = null` and a constraint
+`current_plan.horizon` (SLA, `satisfied: false`) as the stated reason. The UI then shows "current plan infeasible"
+instead of a before value. (b) Add a penalized "unserved trip" term so `objective_before` is always defined. This
+changes the objective's meaning and needs an ADR-62 revision.
+**Consequences:** with the default, a whole-shift closure cannot produce a recommendation through the API; the
+simulation comparison (Phase 6) still shows its impact.

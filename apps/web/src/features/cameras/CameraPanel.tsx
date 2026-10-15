@@ -13,6 +13,7 @@ import {
   type ObservationView,
 } from './cameraApi';
 import { classColor, mediaRange, observationsAt, toPixels, trackCounts } from './cameraModel';
+import { sourceName } from '../../lib/eventSource';
 
 type Loaded<T> =
   { status: 'loading' } | { status: 'ok'; value: T } | { status: 'error'; error: unknown };
@@ -205,7 +206,7 @@ export function CameraPanel({
         </h2>
         <DataModeBadge dataMode={camera.data_mode} />
         <span className="rounded-control border border-line px-2 py-0.5 text-xs font-semibold text-ink-700">
-          {t('cameras.source', { source: camera.source })}
+          {t('cameras.source', { source: sourceName(camera.source) })}
         </span>
         {session?.detector ? (
           <span className="text-xs text-ink-600">

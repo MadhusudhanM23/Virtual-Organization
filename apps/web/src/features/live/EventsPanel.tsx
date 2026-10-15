@@ -16,6 +16,7 @@ import {
 } from './eventsModel';
 import type { EventEnvelope } from './liveProtocol';
 import { useLiveStore } from './liveStore';
+import { sourceLabel } from '../../lib/eventSource';
 
 const GROUP_LABEL: Record<EventGroup, MessageId> = {
   safety: 'live.events.group.safety',
@@ -63,16 +64,19 @@ export function EventsPanelView({
   const paused = frozen !== null;
   const source = frozen ?? events;
   const visible = useMemo(
-    () => source.filter((e) => {
-      const g = groupOf(e.event_type);
-      return g !== null && groups.has(g);
-    }),
+    () =>
+      source.filter((e) => {
+        const g = groupOf(e.event_type);
+        return g !== null && groups.has(g);
+      }),
     [source, groups],
   );
   const waiting = useMemo(() => {
     if (!frozen) return 0;
     const known = new Set(frozen.map((e) => e.event_id));
-    return events.filter((e) => !known.has(e.event_id) && groups.has(groupOf(e.event_type) ?? 'site')).length;
+    return events.filter(
+      (e) => !known.has(e.event_id) && groups.has(groupOf(e.event_type) ?? 'site'),
+    ).length;
   }, [frozen, events, groups]);
 
   return (
@@ -154,7 +158,7 @@ export function EventsPanelView({
                 ) : null}
                 <div className="flex flex-wrap items-center gap-2">
                   <DataModeBadge dataMode={e.data_mode} />
-                  <span className="text-xs text-ink-600">{e.source}</span>
+                  <span className="text-xs text-ink-600">{sourceLabel(e.source)}</span>
                   {entity ? (
                     <button
                       type="button"

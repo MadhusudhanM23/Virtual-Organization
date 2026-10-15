@@ -20,6 +20,7 @@ import {
   type Timeline,
 } from './incidentApi';
 import { formatDistance, MAX_NOTE } from './incidentModel';
+import { sourceLabel, sourceName } from '../../lib/eventSource';
 
 export function Card({
   title,
@@ -108,7 +109,7 @@ export function TimelineList({ timeline }: { timeline: Timeline | null }) {
           <p className="text-sm text-ink-700">{it.summary}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-600">
             <DataModeBadge dataMode={it.data_mode} />
-            <span>{it.source}</span>
+            <span>{sourceLabel(it.source)}</span>
             {it.actor_type ? (
               <span>
                 {it.actor_type}
@@ -342,7 +343,7 @@ function EventDialog({
             </Row>
             <Row label={t('incident.event.occurred')}>{fmt.dateTime(state.event.occurred_at)}</Row>
             <Row label={t('incident.event.source')}>
-              <span className="mr-2">{state.event.source}</span>
+              <span className="mr-2">{sourceName(state.event.source)}</span>
               <DataModeBadge dataMode={state.event.data_mode} />
             </Row>
           </dl>

@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useTwinStore } from '../twin/twinStore';
 import type { AssistantResponse, Citation } from './assistantApi';
 import {
+  answerTruth,
   applyDirectives,
   citationRoute,
+  citationTruth,
   flagNotes,
   planDirectives,
   providerLabel,
@@ -65,7 +67,12 @@ describe('assistantModel', () => {
       text: 'OFFLINE · deterministic',
       reason: 'external LLM use is off for this tenant',
     });
-    const ext = providerLabel({ ...response().provider, name: 'openai', model: 'gpt-x', reason: 'x' });
+    const ext = providerLabel({
+      ...response().provider,
+      name: 'openai',
+      model: 'gpt-x',
+      reason: 'x',
+    });
     expect(ext.text).toBe('OPENAI · gpt-x');
     expect(ext.reason).toBe('x');
   });
@@ -116,5 +123,51 @@ describe('assistantModel', () => {
       }),
     );
     expect(notes).toHaveLength(3);
+  });
+});
+
+describe('truth labels of an answer (plan 10.2 audit, ADR-27)', () => {
+  const cite = (id: string, kind: string, data_mode: string | null): Citation => ({
+    id,
+    kind,
+    ref: `r-${id}`,
+    label: id,
+    href: '/x',
+    tool: 't',
+    data_mode,
+    values: {},
+  });
+
+  it('labels a cited scenario or simulation run SIMULATION, other evidence by its data mode', () => {
+    expect(citationTruth(cite('c1', 'SIMULATION_RUN', 'SIMULATED'))).toEqual({
+      dataMode: 'SIMULATED',
+      lens: 'SIMULATE',
+    });
+    expect(citationTruth(cite('c2', 'SCENARIO', 'SIMULATED'))).toEqual({
+      dataMode: 'SIMULATED',
+      lens: 'SIMULATE',
+    });
+    expect(citationTruth(cite('c3', 'ZONE', 'SYNTHETIC'))).toEqual({ dataMode: 'SYNTHETIC' });
+    expect(citationTruth(cite('c4', 'INCIDENT', null))).toBeNull();
+  });
+
+  it('derives one label per distinct kind from the citations, else from data_modes', () => {
+    const r = {
+      citations: [
+        cite('c1', 'SCENARIO', 'SIMULATED'),
+        cite('c2', 'SIMULATION_RUN', 'SIMULATED'),
+        cite('c3', 'DOCK', 'SYNTHETIC'),
+        cite('c4', 'METRIC', 'SIMULATED'),
+      ],
+      data_modes: ['SIMULATED', 'SYNTHETIC'],
+    };
+    expect(answerTruth(r)).toEqual([
+      { dataMode: 'SIMULATED', lens: 'SIMULATE' },
+      { dataMode: 'SYNTHETIC' },
+      { dataMode: 'SIMULATED' },
+    ]);
+    expect(answerTruth({ citations: [], data_modes: ['SYNTHETIC', 'BOGUS'] })).toEqual([
+      { dataMode: 'SYNTHETIC' },
+    ]);
   });
 });

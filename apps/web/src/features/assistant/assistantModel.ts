@@ -57,6 +57,44 @@ export function citationDataMode(c: Citation): DataMode | null {
   return asDataMode(c.data_mode);
 }
 
+/** A truth label to render: the data mode, and the SIMULATE lens for scenario results (DataModeBadge `lens`). */
+export interface TruthBadge {
+  dataMode: DataMode;
+  lens?: 'SIMULATE';
+}
+
+const SCENARIO_RESULT_KINDS = new Set(['SCENARIO', 'SIMULATION_RUN']);
+
+/**
+ * The truth label of one citation (ADR-27): a scenario or a simulation run is a scenario result, shown as SIMULATION,
+ * whatever its stored `data_mode` (SIMULATED); everything else shows its own data mode. Found by the plan 10.2 audit:
+ * the panel labeled cited simulation outputs SIMULATED, the label of live simulated-adapter data.
+ */
+export function citationTruth(c: Citation): TruthBadge | null {
+  const dataMode = citationDataMode(c);
+  if (!dataMode) return null;
+  return SCENARIO_RESULT_KINDS.has(c.kind) ? { dataMode, lens: 'SIMULATE' } : { dataMode };
+}
+
+/** The labels of a whole answer: one per distinct label of its citations, else the response's `data_modes`. */
+export function answerTruth(r: Pick<AssistantResponse, 'citations' | 'data_modes'>): TruthBadge[] {
+  const fromCitations = r.citations.map(citationTruth).filter((b): b is TruthBadge => b !== null);
+  const all: TruthBadge[] =
+    fromCitations.length > 0
+      ? fromCitations
+      : r.data_modes
+          .map(asDataMode)
+          .filter((m): m is DataMode => m !== null)
+          .map((dataMode) => ({ dataMode }));
+  const seen = new Set<string>();
+  return all.filter((b) => {
+    const key = b.lens ? 'SIMULATION' : b.dataMode;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /** Where "View details" opens the cited record in the app (null: no page of its own). */
 export function citationRoute(c: Citation): string | null {
   switch (c.kind) {

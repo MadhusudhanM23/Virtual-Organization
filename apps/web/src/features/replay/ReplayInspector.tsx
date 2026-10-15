@@ -8,6 +8,7 @@ import { useTwinStore } from '../twin/twinStore';
 import type { ReplayEntity } from './replayApi';
 import { useReplayStore, type ReplayBase } from './replayStore';
 import { toIso } from './timelineModel';
+import { sourceName } from '../../lib/eventSource';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -51,20 +52,30 @@ export function ProvenanceNote({
         })}
       </p>
       {advanced && at > base.at ? (
-        <p className="mt-0.5">{t('replay.provenance.frames', { at: fmt.dateTimeSeconds(toIso(at)) })}</p>
+        <p className="mt-0.5">
+          {t('replay.provenance.frames', { at: fmt.dateTimeSeconds(toIso(at)) })}
+        </p>
       ) : null}
     </div>
   );
 }
 
 /** The selected entity as of the replay time (the frame state, not interpolated), with replay provenance. */
-export function ReplayInspectorBody({ entity, onClear }: { entity: ReplayEntity | null; onClear: () => void }) {
+export function ReplayInspectorBody({
+  entity,
+  onClear,
+}: {
+  entity: ReplayEntity | null;
+  onClear: () => void;
+}) {
   const fmt = useSiteFormat();
   const base = useReplayStore((s) => s.base);
   const at = useReplayStore((s) => s.at);
   const advanced = useReplayStore((s) => s.advancedByFrames);
   const world = useReplayStore((s) => s.world);
-  const floorName = entity?.floor_id ? world?.floors.find((f) => f.id === entity.floor_id)?.name : null;
+  const floorName = entity?.floor_id
+    ? world?.floors.find((f) => f.id === entity.floor_id)?.name
+    : null;
   const zoneName = entity?.zone_id ? world?.zones.find((z) => z.id === entity.zone_id)?.name : null;
 
   return (
@@ -115,10 +126,14 @@ export function ReplayInspectorBody({ entity, onClear }: { entity: ReplayEntity 
                   {entity.pose.x.toFixed(2)}, {entity.pose.y.toFixed(2)}, {entity.pose.z.toFixed(2)}
                 </span>
               </Row>
-              <Row label={t('twin.inspector.heading')}>{entity.pose.heading_deg.toFixed(0)} deg</Row>
-              <Row label={t('twin.inspector.poseTime')}>{fmt.dateTimeSeconds(entity.pose.occurred_at)}</Row>
+              <Row label={t('twin.inspector.heading')}>
+                {entity.pose.heading_deg.toFixed(0)} deg
+              </Row>
+              <Row label={t('twin.inspector.poseTime')}>
+                {fmt.dateTimeSeconds(entity.pose.occurred_at)}
+              </Row>
               <Row label={t('twin.inspector.poseSource')}>
-                <span className="mr-2">{entity.pose.source}</span>
+                <span className="mr-2">{sourceName(entity.pose.source)}</span>
                 <DataModeBadge dataMode={entity.pose.data_mode} lens="REPLAY" />
               </Row>
               <Row label={t('twin.inspector.confidence')}>

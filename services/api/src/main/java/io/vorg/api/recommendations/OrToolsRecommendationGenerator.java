@@ -164,10 +164,11 @@ public class OrToolsRecommendationGenerator implements RecommendationGenerator, 
         OptimizationResult result = solve(problem);
 
         FeasibilityStatus status = FeasibilityStatus.valueOf(result.feasibility().status().name());
-        if (!status.actionable() || result.objectiveAfter() == null || result.objectiveAfter().value() == null
-                || result.objectiveBefore() == null || result.objectiveBefore().value() == null) {
-            throw RecommendationProblems.of(HttpStatus.UNPROCESSABLE_CONTENT, "No actionable plan",
-                    "The optimizer found no plan to propose (feasibility " + status + ").",
+        String notActionable = notActionableDetail(status,
+                result.objectiveBefore() != null && result.objectiveBefore().value() != null,
+                result.objectiveAfter() != null && result.objectiveAfter().value() != null);
+        if (notActionable != null) {
+            throw RecommendationProblems.of(HttpStatus.UNPROCESSABLE_CONTENT, "No actionable plan", notActionable,
                     RecommendationProblems.NOT_ACTIONABLE, Map.of("feasibility_status", status.name()));
         }
         if (result.tripMoves().isEmpty() && result.forkliftMoves().isEmpty()) {
@@ -259,6 +260,24 @@ public class OrToolsRecommendationGenerator implements RecommendationGenerator, 
             }
             throw unavailable("The optimizer failed: " + ex.getCause().getClass().getSimpleName());
         }
+    }
+
+    /**
+     * Why a solve cannot be proposed, or {@code null} when it can. A plan needs a solver plan ({@code after}) and a
+     * measured baseline ({@code before}). Without a baseline the optimizer did find a plan, but the current assignment
+     * has no feasible schedule within the horizon, so there is nothing measured to compare it against (ADR-70). The
+     * MCD suite found that the earlier text ("found no plan") was wrong in that case.
+     */
+    static String notActionableDetail(FeasibilityStatus status, boolean hasBefore, boolean hasAfter) {
+        if (!status.actionable() || !hasAfter) {
+            return "The optimizer found no plan to propose (feasibility " + status + ").";
+        }
+        if (!hasBefore) {
+            return "The current assignment cannot be scheduled within the horizon, so there is no measured baseline"
+                    + " to compare a plan against and nothing is proposed (feasibility " + status
+                    + " for the re-assignment; see ADR-70).";
+        }
+        return null;
     }
 
     /** Closures per dock name: the scenario overlay's, plus a whole-horizon one for a dock the twin shows CLOSED. */

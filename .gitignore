@@ -58,3 +58,6 @@ Thumbs.db
 *.log
 logs/
 *.egg-info/
+
+# MCD stack runtime state (scripts/mcd-up.ps1: logs, pids)
+.mcd/

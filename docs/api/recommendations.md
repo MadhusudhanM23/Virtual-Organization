@@ -101,7 +101,8 @@ returns:
 - `503 generator_unavailable` when no `RecommendationGenerator` bean is configured. Plan 8.3 registers the OR-Tools
   implementation (see "Generation" below), so a normal server always has one.
 - `422 not_actionable` when the solver found no plan: the feasibility is neither `OPTIMAL` nor `FEASIBLE`, or the
-  plan has no steps. The problem includes `feasibility_status`.
+  plan has no steps, or the current assignment cannot be scheduled within the horizon at all (no measured
+  `objective_before` to compare against; the `detail` says so, see ADR-70). The problem includes `feasibility_status`.
 - `409 proposal_pending` when the run's latest proposal is still `PENDING` and hasn't expired. The problem includes
   `recommendation_id` and `approval_id`.
 
@@ -241,8 +242,8 @@ The solver runs on a bounded executor (`solver-threads`, `solver-queue`; more is
 - `rationale`: a template filled with measured and computed values only (closures, moves, objective before/after, gap,
   the trip-plan batch and the minutes-per-batch assumption).
 
-Problems: `422 optimization_input_missing`, `422 optimization_input_invalid`, `422 not_actionable` (no plan, or a plan
-without any move), `503 optimizer_busy`, `503 optimizer_unavailable`.
+Problems: `422 optimization_input_missing`, `422 optimization_input_invalid`, `422 not_actionable` (no plan, a plan
+without any move, or no feasible current schedule as baseline, ADR-70), `503 optimizer_busy`, `503 optimizer_unavailable`.
 
 ## Execution (plan 8.3)
 

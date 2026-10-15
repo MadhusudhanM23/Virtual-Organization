@@ -21,8 +21,10 @@ import { AdvisoryNotice, SeverityBadge, StatusBadge } from './parts';
 import { useSafetyStore } from './safetyStore';
 import { useIncidentDetail } from './useIncidentDetail';
 import { useIncidentPermissions } from './useIncidentPermissions';
+import { sourceName } from '../../lib/eventSource';
 
-type Open = { kind: 'lifecycle'; spec: LifecycleSpec } | { kind: 'assign' } | { kind: 'estop' } | null;
+type Open =
+  { kind: 'lifecycle'; spec: LifecycleSpec } | { kind: 'assign' } | { kind: 'estop' } | null;
 
 function EstopHistory({ incident }: { incident: Incident }) {
   const fmt = useSiteFormat();
@@ -170,7 +172,11 @@ function Detail({
           </h1>
           <div className="flex flex-wrap gap-2">
             {replayStart !== null ? (
-              <Link to={replayHref(replayStart, incident.id)} className={BUTTON_SECONDARY} data-testid="incident-replay">
+              <Link
+                to={replayHref(replayStart, incident.id)}
+                className={BUTTON_SECONDARY}
+                data-testid="incident-replay"
+              >
                 <History aria-hidden="true" className="size-4" />
                 {t('incident.replay')}
               </Link>
@@ -186,7 +192,7 @@ function Detail({
           <StatusBadge status={incident.status} />
           <DataModeBadge dataMode={incident.data_mode} />
           <span className="text-xs text-ink-600">
-            {t('incident.field.source')}: {incident.source}
+            {t('incident.field.source')}: {sourceName(incident.source)}
           </span>
         </div>
         <AdvisoryNotice notice={incident.advisory_notice} />
@@ -195,7 +201,11 @@ function Detail({
       <Card title={t('incident.section.actions')} testId="incident-actions">
         <div className="flex flex-col gap-3">
           {done ? (
-            <p role="status" className="text-sm font-semibold text-success-fg" data-testid="command-done">
+            <p
+              role="status"
+              className="text-sm font-semibold text-success-fg"
+              data-testid="command-done"
+            >
               {done}
             </p>
           ) : null}
@@ -277,7 +287,9 @@ function Detail({
                   : t('incident.field.unassigned')}
               </Row>
               <Row label={t('incident.field.confidence')}>
-                {incident.confidence === null ? '-' : fmt.number(incident.confidence, { maximumFractionDigits: 2 })}
+                {incident.confidence === null
+                  ? '-'
+                  : fmt.number(incident.confidence, { maximumFractionDigits: 2 })}
               </Row>
               {incident.status_reason ? (
                 <Row label={t('incident.field.reason')}>{incident.status_reason}</Row>
@@ -309,7 +321,9 @@ function Detail({
               incident={incident}
               canAdd={offered.notes}
               myActorRef={perms.actorRef}
-              onAdded={() => void afterCommand(t('incident.done', { action: t('incident.notes.add') }))}
+              onAdded={() =>
+                void afterCommand(t('incident.done', { action: t('incident.notes.add') }))
+              }
             />
           </Card>
         </div>
@@ -350,7 +364,9 @@ function Detail({
           current={incident.assigned_actor_ref}
           onClose={() => setOpen(null)}
           onConflict={() => void detail.reload()}
-          onDone={() => void afterCommand(t('incident.done', { action: t('incident.assign.title') }))}
+          onDone={() =>
+            void afterCommand(t('incident.done', { action: t('incident.assign.title') }))
+          }
         />
       ) : null}
     </>
