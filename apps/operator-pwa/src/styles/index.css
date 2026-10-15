@@ -1,0 +1,180 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  /* One consistent, always-visible keyboard focus indicator (WCAG 2.4.7, 2.4.11 focus appearance). */
+  :focus-visible {
+    outline: 3px solid var(--color-accent-600);
+    outline-offset: 2px;
+    border-radius: 0.375rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * Controls: every interactive element is at least 44 x 44 CSS px (WCAG 2.2 AA target size, 2.5.8, and the
+ * 44px field-use guideline).
+ */
+@layer components {
+  .btn {
+    display: inline-flex;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-line-strong);
+    background: var(--color-surface);
+    color: var(--color-ink-900);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    color: var(--color-ink-600);
+    background: var(--color-surface-sunken);
+  }
+  .btn-primary {
+    background: var(--color-accent-700);
+    border-color: var(--color-accent-700);
+    color: #fff;
+  }
+  .btn-primary:disabled {
+    background: var(--color-neutral-fg);
+    border-color: var(--color-neutral-fg);
+    color: #fff;
+  }
+  .btn-danger {
+    background: var(--color-danger-bg);
+    border-color: var(--color-danger-line);
+    color: var(--color-danger-fg);
+  }
+  .field {
+    display: block;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-ink-500);
+    border-radius: var(--radius-control);
+    background: #fff;
+    color: var(--color-ink-900);
+    font-size: 1rem;
+  }
+  .label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+    color: var(--color-ink-700);
+  }
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: 1rem;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-height: 1.5rem;
+    padding: 0 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-neutral-line);
+    background: var(--color-neutral-bg);
+    color: var(--color-neutral-fg);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .chip-info {
+    background: var(--color-info-bg);
+    border-color: var(--color-info-line);
+    color: var(--color-info-fg);
+  }
+  .chip-success {
+    background: var(--color-success-bg);
+    border-color: var(--color-success-line);
+    color: var(--color-success-fg);
+  }
+  .chip-warning {
+    background: var(--color-warning-bg);
+    border-color: var(--color-warning-line);
+    color: var(--color-warning-fg);
+  }
+  .chip-danger {
+    background: var(--color-danger-bg);
+    border-color: var(--color-danger-line);
+    color: var(--color-danger-fg);
+  }
+  .banner {
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-info-line);
+    background: var(--color-info-bg);
+    color: var(--color-info-fg);
+  }
+  .banner-warning {
+    border-color: var(--color-warning-line);
+    background: var(--color-warning-bg);
+    color: var(--color-warning-fg);
+  }
+  .banner-danger {
+    border-color: var(--color-danger-line);
+    background: var(--color-danger-bg);
+    color: var(--color-danger-fg);
+  }
+  .nav-link {
+    display: flex;
+    min-height: 3.5rem;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.5rem;
+    color: var(--color-ink-700);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-top: 3px solid transparent;
+  }
+  .nav-link[aria-current='page'] {
+    color: var(--color-accent-700);
+    border-top-color: var(--color-accent-700);
+  }
+  .sr-only-focusable:not(:focus) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
