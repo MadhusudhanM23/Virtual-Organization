@@ -35,8 +35,15 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      # Fail fast: with Redis down /actuator/health must answer in about a second, not after the client's default wait.
+      timeout: 1s
+      connect-timeout: 1s
 
 management:
+  health:
+    # Replaced by appDatabase (AppDatabaseHealthIndicator): one fast check instead of three chained connection timeouts.
+    db:
+      enabled: false
   metrics:
     distribution:
       # Histogram buckets for the API p95 alert and dashboard (NFR-01, Plan 11.1).
@@ -54,6 +61,10 @@ management:
     health:
       probes:
         enabled: true
+      group:
+        # Readiness means "can serve requests": the database is required, Redis is not (Plan 11.2 chaos finding).
+        readiness:
+          include: readinessState,appDatabase
   tracing:
     sampling:
       probability: ${VO_TRACING_SAMPLING:0.1}

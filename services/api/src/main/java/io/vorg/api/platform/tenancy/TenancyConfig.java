@@ -20,8 +20,13 @@ public class TenancyConfig {
     DataSource dataSource(
             @Value("${spring.datasource.url}") String url,
             @Value("${spring.datasource.username}") String username,
-            @Value("${spring.datasource.password}") String password) {
+            @Value("${spring.datasource.password}") String password,
+            @Value("${vo.db.connection-timeout-ms:3000}") long connectionTimeoutMs) {
         HikariDataSource hikari = new HikariDataSource();
+        hikari.setPoolName("app");
+        // Fail fast when the database is gone: callers get an error (and /actuator/health a DOWN) in seconds, not
+        // after Hikari's 30 s default (Plan 11.2 chaos finding: health hung while Postgres was down).
+        hikari.setConnectionTimeout(connectionTimeoutMs);
         hikari.setJdbcUrl(url);
         hikari.setUsername(username);
         hikari.setPassword(password);

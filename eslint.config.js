@@ -43,7 +43,7 @@ export default tseslint.config(
     ...jsxA11y.flatConfigs.recommended,
   },
   {
-    files: ['**/*.config.{js,ts}', '**/e2e/**/*.ts', '**/e2e-real/**/*.ts', '**/e2e-mcd/**/*.ts'],
+    files: ['**/*.config.{js,ts}', '**/e2e/**/*.ts', '**/e2e-real/**/*.ts', '**/e2e-mcd/**/*.ts', '**/e2e-a11y/**/*.ts', '**/e2e-chaos/**/*.ts'],
     languageOptions: { globals: { ...globals.node } },
   },
   prettier,

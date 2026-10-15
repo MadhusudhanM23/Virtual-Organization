@@ -19,9 +19,11 @@ public class OutboxConfig {
             @Value("${vo.outbox.datasource.url}") String url,
             @Value("${vo.outbox.datasource.username}") String username,
             @Value("${vo.outbox.datasource.password}") String password,
-            @Value("${vo.outbox.datasource.max-pool-size:4}") int maxPoolSize) {
+            @Value("${vo.outbox.datasource.max-pool-size:4}") int maxPoolSize,
+            @Value("${vo.db.connection-timeout-ms:3000}") long connectionTimeoutMs) {
         HikariDataSource hikari = new HikariDataSource();
         hikari.setPoolName("outbox");
+        hikari.setConnectionTimeout(connectionTimeoutMs);
         hikari.setJdbcUrl(url);
         hikari.setUsername(username);
         hikari.setPassword(password);
