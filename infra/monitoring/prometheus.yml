@@ -1,15 +1,28 @@
 # Prometheus configuration for the local "observability" compose profile.
-# Mounted by infra/docker/compose.yaml at /etc/prometheus/prometheus.yml.
+# Mounted by infra/docker/compose.yaml at /etc/prometheus/prometheus.yml (override the file with PROMETHEUS_CONFIG
+# when the API or AI gateway run on other host ports; Prometheus does not expand environment variables).
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+rule_files:
+  - /etc/prometheus/alerts.yml
+
 scrape_configs:
   # Spring Boot API running on the host (services/api, port 8080; Plan 1.2).
+  # /actuator/prometheus is open only where vo.security.permit-prometheus=true (the local profile).
   - job_name: vorg-api
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ["host.docker.internal:8080"]
         labels:
           service: api
+
+  # AI assistant gateway (services/ai, port 8090; Plan 11.1).
+  - job_name: vorg-ai
+    metrics_path: /api/assistant/metrics
+    static_configs:
+      - targets: ["host.docker.internal:8090"]
+        labels:
+          service: ai

@@ -37,6 +37,15 @@ spring:
       port: ${REDIS_PORT:6379}
 
 management:
+  metrics:
+    distribution:
+      # Histogram buckets for the API p95 alert and dashboard (NFR-01, Plan 11.1).
+      percentiles-histogram:
+        http.server.requests: true
+      minimum-expected-value:
+        http.server.requests: 5ms
+      maximum-expected-value:
+        http.server.requests: 30s
   endpoints:
     web:
       exposure:
