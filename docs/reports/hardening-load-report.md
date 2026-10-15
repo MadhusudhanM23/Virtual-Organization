@@ -13,7 +13,7 @@ date stated. Nothing is estimated. The MCD baselines (one sequential client) are
 | Machine | Intel Core i3-12100 (4 cores / 8 threads), 15.8 GB RAM, Windows 11 Pro 10.0.26300, Docker Desktop 29.7.2 |
 | Shared machine | **Two other build agents were running on the same machine** (a second `java` process was using CPU during the runs; CPU load read 73 % between runs). The numbers are therefore pessimistic and noisy, and a run-to-run spread is reported rather than hidden. |
 | Stack | `scripts/mcd-up.ps1 -ApiPort 8181 -AiPort 8191 -NoWeb`: API jar on Temurin 21.0.12 (local profile), `postgis/postgis:16-3.5` (limit 1 GiB) and `redis:7-alpine` in the compose project `vorg-p11` (ports 5442 and 6389). The movement source (1 s ticks) and SIM-WMS/SIM-TMS adapters were running, as in the MCD. |
-| Tool | `grafana/k6:1.3.0` in Docker, reaching the host API through `host.docker.internal`. The load generator shares the CPU with the API. |
+| Tool | `grafana/k6:1.3.0` in Docker (all numbers below were measured with it), reaching the host API through `host.docker.internal`. The load generator shares the CPU with the API. The scripts now pin `grafana/k6:1.8.2` (fewer image findings, see the supply-chain report); a 10 s reads plus 5-client WebSocket smoke run with 1.8.2 passed its thresholds, the full runs were not repeated. |
 | Data | the SYNTHETIC Bengaluru Warehouse 01 seed. The command test creates scenarios, so by the end the demo tenant held about 5,000 extra SYNTHETIC probe scenarios. |
 
 Reproduce: `$env:DEMO_USER_PASSWORD = "..."` then

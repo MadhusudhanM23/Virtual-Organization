@@ -31,6 +31,11 @@
     <archunit.version>1.5.1</archunit.version>
     <uuid-creator.version>6.1.1</uuid-creator.version>
     <json-schema-validator.version>3.0.8</json-schema-validator.version>
+    <!-- Security overrides of the Spring Boot 4.1.1 managed versions (Plan 11.5, Trivy on the Maven SBOM): embedded Tomcat
+         11.0.24 has 3 CRITICAL CVEs fixed in 11.0.25; Jackson 3.1.5 has 5 HIGH CVEs fixed in 3.1.7. Remove an override
+         once the Spring Boot parent manages a version at or above it. -->
+    <tomcat.version>11.0.25</tomcat.version>
+    <jackson-bom.version>3.1.7</jackson-bom.version>
   </properties>
 
   <dependencyManagement>
@@ -52,4 +57,22 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <!-- SBOM (Plan 11.5): `mvnw org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom`, see scripts/supply-chain.ps1. -->
+        <plugin>
+          <groupId>org.cyclonedx</groupId>
+          <artifactId>cyclonedx-maven-plugin</artifactId>
+          <version>2.9.1</version>
+          <configuration>
+            <projectType>application</projectType>
+            <schemaVersion>1.6</schemaVersion>
+            <outputFormat>json</outputFormat>
+            <outputName>bom</outputName>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
 </project>

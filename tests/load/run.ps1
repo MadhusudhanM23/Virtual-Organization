@@ -5,7 +5,7 @@
 param(
     [int]$ApiPort = 8080,
     [string[]]$Tests = @('reads', 'commands', 'ws', 'simulation'),
-    [string]$Image = 'grafana/k6:1.3.0',
+    [string]$Image = 'grafana/k6:1.8.2',
     [string[]]$Vars = @()  # "NAME=value" pairs passed to k6 as -e
 )
 $ErrorActionPreference = 'Stop'

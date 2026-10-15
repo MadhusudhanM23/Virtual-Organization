@@ -1,0 +1,26 @@
+{
+  "_comment": "HIGH/CRITICAL findings accepted on purpose (Plan 11.5). 'accepted' lists single finding ids; 'accepted_sources' accepts a whole scan source (here: third-party container images, whose OS packages and bundled Go binaries we do not build). scripts/supply-chain.ps1 fails on anything else. Every entry needs a reason; review them whenever the image tags change. Details: docs/reports/hardening-supply-chain.md.",
+  "accepted": [],
+  "accepted_sources": [
+    {
+      "source": "trivy-image-postgis_postgis_16_3_5",
+      "reason": "postgis/postgis:16-3.5 is built on Debian 11 (end of life): 151 of 255 findings have no fix in any package source, and the tags 16-3.5-bookworm and 16-3.6 do not exist upstream (checked 2026-10-15). Local development database only (port bound to 127.0.0.1, dev placeholder credentials, SYNTHETIC data). A production database is not defined yet (ADR-71); it must be a managed or maintained Postgres 16 image. Moving the dev volume to another libc would also change text collation, so the tag is not changed here."
+    },
+    {
+      "source": "trivy-image-redis_7_alpine",
+      "reason": "2 HIGH in libssl3/libcrypto3 (OpenSSL 3.3.7-r1, fixed in the -r2 Alpine package). Fix is an upstream image rebuild of redis:7-alpine; the tag floats, so a pull picks it up. Redis holds no authoritative data and is bound to 127.0.0.1."
+    },
+    {
+      "source": "trivy-image-prom_prometheus_v3_15_0",
+      "reason": "10 HIGH inside the Prometheus Go binaries (Go standard library, golang.org/x/net). v3.15.0 is the newest tag published; fixed only by an upstream release. Observability profile only, bound to 127.0.0.1."
+    },
+    {
+      "source": "trivy-image-grafana_grafana_13_2_4",
+      "reason": "56 HIGH inside the Go binaries of Grafana and its bundled data-source plugins (stdlib 1.26.6/1.26.7, x/net, grpc). Moved from 13.2.3 to 13.2.4, the newest tag, which removed 8 of 64. The rest is fixed only by an upstream release. Observability profile only, bound to 127.0.0.1, anonymous viewer."
+    },
+    {
+      "source": "trivy-image-grafana_k6_1_8_2",
+      "reason": "16 HIGH (Go standard library inside k6, OpenSSL in the Alpine base). Developer load-test tool, run with --rm against the local stack; moved from 1.3.0 (71 findings, 4 CRITICAL) to 1.8.2. Never deployed."
+    }
+  ]
+}
