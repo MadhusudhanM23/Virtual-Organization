@@ -7,6 +7,7 @@ import io.vorg.api.platform.web.ApiProblemException;
 import io.vorg.simulation.Engine;
 import io.vorg.simulation.warehouse.Comparison;
 import io.vorg.simulation.warehouse.InvalidInputException;
+import io.vorg.simulation.warehouse.MonteCarlo;
 import io.vorg.simulation.warehouse.Scenario;
 import io.vorg.simulation.warehouse.SimulationRunner;
 import java.util.Map;
@@ -83,8 +84,10 @@ public class SimulationRunService {
             Scenario scenario = Scenario.parse(scenarioJson);
             Comparison comparison = SimulationRunner.runWithBaseline(scenario);
             Map<String, Object> resultDoc = comparison.toMap();
-            String resultsJson = mapper.writeValueAsString(resultDoc);
             String resultsHash = String.valueOf(resultDoc.get("comparison_hash"));
+            // Monte Carlo distributions (REQ-140, ADR-80): next to the comparison, not part of its hash.
+            resultDoc.put("distributions", MonteCarlo.report(comparison));
+            String resultsJson = mapper.writeValueAsString(resultDoc);
             succeed(tenantId, runId, resultsJson, resultsHash);
         } catch (InvalidInputException ex) {
             fail(tenantId, runId, "Invalid scenario: " + ex.getMessage());

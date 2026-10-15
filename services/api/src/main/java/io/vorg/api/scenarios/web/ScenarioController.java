@@ -12,6 +12,7 @@ import io.vorg.api.platform.web.ApiProblemException;
 import io.vorg.api.platform.web.ApiProblemException.FieldError;
 import io.vorg.api.platform.web.PageParams.Page;
 import io.vorg.api.scenarios.ScenarioAccess;
+import io.vorg.api.scenarios.ScenarioJson;
 import io.vorg.api.scenarios.ScenarioQueryService;
 import io.vorg.api.scenarios.ScenarioQueryService.ScenarioView;
 import io.vorg.api.scenarios.ScenarioService;
@@ -44,7 +45,7 @@ public class ScenarioController {
     private static final int MAX_DESCRIPTION = 2000;
 
     public record ScenarioRequest(UUID siteId, String name, String description, Map<String, Object> overlay,
-            Map<String, Object> run) {}
+            Map<String, Object> run, Map<String, Object> signature) {}
 
     private final ScenarioQueryService queries;
     private final ScenarioService scenarios;
@@ -66,6 +67,12 @@ public class ScenarioController {
             @RequestParam(required = false) Integer limit, @RequestParam(required = false) String cursor,
             @AuthenticationPrincipal Subject subject) {
         return queries.list(subject, siteId, limit, cursor);
+    }
+
+    /** The signature scenario types (REQ-140): parameters, bounds, deterministic fixtures and provenance. */
+    @GetMapping("/api/scenario-types")
+    public Map<String, Object> types() {
+        return Map.of("items", io.vorg.simulation.warehouse.SignatureScenarios.catalog());
     }
 
     @GetMapping("/api/scenarios/{id}")
@@ -92,6 +99,7 @@ public class ScenarioController {
             throw new ApiProblemException(HttpStatus.BAD_REQUEST, "Validation failed",
                     "One or more fields are invalid.", errors);
         }
+        Map<String, Object> overlay = ScenarioJson.resolveOverlay(body.overlay(), body.signature());
         UUID siteId = body.siteId();
         Decision check = access.check(subject, siteId);
         if ("DENY_UNKNOWN_RESOURCE".equals(check.code())) {
@@ -103,8 +111,8 @@ public class ScenarioController {
         if (!description.isEmpty()) {
             payload.put("description", description);
         }
-        if (body.overlay() != null) {
-            payload.put("overlay", body.overlay());
+        if (overlay != null) {
+            payload.put("overlay", overlay);
         }
         if (body.run() != null) {
             payload.put("run", body.run());
@@ -112,7 +120,7 @@ public class ScenarioController {
         CommandSpec spec = new CommandSpec("SCENARIO_CREATE", key, subject, Action.CREATE_SIMULATION,
                 ResourceRef.site(subject.tenantId(), siteId), PolicyContext.none(), payload);
         return ResponseEntity.ok(gateway.execute(spec, () -> scenarios.create(subject.tenantId(), siteId,
-                subject.actorRef(), name, description, body.overlay(), body.run())));
+                subject.actorRef(), name, description, overlay, body.run())));
     }
 
     @PostMapping("/api/scenarios/{id}/runs")
