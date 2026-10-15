@@ -6,7 +6,11 @@ import { freshStore, make } from './testing';
 describe('request building (docs/api/field-sync.md)', () => {
   it('task commands carry queued_offline, captured_at and the base version', async () => {
     const store = await freshStore();
-    const item = await make(store, { action: 'complete', taskId: 'abc', body: { base_version: 3 } });
+    const item = await make(store, {
+      action: 'complete',
+      taskId: 'abc',
+      body: { base_version: 3 },
+    });
     expect(buildRequest(item)).toEqual({
       path: '/tasks/abc/complete',
       body: { base_version: 3, queued_offline: true, captured_at: '2026-10-15T08:00:00.000Z' },
@@ -41,15 +45,30 @@ describe('request building (docs/api/field-sync.md)', () => {
 
   it('scans and urgent records are site-level', async () => {
     const store = await freshStore();
-    const scan = await make(store, { kind: 'INVENTORY_SCAN', action: null, taskId: null, body: { sku: 'S' } });
-    expect(buildRequest(scan)).toMatchObject({ path: '/field/inventory-scans', body: { sku: 'S', site_id: 'site-1' } });
-    const urgent = await make(store, { kind: 'URGENT_RECORD', action: null, taskId: null, body: { category: 'SAFETY' } });
+    const scan = await make(store, {
+      kind: 'INVENTORY_SCAN',
+      action: null,
+      taskId: null,
+      body: { sku: 'S' },
+    });
+    expect(buildRequest(scan)).toMatchObject({
+      path: '/field/inventory-scans',
+      body: { sku: 'S', site_id: 'site-1' },
+    });
+    const urgent = await make(store, {
+      kind: 'URGENT_RECORD',
+      action: null,
+      taskId: null,
+      body: { category: 'SAFETY' },
+    });
     expect(buildRequest(urgent).path).toBe('/field/urgent-records');
   });
 
   it('refuses to build a request for an approval row', async () => {
     const store = await freshStore();
     const item = await make(store);
-    expect(() => buildRequest({ ...item, kind: 'APPROVAL' as never })).toThrowError(OfflineRefusalError);
+    expect(() => buildRequest({ ...item, kind: 'APPROVAL' as never })).toThrowError(
+      OfflineRefusalError,
+    );
   });
 });

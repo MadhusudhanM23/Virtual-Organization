@@ -106,7 +106,11 @@ export class MockApi {
 
     if (path === '/api/auth/login' && method === 'POST') {
       this.loggedIn = true;
-      return this.json(route, 200, { access_token: 'tok-1', token_type: 'Bearer', expires_in: 900 });
+      return this.json(route, 200, {
+        access_token: 'tok-1',
+        token_type: 'Bearer',
+        expires_in: 900,
+      });
     }
     if (path === '/api/auth/refresh') {
       return this.loggedIn
@@ -125,7 +129,13 @@ export class MockApi {
           {
             id: 'org-1',
             name: 'Org',
-            regions: [{ id: 'r1', name: 'South', sites: [{ id: 'site-1', name: 'Bengaluru Warehouse 01' }] }],
+            regions: [
+              {
+                id: 'r1',
+                name: 'South',
+                sites: [{ id: 'site-1', name: 'Bengaluru Warehouse 01' }],
+              },
+            ],
           },
         ],
       });
@@ -157,10 +167,17 @@ export class MockApi {
 
   private resultFor(path: string, body: Record<string, unknown> | null): Record<string, unknown> {
     if (path.endsWith('/evidence')) {
-      return { evidence_id: 'ev-1', duplicate: false, sync_state: 'SYNCED', client_ref: body?.client_ref };
+      return {
+        evidence_id: 'ev-1',
+        duplicate: false,
+        sync_state: 'SYNCED',
+        client_ref: body?.client_ref,
+      };
     }
-    if (path.endsWith('/inventory-scans')) return { outcome: 'RECORDED', applied: true, quantity_overwritten: false };
-    if (path.endsWith('/urgent-records')) return { kind: 'URGENT', advisory: true, executed: false };
+    if (path.endsWith('/inventory-scans'))
+      return { outcome: 'RECORDED', applied: true, quantity_overwritten: false };
+    if (path.endsWith('/urgent-records'))
+      return { kind: 'URGENT', advisory: true, executed: false };
     if (path.endsWith('/issues')) return { issue_id: 'iss-1' };
     return { applied: true, changed: true, status: 'OK', version: 2 };
   }

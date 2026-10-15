@@ -79,7 +79,12 @@ describe('EXIF / GPS stripping', () => {
 
   it('removes EXIF/XMP chunks from a WebP, fixes the RIFF size and clears the VP8X flags', () => {
     const le = (n: number) => [n & 0xff, (n >> 8) & 0xff, (n >> 16) & 0xff, (n >>> 24) & 0xff];
-    const chunk = (type: string, data: number[]) => [...enc(type), ...le(data.length), ...data, ...(data.length & 1 ? [0] : [])];
+    const chunk = (type: string, data: number[]) => [
+      ...enc(type),
+      ...le(data.length),
+      ...data,
+      ...(data.length & 1 ? [0] : []),
+    ];
     const body = [
       ...enc('WEBP'),
       ...chunk('VP8X', [0x0c, 0, 0, 0, 0, 0, 0, 0, 0, 0]),

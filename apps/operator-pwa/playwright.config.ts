@@ -20,7 +20,12 @@ export default defineConfig({
     viewport: { width: 390, height: 844 },
     hasTouch: true,
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, hasTouch: true } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, hasTouch: true },
+    },
+  ],
   webServer: {
     command: `npx vite build && npx vite preview --port ${PORT} --strictPort`,
     url: BASE_URL,

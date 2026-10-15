@@ -10,7 +10,14 @@ import {
 import type { TaskView } from '../../lib/tasks/model';
 import { useEnqueue } from './useEnqueue';
 
-const ISSUE_TYPES = ['BLOCKED', 'DAMAGED_GOODS', 'WRONG_LOCATION', 'EQUIPMENT_FAULT', 'SAFETY_CONCERN', 'OTHER'] as const;
+const ISSUE_TYPES = [
+  'BLOCKED',
+  'DAMAGED_GOODS',
+  'WRONG_LOCATION',
+  'EQUIPMENT_FAULT',
+  'SAFETY_CONCERN',
+  'OTHER',
+] as const;
 
 export function IssueForm({ task }: { task: TaskView }) {
   const enqueue = useEnqueue();
@@ -33,7 +40,11 @@ export function IssueForm({ task }: { task: TaskView }) {
   }
 
   return (
-    <form className="card flex flex-col gap-3" onSubmit={(e) => void submit(e)} aria-labelledby="issue-h">
+    <form
+      className="card flex flex-col gap-3"
+      onSubmit={(e) => void submit(e)}
+      aria-labelledby="issue-h"
+    >
       <h2 id="issue-h" className="m-0 text-xl font-bold">
         {t('issue.title')}
       </h2>
@@ -54,7 +65,9 @@ export function IssueForm({ task }: { task: TaskView }) {
           ))}
         </select>
       </div>
-      {type === 'SAFETY_CONCERN' ? <p className="banner banner-warning m-0">{t('issue.safetyNote')}</p> : null}
+      {type === 'SAFETY_CONCERN' ? (
+        <p className="banner banner-warning m-0">{t('issue.safetyNote')}</p>
+      ) : null}
       <div>
         <label className="label" htmlFor="issue-desc">
           {t('issue.description')}
@@ -98,7 +111,9 @@ export function PhotoForm({ task }: { task: TaskView }) {
 
   function showPreview(next: PreparedEvidence | null) {
     if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-    urlRef.current = next ? URL.createObjectURL(new Blob([next.data], { type: next.contentType })) : null;
+    urlRef.current = next
+      ? URL.createObjectURL(new Blob([next.data], { type: next.contentType }))
+      : null;
     setPreviewUrl(urlRef.current);
     setPrepared(next);
   }
@@ -174,7 +189,11 @@ export function PhotoForm({ task }: { task: TaskView }) {
           onChange={(e) => void choose(e.target.files?.[0])}
         />
       </div>
-      {busy ? <p className="m-0" role="status">{t('photo.preparing')}</p> : null}
+      {busy ? (
+        <p className="m-0" role="status">
+          {t('photo.preparing')}
+        </p>
+      ) : null}
       {error ? (
         <p className="banner banner-danger m-0" role="alert">
           {error}
@@ -188,7 +207,8 @@ export function PhotoForm({ task }: { task: TaskView }) {
             className="max-h-64 w-full rounded-lg border border-line object-contain"
           />
           <p className="m-0 text-sm text-ink-600">
-            {prepared.contentType} - {t('photo.size', { kb: Math.max(1, Math.round(prepared.size / 1024)) })}
+            {prepared.contentType} -{' '}
+            {t('photo.size', { kb: Math.max(1, Math.round(prepared.size / 1024)) })}
           </p>
           <div>
             <label className="label" htmlFor="photo-note">
@@ -202,7 +222,12 @@ export function PhotoForm({ task }: { task: TaskView }) {
               onChange={(e) => setNote(e.target.value)}
             />
           </div>
-          <button type="button" className="btn btn-primary" onClick={() => void save()} data-testid="photo-save">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => void save()}
+            data-testid="photo-save"
+          >
             {t('photo.save')}
           </button>
         </>
@@ -248,7 +273,11 @@ export function ScanForm({ task }: { task: TaskView }) {
   }
 
   return (
-    <form className="card flex flex-col gap-3" onSubmit={(e) => void submit(e)} aria-labelledby="scan-h">
+    <form
+      className="card flex flex-col gap-3"
+      onSubmit={(e) => void submit(e)}
+      aria-labelledby="scan-h"
+    >
       <h2 id="scan-h" className="m-0 text-xl font-bold">
         {t('scan.title')}
       </h2>
@@ -257,13 +286,23 @@ export function ScanForm({ task }: { task: TaskView }) {
         <label className="label" htmlFor="scan-sku">
           {t('scan.sku')}
         </label>
-        <input id="scan-sku" className="field" value={sku} onChange={(e) => setSku(e.target.value)} />
+        <input
+          id="scan-sku"
+          className="field"
+          value={sku}
+          onChange={(e) => setSku(e.target.value)}
+        />
       </div>
       <div>
         <label className="label" htmlFor="scan-loc">
           {t('scan.location')}
         </label>
-        <input id="scan-loc" className="field" value={location} onChange={(e) => setLocation(e.target.value)} />
+        <input
+          id="scan-loc"
+          className="field"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+        />
       </div>
       <div>
         <label className="label" htmlFor="scan-qty">

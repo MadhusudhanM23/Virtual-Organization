@@ -25,7 +25,8 @@ export const messagesEn = {
   'truth.noData': 'NO OPERATIONAL DATA SHOWN',
   'truth.noData.aria': 'No operational data is shown on this screen',
   'truth.local': 'LOCAL DEVICE QUEUE - NOT YET ON THE SERVER',
-  'truth.local.aria': 'Items on this screen are stored on this device and are not yet confirmed by the server',
+  'truth.local.aria':
+    'Items on this screen are stored on this device and are not yet confirmed by the server',
   'truth.mode.LIVE': 'LIVE',
   'truth.mode.SIMULATED': 'SIMULATED',
   'truth.mode.SYNTHETIC': 'SYNTHETIC',
@@ -60,7 +61,8 @@ export const messagesEn = {
   'tasks.refresh': 'Refresh',
   'tasks.refreshing': 'Refreshing',
   'tasks.empty': 'No tasks are assigned to you.',
-  'tasks.cachedOnly': 'Showing tasks saved on this device. Last refreshed {time}. They may be out of date.',
+  'tasks.cachedOnly':
+    'Showing tasks saved on this device. Last refreshed {time}. They may be out of date.',
   'tasks.neverLoaded': 'No tasks are saved on this device yet. Connect once to load them.',
   'tasks.loadError': 'Tasks could not be loaded.',
   'tasks.statusPending': 'PENDING_SYNC',
@@ -74,7 +76,8 @@ export const messagesEn = {
   'tasks.staleBanner':
     'This task was reassigned or a saved action is stale. The server assignment wins. Refresh before continuing.',
   'tasks.conflictBanner': 'A saved action was not applied. See the sync queue for details.',
-  'tasks.reassignedNow': 'This task is no longer assigned to you. Your saved actions for it are marked stale.',
+  'tasks.reassignedNow':
+    'This task is no longer assigned to you. Your saved actions for it are marked stale.',
   'tasks.type.PICK': 'Pick',
   'tasks.type.PUTAWAY': 'Put-away',
   'tasks.type.DOCK': 'Dock',
@@ -91,7 +94,8 @@ export const messagesEn = {
   'tasks.action.resume': 'Resume',
   'tasks.action.complete': 'Complete task',
   'tasks.action.fail': 'Cannot do it',
-  'tasks.action.queued': 'Saved on this device. It will be sent when online and signed in. Status: PENDING_SYNC.',
+  'tasks.action.queued':
+    'Saved on this device. It will be sent when online and signed in. Status: PENDING_SYNC.',
   'tasks.fail.reason': 'Why can the task not be done?',
   'tasks.fail.confirm': 'Save as failed',
   'tasks.actions': 'Actions',
@@ -119,7 +123,8 @@ export const messagesEn = {
   'photo.privacy':
     'Privacy: location (GPS) and other hidden photo data are removed on this device, the photo is shrunk to at most {maxSide} pixels, and it is sent only while you are signed in.',
   'photo.preparing': 'Preparing photo',
-  'photo.saved': 'Photo saved on this device (PENDING_SYNC). It is uploaded when you are online and signed in.',
+  'photo.saved':
+    'Photo saved on this device (PENDING_SYNC). It is uploaded when you are online and signed in.',
   'photo.error.unsupported': 'Only JPEG, PNG or WebP photos can be used.',
   'photo.error.tooLarge': 'The photo is too large even after shrinking. Choose another.',
   'photo.error.generic': 'The photo could not be prepared.',
@@ -155,10 +160,12 @@ export const messagesEn = {
 
   // Limits
   'limits.title': 'What does not work offline',
-  'limits.approvals': 'Approvals are not available offline. Consequential actions can only be approved online.',
+  'limits.approvals':
+    'Approvals are not available offline. Consequential actions can only be approved online.',
   'limits.estop':
     'Emergency-stop execution is not available offline and is never promised. An urgent record is advisory only.',
-  'limits.refused': 'This device will refuse to queue or send approvals and emergency-stop execution.',
+  'limits.refused':
+    'This device will refuse to queue or send approvals and emergency-stop execution.',
 
   // Queue
   'queue.title': 'Sync queue',
@@ -202,7 +209,8 @@ export const messagesEn = {
   'conflict.too_large': 'The photo is larger than the server allows.',
   'conflict.exif_present': 'The photo still had hidden metadata and was refused.',
   'conflict.blocked_by_stale': 'Blocked: an earlier saved action for this task is stale.',
-  'conflict.refused_by_policy': 'Refused on this device: approvals and emergency-stop execution are never sent.',
+  'conflict.refused_by_policy':
+    'Refused on this device: approvals and emergency-stop execution are never sent.',
   'conflict.server_error': 'The server could not process this item.',
 
   // Install / update

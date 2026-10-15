@@ -61,7 +61,10 @@ export function pngWithMetadata(): Buffer {
 /** Not decodable by the browser (exercises the byte-level fallback), with an EXIF/GPS APP1 segment. */
 export function fakeJpegWithExif(): Buffer {
   const exif = Buffer.from('Exif\0\0MM\0*GPSLatitude=12.9716;GPSLongitude=77.5946');
-  const app1 = Buffer.concat([Buffer.from([0xff, 0xe1, (exif.length + 2) >> 8, (exif.length + 2) & 0xff]), exif]);
+  const app1 = Buffer.concat([
+    Buffer.from([0xff, 0xe1, (exif.length + 2) >> 8, (exif.length + 2) & 0xff]),
+    exif,
+  ]);
   return Buffer.concat([
     Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16]),
     Buffer.from('JFIF\0\x01\x01\0\0\x01\0\x01\0\0', 'latin1'),

@@ -13,11 +13,14 @@ export function TasksPage() {
   const { items } = useRuntime();
   const online = useOnline();
   const status = useSessionStore((s) => s.status);
-  const { sites, siteId, setSiteId, tasks, cachedAt, loaded, refreshing, error, refresh } = useMyTasks();
+  const { sites, siteId, setSiteId, tasks, cachedAt, loaded, refreshing, error, refresh } =
+    useMyTasks();
   const mode = listDataMode(tasks);
   const truth: TruthKind = mode ?? 'NONE';
   const offlineView = !online || status !== 'authenticated';
-  const sorted = [...tasks].sort((a, b) => Number(isTerminal(a.status)) - Number(isTerminal(b.status)));
+  const sorted = [...tasks].sort(
+    (a, b) => Number(isTerminal(a.status)) - Number(isTerminal(b.status)),
+  );
 
   return (
     <Screen title={t('tasks.title')} truth={truth} cachedAt={offlineView ? cachedAt : null}>
@@ -99,9 +102,15 @@ function TaskCard({ task, items }: { task: TaskView; items: Parameters<typeof pr
             {t('tasks.statusPending')}
           </span>
         ) : null}
-        {projection.stale ? <span className="chip chip-danger">{t('queue.status.STALE')}</span> : null}
-        {projection.conflict ? <span className="chip chip-danger">{t('queue.status.CONFLICT')}</span> : null}
-        <span className="ml-auto text-sm text-ink-600">{t('tasks.priority', { n: task.priority })}</span>
+        {projection.stale ? (
+          <span className="chip chip-danger">{t('queue.status.STALE')}</span>
+        ) : null}
+        {projection.conflict ? (
+          <span className="chip chip-danger">{t('queue.status.CONFLICT')}</span>
+        ) : null}
+        <span className="ml-auto text-sm text-ink-600">
+          {t('tasks.priority', { n: task.priority })}
+        </span>
       </div>
       <p className="m-0 text-lg font-semibold">{task.title}</p>
       <p className="m-0 text-ink-700">

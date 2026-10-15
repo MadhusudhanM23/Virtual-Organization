@@ -5,7 +5,13 @@ import { OfflineLimits } from '../../components/OfflineLimits';
 import { Screen } from '../../components/Screen';
 import { t } from '../../i18n';
 import type { TaskAction } from '../../lib/queue/types';
-import { allowedActions, isTerminal, itemsForTask, projectTask, type TaskView } from '../../lib/tasks/model';
+import {
+  allowedActions,
+  isTerminal,
+  itemsForTask,
+  projectTask,
+  type TaskView,
+} from '../../lib/tasks/model';
 import { QueueItemRow } from '../queue/QueueItemRow';
 import { IssueForm, PhotoForm, ScanForm } from './TaskForms';
 import { useMyTasks } from './TasksContext';
@@ -22,7 +28,11 @@ export function TaskDetailPage() {
     return (
       <Screen title={t('tasks.title')} truth="NONE">
         <p className="card m-0" data-testid="task-not-found">
-          {id && reassigned.has(id) ? t('tasks.reassignedNow') : loaded ? t('tasks.notFound') : t('app.loading')}
+          {id && reassigned.has(id)
+            ? t('tasks.reassignedNow')
+            : loaded
+              ? t('tasks.notFound')
+              : t('app.loading')}
         </p>
         <Link className="btn" to="/">
           {t('tasks.back')}
@@ -93,7 +103,9 @@ function TaskDetail({ task, cachedAt }: { task: TaskView; cachedAt: number | nul
               {t('tasks.statusPending')}
             </span>
           ) : null}
-          <span className="ml-auto text-sm text-ink-600">{t('tasks.priority', { n: task.priority })}</span>
+          <span className="ml-auto text-sm text-ink-600">
+            {t('tasks.priority', { n: task.priority })}
+          </span>
         </div>
         <p className="m-0">
           <strong>{t('tasks.from')}:</strong> {task.from.label}

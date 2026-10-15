@@ -23,7 +23,8 @@ export function buildRequest(item: QueueItem): BuiltRequest {
   if (refusal) throw refusal;
   switch (item.kind) {
     case 'TASK_TRANSITION': {
-      if (!item.taskId || !item.action) throw new Error('A task command needs a task and an action');
+      if (!item.taskId || !item.action)
+        throw new Error('A task command needs a task and an action');
       return {
         path: `/tasks/${item.taskId}/${item.action}`,
         body: { ...item.body, queued_offline: true, captured_at: item.capturedAt },
@@ -53,12 +54,22 @@ export function buildRequest(item: QueueItem): BuiltRequest {
     case 'INVENTORY_SCAN':
       return {
         path: '/field/inventory-scans',
-        body: { ...item.body, site_id: item.siteId, task_id: item.taskId, captured_at: item.capturedAt },
+        body: {
+          ...item.body,
+          site_id: item.siteId,
+          task_id: item.taskId,
+          captured_at: item.capturedAt,
+        },
       };
     case 'URGENT_RECORD':
       return {
         path: '/field/urgent-records',
-        body: { ...item.body, site_id: item.siteId, task_id: item.taskId, captured_at: item.capturedAt },
+        body: {
+          ...item.body,
+          site_id: item.siteId,
+          task_id: item.taskId,
+          captured_at: item.capturedAt,
+        },
       };
   }
 }

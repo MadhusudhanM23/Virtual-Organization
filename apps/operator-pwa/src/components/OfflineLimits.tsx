@@ -7,7 +7,9 @@ import { t } from '../i18n';
 export function OfflineLimits({ open = false }: { open?: boolean }) {
   return (
     <details className="card" open={open} data-testid="offline-limits">
-      <summary className="min-h-11 cursor-pointer py-2 font-semibold text-ink-900">{t('limits.title')}</summary>
+      <summary className="min-h-11 cursor-pointer py-2 font-semibold text-ink-900">
+        {t('limits.title')}
+      </summary>
       <ul className="m-0 mt-2 list-disc space-y-2 pl-5 text-ink-700">
         <li>{t('limits.approvals')}</li>
         <li>{t('limits.estop')}</li>

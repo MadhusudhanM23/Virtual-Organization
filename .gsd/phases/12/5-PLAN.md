@@ -1,4 +1,4 @@
-﻿---
+---
 # Plan 12.5 - E2E, docs, ADRs
 
 Working plan (brief). Source: REQ-120. Depends on 12.1-12.4.

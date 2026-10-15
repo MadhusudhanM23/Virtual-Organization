@@ -31,7 +31,12 @@ export function make(store: QueueStore, o: MakeOptions = {}): Promise<QueueItem>
     body: o.body ?? {},
     blob:
       kind === 'EVIDENCE'
-        ? { contentType: 'image/jpeg', data: new Uint8Array([1, 2, 3]).buffer, sha256: 'ab'.repeat(32), size: 3 }
+        ? {
+            contentType: 'image/jpeg',
+            data: new Uint8Array([1, 2, 3]).buffer,
+            sha256: 'ab'.repeat(32),
+            size: 3,
+          }
         : null,
     label: o.label ?? 'test',
     capturedAt: '2026-10-15T08:00:00.000Z',

@@ -81,7 +81,8 @@ async function doRun(deps: SyncDeps, options: SyncOptions): Promise<SyncSummary>
   const summary = emptySummary();
   // A crash mid-send leaves SYNCING behind: the stable Idempotency-Key makes resending it safe.
   for (const item of await deps.store.list()) {
-    if (item.status === 'SYNCING') await update(deps.store, item, { status: 'PENDING_SYNC' }, now());
+    if (item.status === 'SYNCING')
+      await update(deps.store, item, { status: 'PENDING_SYNC' }, now());
   }
 
   const blockedTasks = new Set<string>();
@@ -94,7 +95,11 @@ async function doRun(deps: SyncDeps, options: SyncOptions): Promise<SyncSummary>
       await update(
         deps.store,
         item,
-        { status: 'REFUSED', conflict: { kind: 'refused_by_policy', detail: refusal.message }, lastError: refusal.code },
+        {
+          status: 'REFUSED',
+          conflict: { kind: 'refused_by_policy', detail: refusal.message },
+          lastError: refusal.code,
+        },
         now(),
       );
       summary.refused += 1;
@@ -187,7 +192,11 @@ async function doRun(deps: SyncDeps, options: SyncOptions): Promise<SyncSummary>
       await update(
         deps.store,
         sending,
-        { status: outcome.status, conflict: outcome.conflict ?? null, lastError: outcome.conflict?.kind ?? null },
+        {
+          status: outcome.status,
+          conflict: outcome.conflict ?? null,
+          lastError: outcome.conflict?.kind ?? null,
+        },
         now(),
       );
       if (outcome.status === 'STALE') {

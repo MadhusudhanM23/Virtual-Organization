@@ -35,7 +35,9 @@ describe('sync engine', () => {
     const summary = await runSync(deps(store, send, { getUser: () => null }));
     expect(summary.skipped).toBe('signed_out');
     expect(send).not.toHaveBeenCalled();
-    expect((await store.list()).every((i) => i.status === 'PENDING_SYNC' && i.attempts === 0)).toBe(true);
+    expect((await store.list()).every((i) => i.status === 'PENDING_SYNC' && i.attempts === 0)).toBe(
+      true,
+    );
   });
 
   it('does nothing while offline and burns no attempts', async () => {
@@ -61,8 +63,16 @@ describe('sync engine', () => {
       }),
     );
     expect(summary.synced).toBe(3);
-    expect(calls.map((c) => c[1])).toEqual(['/tasks/t1/accept', '/tasks/t1/start', '/tasks/t1/evidence']);
-    expect(calls.map((c) => c[0])).toEqual([a.idempotencyKey, b.idempotencyKey, photo.idempotencyKey]);
+    expect(calls.map((c) => c[1])).toEqual([
+      '/tasks/t1/accept',
+      '/tasks/t1/start',
+      '/tasks/t1/evidence',
+    ]);
+    expect(calls.map((c) => c[0])).toEqual([
+      a.idempotencyKey,
+      b.idempotencyKey,
+      photo.idempotencyKey,
+    ]);
     const done = await byId(store, photo);
     expect(done.status).toBe('SYNCED');
     expect(done.blob).toBeNull();
@@ -122,7 +132,10 @@ describe('sync engine', () => {
     const store = await freshStore();
     const item = await make(store);
     for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
-      await runSync(deps(store, () => Promise.reject({ status: 500 })), { force: true });
+      await runSync(
+        deps(store, () => Promise.reject({ status: 500 })),
+        { force: true },
+      );
     }
     const stored = await byId(store, item);
     expect(stored.status).toBe('FAILED');
@@ -143,7 +156,11 @@ describe('sync engine', () => {
       sent.push(item.id);
       return item.kind === 'EVIDENCE'
         ? ok({ sync_state: 'SYNCED' })
-        : Promise.reject({ status: 409, detail: 'reassigned', problem: { code: 'task_reassigned' } });
+        : Promise.reject({
+            status: 409,
+            detail: 'reassigned',
+            problem: { code: 'task_reassigned' },
+          });
     };
     const summary = await runSync(deps(store, send));
     expect(summary.stale).toBe(1);
@@ -159,7 +176,9 @@ describe('sync engine', () => {
   it('rule 4: an applied=false answer is a CONFLICT and the item is not retried', async () => {
     const store = await freshStore();
     const item = await make(store);
-    const send = vi.fn(() => ok({ applied: false, conflict: 'already_terminal', status: 'COMPLETED' }));
+    const send = vi.fn(() =>
+      ok({ applied: false, conflict: 'already_terminal', status: 'COMPLETED' }),
+    );
     const summary = await runSync(deps(store, send));
     expect(summary.conflicts).toBe(1);
     expect((await byId(store, item)).status).toBe('CONFLICT');
@@ -170,7 +189,9 @@ describe('sync engine', () => {
   it('rule 2: an inventory exception answer is a CONFLICT with the quantity untouched', async () => {
     const store = await freshStore();
     const item = await make(store, { kind: 'INVENTORY_SCAN', taskId: null });
-    await runSync(deps(store, () => ok({ outcome: 'EXCEPTION', reason: 'inventory_version_changed' })));
+    await runSync(
+      deps(store, () => ok({ outcome: 'EXCEPTION', reason: 'inventory_version_changed' })),
+    );
     const stored = await byId(store, item);
     expect(stored.status).toBe('CONFLICT');
     expect(stored.conflict?.kind).toBe('inventory_exception');

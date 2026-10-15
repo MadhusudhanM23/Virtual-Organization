@@ -24,7 +24,9 @@ export interface HttpErrorLike {
 
 export function isHttpError(error: unknown): error is HttpErrorLike {
   return (
-    typeof error === 'object' && error !== null && typeof (error as { status?: unknown }).status === 'number'
+    typeof error === 'object' &&
+    error !== null &&
+    typeof (error as { status?: unknown }).status === 'number'
   );
 }
 
@@ -38,7 +40,9 @@ export function classifyAck(item: Pick<QueueItem, 'kind'>, ack: unknown): Outcom
   if (result.applied === false && typeof result.conflict === 'string') {
     return {
       status: 'CONFLICT',
-      conflict: { kind: result.conflict === 'already_terminal' ? 'already_terminal' : 'invalid_transition' },
+      conflict: {
+        kind: result.conflict === 'already_terminal' ? 'already_terminal' : 'invalid_transition',
+      },
       result,
     };
   }
@@ -63,12 +67,14 @@ export function classifyError(_item: Pick<QueueItem, 'kind'>, error: unknown): O
   const detail = error.detail;
   const info = (kind: ConflictInfo['kind']): ConflictInfo => (detail ? { kind, detail } : { kind });
   if (status === 401) return { status: 'AUTH', message: 'unauthenticated' };
-  if (status === 409 && code === 'task_reassigned') return { status: 'STALE', conflict: info('task_reassigned') };
+  if (status === 409 && code === 'task_reassigned')
+    return { status: 'STALE', conflict: info('task_reassigned') };
   if (status === 409) return { status: 'CONFLICT', conflict: info('invalid_transition') };
   if (status === 403) return { status: 'REJECTED', conflict: info('not_permitted') };
   if (status === 404) return { status: 'REJECTED', conflict: info('not_found') };
   if (status === 413) return { status: 'REJECTED', conflict: info('too_large') };
-  if (status === 422 && code === 'exif_present') return { status: 'REJECTED', conflict: info('exif_present') };
+  if (status === 422 && code === 'exif_present')
+    return { status: 'REJECTED', conflict: info('exif_present') };
   if (status === 408 || status === 425 || status === 429 || status >= 500) {
     return { status: 'RETRY', message: `http_${status}` };
   }

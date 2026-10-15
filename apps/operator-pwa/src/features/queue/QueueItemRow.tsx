@@ -22,11 +22,17 @@ export function QueueItemRow({ item }: { item: QueueItem }) {
   const { store, syncNow } = useRuntime();
   const me = useSessionStore((s) => s.me);
   const [confirming, setConfirming] = useState(false);
-  const canRetry = item.status === 'FAILED' || (item.status === 'PENDING_SYNC' && item.attempts > 0);
+  const canRetry =
+    item.status === 'FAILED' || (item.status === 'PENDING_SYNC' && item.attempts > 0);
   const foreign = me !== null && item.ownerActorRef !== me.actor_ref;
 
   return (
-    <li className="card flex flex-col gap-2" data-testid="queue-item" data-kind={item.kind} data-status={item.status}>
+    <li
+      className="card flex flex-col gap-2"
+      data-testid="queue-item"
+      data-kind={item.kind}
+      data-status={item.status}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <span className="chip">{t(`queue.kind.${item.kind}`)}</span>
         <span className={`chip ${CHIP[item.status]}`} data-testid="queue-status">

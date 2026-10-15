@@ -9,7 +9,10 @@ test.beforeEach(async ({ context }) => {
   await mock.install(context);
 });
 
-test('the UI states that approvals and emergency-stop execution do not work offline', async ({ page, context }) => {
+test('the UI states that approvals and emergency-stop execution do not work offline', async ({
+  page,
+  context,
+}) => {
   await signIn(page);
   await waitForServiceWorker(page);
   await mock.goOffline(context);
@@ -27,11 +30,16 @@ test('the UI states that approvals and emergency-stop execution do not work offl
   // There is no approval or emergency-stop control anywhere in the app.
   for (const path of ['/', '/queue', '/urgent']) {
     await page.goto(path);
-    await expect(page.getByRole('button', { name: /approve|reject|emergency stop|e-stop/i })).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: /approve|reject|emergency stop|e-stop/i }),
+    ).toHaveCount(0);
   }
 });
 
-test('an urgent record is queued as advisory and pending, then filed - never executed', async ({ page, context }) => {
+test('an urgent record is queued as advisory and pending, then filed - never executed', async ({
+  page,
+  context,
+}) => {
   await signIn(page);
   await mock.goOffline(context);
   await page.getByRole('link', { name: 'Urgent' }).click();
@@ -62,7 +70,10 @@ test('an urgent record is queued as advisory and pending, then filed - never exe
   expect(mock.commands.some((c) => /approv|emergency-stop|estop/i.test(c.path))).toBe(false);
 });
 
-test('the sync engine refuses an approval or emergency-stop row planted in IndexedDB', async ({ page, context }) => {
+test('the sync engine refuses an approval or emergency-stop row planted in IndexedDB', async ({
+  page,
+  context,
+}) => {
   await signIn(page);
   await mock.goOffline(context);
   await page.getByRole('link', { name: 'Sync queue' }).click();
@@ -92,8 +103,18 @@ test('the sync engine refuses an approval or emergency-stop row planted in Index
             conflict: null,
             result: null,
           };
-          tx.objectStore('queue').add({ ...base, id: 'p1', kind: 'APPROVAL', label: 'Planted approval' });
-          tx.objectStore('queue').add({ ...base, id: 'p2', kind: 'EMERGENCY_STOP', label: 'Planted e-stop' });
+          tx.objectStore('queue').add({
+            ...base,
+            id: 'p1',
+            kind: 'APPROVAL',
+            label: 'Planted approval',
+          });
+          tx.objectStore('queue').add({
+            ...base,
+            id: 'p2',
+            kind: 'EMERGENCY_STOP',
+            label: 'Planted e-stop',
+          });
           tx.oncomplete = () => {
             db.close();
             resolve();

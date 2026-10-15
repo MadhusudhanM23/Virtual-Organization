@@ -9,7 +9,10 @@ test.use({ viewport: { width: 390, height: 844 } });
 
 test.beforeEach(async ({ context }) => {
   mock = new MockApi();
-  mock.tasks = [task('task-1', 'Pick pallet P-100'), task('task-2', 'Put away pallet P-200', { task_type: 'PUTAWAY' })];
+  mock.tasks = [
+    task('task-1', 'Pick pallet P-100'),
+    task('task-2', 'Put away pallet P-200', { task_type: 'PUTAWAY' }),
+  ];
   await mock.install(context);
 });
 
@@ -25,16 +28,23 @@ async function audit(page: Page, name: string) {
 
   // A truth label on every screen, no horizontal scroll at 390px, every control at least 44 x 44 CSS px.
   await expect(page.getByTestId('truth-label'), `truth label on ${name}`).toHaveCount(1);
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  );
   expect(overflow, `horizontal overflow on ${name}`).toBeLessThanOrEqual(0);
   const small = await page.evaluate(() => {
     const out: string[] = [];
-    for (const el of document.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, summary')) {
+    for (const el of document.querySelectorAll<HTMLElement>(
+      'button, a[href], input, select, textarea, summary',
+    )) {
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       const style = getComputedStyle(el);
       if (style.position === 'absolute' && r.width <= 1) continue; // visually hidden skip link until focused
-      if (r.height < 43.5 || r.width < 43.5) out.push(`${el.tagName} ${el.textContent?.trim().slice(0, 30)} ${Math.round(r.width)}x${Math.round(r.height)}`);
+      if (r.height < 43.5 || r.width < 43.5)
+        out.push(
+          `${el.tagName} ${el.textContent?.trim().slice(0, 30)} ${Math.round(r.width)}x${Math.round(r.height)}`,
+        );
     }
     return out;
   });
@@ -84,7 +94,9 @@ test('390px offline: the offline states are accessible too', async ({ page, cont
   await audit(page, 'offline queue');
 });
 
-test('keyboard: skip link reaches the main content and the bottom navigation is reachable', async ({ page }) => {
+test('keyboard: skip link reaches the main content and the bottom navigation is reachable', async ({
+  page,
+}) => {
   await signIn(page);
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused();

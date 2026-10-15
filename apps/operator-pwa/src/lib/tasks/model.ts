@@ -7,7 +7,8 @@ export interface Place {
   y: number;
 }
 
-export type TaskStatus = 'ASSIGNED' | 'ACCEPTED' | 'STARTED' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+export type TaskStatus =
+  'ASSIGNED' | 'ACCEPTED' | 'STARTED' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
 export interface TaskView {
   id: string;

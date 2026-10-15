@@ -66,7 +66,12 @@ export function pendingCount(items: readonly QueueItem[]): number {
 
 /** Operator action: try again now (resets attempts; the Idempotency-Key stays the same). */
 export function retry(store: QueueStore, item: QueueItem): Promise<QueueItem> {
-  return update(store, item, { status: 'PENDING_SYNC', attempts: 0, nextAttemptAt: 0, lastError: null });
+  return update(store, item, {
+    status: 'PENDING_SYNC',
+    attempts: 0,
+    nextAttemptAt: 0,
+    lastError: null,
+  });
 }
 
 export async function discard(store: QueueStore, item: QueueItem): Promise<void> {
@@ -89,10 +94,18 @@ export async function pruneSynced(
  * Rule 1 on refresh: tasks that vanished from "my tasks" were reassigned. Their queued commands are marked STALE
  * right away so the operator must refresh and decide before continuing, without waiting for the server's 409.
  */
-export async function markStaleForTasks(store: QueueStore, taskIds: ReadonlySet<string>): Promise<number> {
+export async function markStaleForTasks(
+  store: QueueStore,
+  taskIds: ReadonlySet<string>,
+): Promise<number> {
   let n = 0;
   for (const item of await store.list()) {
-    if (item.status === 'PENDING_SYNC' && item.taskId && taskIds.has(item.taskId) && item.kind !== 'EVIDENCE') {
+    if (
+      item.status === 'PENDING_SYNC' &&
+      item.taskId &&
+      taskIds.has(item.taskId) &&
+      item.kind !== 'EVIDENCE'
+    ) {
       await update(store, item, {
         status: 'STALE',
         conflict: { kind: 'task_reassigned', detail: 'The task is no longer assigned to you.' },

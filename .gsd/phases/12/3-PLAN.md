@@ -1,4 +1,4 @@
-﻿---
+---
 # Plan 12.3 - Offline queue, sync engine, conflict rules, privacy
 
 Working plan (brief). Source: REQ-120; BLUEPRINT section 12 conflict rules; ADR-75, ADR-76, ADR-77.

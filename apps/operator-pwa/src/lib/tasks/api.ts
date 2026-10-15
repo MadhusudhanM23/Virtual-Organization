@@ -23,11 +23,19 @@ export interface CachedTasks {
 
 const tasksKey = (siteId: string) => `tasks:${siteId}`;
 
-export function loadCachedTasks(store: QueueStore, siteId: string): Promise<CachedTasks | undefined> {
+export function loadCachedTasks(
+  store: QueueStore,
+  siteId: string,
+): Promise<CachedTasks | undefined> {
   return store.kvGet<CachedTasks>(tasksKey(siteId));
 }
 
-export function saveCachedTasks(store: QueueStore, siteId: string, items: TaskView[], now = Date.now()) {
+export function saveCachedTasks(
+  store: QueueStore,
+  siteId: string,
+  items: TaskView[],
+  now = Date.now(),
+) {
   return store.kvSet(tasksKey(siteId), { fetchedAt: now, items } satisfies CachedTasks);
 }
 

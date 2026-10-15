@@ -9,7 +9,10 @@ test.beforeEach(async ({ context }) => {
   await mock.install(context);
 });
 
-test('is installable: a valid manifest with 192/512/maskable icons that all load', async ({ page, request }) => {
+test('is installable: a valid manifest with 192/512/maskable icons that all load', async ({
+  page,
+  request,
+}) => {
   await page.goto('/login');
   const href = await page.locator('link[rel="manifest"]').getAttribute('href');
   expect(href).toBeTruthy();
@@ -38,7 +41,9 @@ test('is installable: a valid manifest with 192/512/maskable icons that all load
 test('a service worker takes control and precaches the app shell', async ({ page }) => {
   await page.goto('/login');
   await waitForServiceWorker(page);
-  const registrations = await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length);
+  const registrations = await page.evaluate(
+    async () => (await navigator.serviceWorker.getRegistrations()).length,
+  );
   expect(registrations).toBe(1);
 });
 

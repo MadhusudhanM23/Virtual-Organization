@@ -1,4 +1,4 @@
-﻿---
+---
 # Plan 12.4 - Operator screens
 
 Working plan (brief). Source: REQ-120; BLUEPRINT sections 12, 22 (truth labels). Depends on 12.2 and 12.3.

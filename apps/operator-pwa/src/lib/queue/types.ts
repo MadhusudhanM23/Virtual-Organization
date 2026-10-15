@@ -13,11 +13,7 @@ export type QueueStatus =
   | 'FAILED'; // too many network/server failures; the operator may retry
 
 export type QueueKind =
-  | 'TASK_TRANSITION'
-  | 'TASK_ISSUE'
-  | 'EVIDENCE'
-  | 'INVENTORY_SCAN'
-  | 'URGENT_RECORD';
+  'TASK_TRANSITION' | 'TASK_ISSUE' | 'EVIDENCE' | 'INVENTORY_SCAN' | 'URGENT_RECORD';
 
 /** Kinds that can never be queued or synced (rule 5 approvals, rule 6 emergency execution). */
 export type RefusedKind = 'APPROVAL' | 'EMERGENCY_STOP';
@@ -83,8 +79,22 @@ export interface QueueItem {
 
 export type NewQueueItem = Omit<
   QueueItem,
-  'seq' | 'status' | 'attempts' | 'nextAttemptAt' | 'createdAt' | 'updatedAt' | 'lastError' | 'conflict' | 'result'
+  | 'seq'
+  | 'status'
+  | 'attempts'
+  | 'nextAttemptAt'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'lastError'
+  | 'conflict'
+  | 'result'
 >;
 
 export const OPEN_STATUSES: readonly QueueStatus[] = ['PENDING_SYNC', 'SYNCING'];
-export const NEEDS_ATTENTION: readonly QueueStatus[] = ['CONFLICT', 'STALE', 'REJECTED', 'REFUSED', 'FAILED'];
+export const NEEDS_ATTENTION: readonly QueueStatus[] = [
+  'CONFLICT',
+  'STALE',
+  'REJECTED',
+  'REFUSED',
+  'FAILED',
+];

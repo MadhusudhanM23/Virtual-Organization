@@ -78,7 +78,8 @@ test('queue offline, then sync in order with stable keys; photo is stripped, has
   const evidence = mock.commands[4]!.body as Record<string, string>;
   const bytes = Buffer.from(evidence.data_base64!, 'base64');
   const text = bytes.toString('latin1');
-  for (const needle of ['tEXt', 'eXIf', 'Exif', 'GPSLatitude', 'Jane Operator']) expect(text).not.toContain(needle);
+  for (const needle of ['tEXt', 'eXIf', 'Exif', 'GPSLatitude', 'Jane Operator'])
+    expect(text).not.toContain(needle);
   expect(evidence.sha256).toBe(createHash('sha256').update(bytes).digest('hex'));
   expect(bytes.length).toBeLessThanOrEqual(2 * 1024 * 1024);
   expect(['image/jpeg', 'image/png']).toContain(evidence.content_type);
@@ -86,7 +87,10 @@ test('queue offline, then sync in order with stable keys; photo is stripped, has
   expect(evidence.note).toBe('left at dock 4');
 });
 
-test('a photo the browser cannot decode is still stripped at byte level before queueing', async ({ page, context }) => {
+test('a photo the browser cannot decode is still stripped at byte level before queueing', async ({
+  page,
+  context,
+}) => {
   await signIn(page);
   await mock.goOffline(context);
   await page.getByRole('link', { name: /Open/ }).first().click();
@@ -107,7 +111,9 @@ test('a photo the browser cannot decode is still stripped at byte level before q
   expect(text).toContain('JFIF');
 });
 
-test('an unsupported file is refused with a clear message and nothing is queued', async ({ page }) => {
+test('an unsupported file is refused with a clear message and nothing is queued', async ({
+  page,
+}) => {
   await signIn(page);
   await page.getByRole('link', { name: /Open/ }).first().click();
   await page.getByLabel('Take or choose a photo').setInputFiles({
@@ -135,7 +141,9 @@ test('nothing is uploaded without a signed-in user; saved work waits and is sent
   await expect(page.getByTestId('pending-count')).toHaveText('1 pending');
   mock.loggedIn = false;
   await mock.goOnline(context);
-  await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByTestId('login-pending-notice')).toContainText('1 saved item');
   await page.waitForTimeout(1500);
   expect(mock.commands).toHaveLength(0);

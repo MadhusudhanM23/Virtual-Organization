@@ -28,6 +28,8 @@ events) that later domains reuse.
 | 9 AI assistant | Provider-neutral LLM gateway (`services/ai`: deterministic offline provider + OpenAI), allowlisted identity-scoped tools, cited grounded answers that highlight and frame the twin, assistant panel, eval suite | Built (offline by default; OpenAI turns on when the owner adds `OPENAI_API_KEY` and allows the tenant, see [docs/api/assistant.md](docs/api/assistant.md)) |
 | 10 MCD integration | All 12 MCD steps automated end to end on the real stack (`npm run e2e:mcd`), truth-label audit of every screen, measured SLO report, presenter runbook, stack scripts `scripts/mcd-*.ps1` | Built and tested (last run 2026-10-14: 14 of 14 passed; SLOs measured on one dev machine, availability and the OpenAI path not measured; see [docs/reports/mcd-slo-report.md](docs/reports/mcd-slo-report.md)) |
 
+| 12 Operator PWA (Milestone 2) | Installable offline field client `apps/operator-pwa`: sign-in, my tasks, accept/start/complete, issue reports, offline photo evidence (EXIF/GPS stripped on the device), IndexedDB command/evidence queue with a sync engine (stable `Idempotency-Key`, backoff, ordering), blueprint section 12 conflict rules (server additions in [docs/api/field-sync.md](docs/api/field-sync.md)), no offline approvals and no offline emergency-stop execution | Built and tested (vitest, Playwright with a mocked API and `setOffline`, focused Java ITs; not yet run against a live API in a browser; Proposed ADR-75 to ADR-78) |
+
 Milestone 2 (hardening, offline operator PWA, scenario library and scale) follows the MCD. Phase plans live in
 `.gsd/phases/{N}/`; decisions in [docs/adr/ADR-REGISTER.md](docs/adr/ADR-REGISTER.md).
 
@@ -38,6 +40,7 @@ Layout follows blueprint §20.
 | Path | Contents |
 |---|---|
 | `apps/web/` | Web app: React + TypeScript + Vite + Tailwind + React Three Fiber + Zustand |
+| `apps/operator-pwa/` | Operator PWA: installable, offline-capable field client (React + TypeScript + Vite + workbox, IndexedDB queue) ([README](apps/operator-pwa/README.md)) |
 | `services/api/` | Spring Boot (Java 21) modular monolith: platform core, domains, WebSocket hub ([README](services/api/README.md)) |
 | `services/simulation/` | Pure-Java deterministic discrete-event simulation library ([README](services/simulation/README.md)) |
 | `services/optimization/` | Pure-Java OR-Tools CP-SAT dock/forklift re-assignment optimizer ([README](services/optimization/README.md)) |
@@ -56,8 +59,6 @@ Layout follows blueprint §20.
 | `tests/` | Cross-cutting suites (contract tests, AI evaluation in `tests/ai-eval`) |
 | `scripts/` | Maven wrapper helpers, MCD stack scripts (`mcd-up`, `mcd-check`, `mcd-down`, `mcd-vision`), SLO measurement (`scripts/slo/`), GSD validation scripts |
 | `.gsd/` | Spec, requirements, roadmap, architecture conventions, phase plans |
-
-Planned, not yet present: `apps/operator-pwa/` (Milestone 2).
 
 ## Prerequisites
 
@@ -133,6 +134,7 @@ Planned, not yet present: `apps/operator-pwa/` (Milestone 2).
 | redis | 6379 |
 | api | 8080 |
 | web | 5173 |
+| operator-pwa (dev, preview, Playwright) | 5210 |
 | ai (assistant gateway) | 8090 |
 | prometheus / grafana (`observability` profile) | 9090 / 3000 |
 
@@ -176,6 +178,8 @@ To measure the SLOs: `python scripts/slo/measure.py --api http://127.0.0.1:8080 
 | Web typecheck / lint / unit | `npm run typecheck`, `npm run lint`, `npm test` (repo root, all workspaces) |
 | Web end-to-end (Playwright, mocked API) | in `apps/web`: `npm run e2e`, plus one config per feature suite: `e2e:live`, `e2e:incidents`, `e2e:replay`, `npx playwright test -c playwright.simulate.config.ts` |
 | Web end-to-end against the real stack | in `apps/web`: `npm run e2e:real` (API and infrastructure running) |
+| Operator PWA unit (queue, sync, conflicts, EXIF) | in `apps/operator-pwa`: `npm test` |
+| Operator PWA end-to-end (builds the PWA, port 5210, mocked API, offline/online, 390px axe) | in `apps/operator-pwa`: `npm run e2e` |
 | MCD: 12 steps + truth-label audit, real stack | in `apps/web`: `npm run e2e:mcd` (stack from `scripts/mcd-up.ps1`; see above) |
 
 ## Documentation

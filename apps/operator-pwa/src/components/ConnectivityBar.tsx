@@ -50,11 +50,19 @@ export function ConnectivityBar() {
         </p>
       ) : null}
       {!online ? (
-        <p className="banner banner-warning mx-4 mb-2 mt-0" role="status" data-testid="offline-banner">
+        <p
+          className="banner banner-warning mx-4 mb-2 mt-0"
+          role="status"
+          data-testid="offline-banner"
+        >
           {t('net.offlineBanner')}
         </p>
       ) : status !== 'authenticated' ? (
-        <p className="banner banner-warning mx-4 mb-2 mt-0" role="status" data-testid="signed-out-banner">
+        <p
+          className="banner banner-warning mx-4 mb-2 mt-0"
+          role="status"
+          data-testid="signed-out-banner"
+        >
           {t('net.onlineSignedOutBanner')}
         </p>
       ) : null}

@@ -24,7 +24,12 @@ test('rule 1: task reassigned while offline - server assignment wins, the item i
     rec.path.endsWith('/accept') || rec.path.endsWith('/start')
       ? {
           status: 409,
-          body: { title: 'Task reassigned', status: 409, code: 'task_reassigned', detail: 'The task is assigned to someone else now.' },
+          body: {
+            title: 'Task reassigned',
+            status: 409,
+            code: 'task_reassigned',
+            detail: 'The task is assigned to someone else now.',
+          },
         }
       : null;
   await queueOffline(page, context, ['accept', 'start']);
@@ -34,7 +39,9 @@ test('rule 1: task reassigned while offline - server assignment wins, the item i
   await expect(page.getByTestId('stale-banner')).toContainText('Refresh before continuing');
   await expect(page.getByTestId('queue-status').first()).toHaveText('STALE');
   await expect(page.getByTestId('queue-status').nth(1)).toHaveText('STALE'); // the later command is blocked too
-  await expect(page.getByTestId('conflict-explanation').last()).toContainText('server assignment wins');
+  await expect(page.getByTestId('conflict-explanation').last()).toContainText(
+    'server assignment wins',
+  );
   await expect(page.getByTestId('action-start')).toHaveCount(0);
   expect(mock.commands.map((c) => c.path)).toEqual(['/api/tasks/task-1/accept']); // the 2nd was never sent
 
@@ -46,7 +53,10 @@ test('rule 1: task reassigned while offline - server assignment wins, the item i
   await expect(page.getByTestId('queue-item')).toHaveCount(0);
 });
 
-test('rule 1 on refresh: a task that left my list marks its saved commands stale at once', async ({ page, context }) => {
+test('rule 1 on refresh: a task that left my list marks its saved commands stale at once', async ({
+  page,
+  context,
+}) => {
   await signIn(page);
   await mock.goOffline(context);
   await page.getByRole('link', { name: /Open/ }).first().click();
@@ -54,7 +64,10 @@ test('rule 1 on refresh: a task that left my list marks its saved commands stale
   await mock.goOnline(context);
   // The server no longer lists the task for me (reassigned) and refuses the command.
   mock.tasks = [task('task-2', 'Other task')];
-  mock.override = () => ({ status: 409, body: { title: 'Task reassigned', status: 409, code: 'task_reassigned' } });
+  mock.override = () => ({
+    status: 409,
+    body: { title: 'Task reassigned', status: 409, code: 'task_reassigned' },
+  });
   await page.getByRole('link', { name: 'Sync queue' }).click();
   await expect(page.getByTestId('queue-status').first()).toHaveText('STALE', { timeout: 20_000 });
 });
@@ -71,7 +84,12 @@ test('rule 4: two operators complete the same task - the later command is a CONF
             command_id: 'c',
             status: 'ACCEPTED',
             correlation_id: 'x',
-            result: { applied: false, conflict: 'already_terminal', status: 'COMPLETED', version: 5 },
+            result: {
+              applied: false,
+              conflict: 'already_terminal',
+              status: 'COMPLETED',
+              version: 5,
+            },
           },
         }
       : null;
@@ -84,7 +102,9 @@ test('rule 4: two operators complete the same task - the later command is a CONF
 
   await expect(page.getByTestId('conflict-banner')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('queue-status').first()).toHaveText('CONFLICT');
-  await expect(page.getByTestId('conflict-explanation')).toContainText('first valid server command won');
+  await expect(page.getByTestId('conflict-explanation')).toContainText(
+    'first valid server command won',
+  );
   expect(mock.commands.filter((c) => c.path.endsWith('/complete'))).toHaveLength(1); // never retried
 });
 
@@ -120,12 +140,23 @@ test('rule 2: an inventory scan against a changed version becomes an exception; 
   await expect(page.getByTestId('scan-saved')).toBeVisible();
   await mock.goOnline(context);
   await page.getByRole('link', { name: 'Sync queue' }).click();
-  await expect(page.getByTestId('queue-status').first()).toHaveText('CONFLICT', { timeout: 20_000 });
-  await expect(page.getByTestId('conflict-explanation')).toContainText('The system quantity was not changed');
-  expect(mock.commands[0]?.body).toMatchObject({ sku: 'SKU-7', base_inventory_version: 5, counted_quantity: 12 });
+  await expect(page.getByTestId('queue-status').first()).toHaveText('CONFLICT', {
+    timeout: 20_000,
+  });
+  await expect(page.getByTestId('conflict-explanation')).toContainText(
+    'The system quantity was not changed',
+  );
+  expect(mock.commands[0]?.body).toMatchObject({
+    sku: 'SKU-7',
+    base_inventory_version: 5,
+    counted_quantity: 12,
+  });
 });
 
-test('rule 3: proof of delivery stays PENDING_SYNC until the server confirms it', async ({ page, context }) => {
+test('rule 3: proof of delivery stays PENDING_SYNC until the server confirms it', async ({
+  page,
+  context,
+}) => {
   await signIn(page);
   await mock.goOffline(context);
   await page.getByRole('link', { name: /Open/ }).first().click();
@@ -147,7 +178,10 @@ test('rule 3: proof of delivery stays PENDING_SYNC until the server confirms it'
   await expect(page.getByTestId('queue-status').first()).toHaveText('SYNCED', { timeout: 20_000 });
 });
 
-test('retry with backoff keeps one Idempotency-Key across every attempt', async ({ page, context }) => {
+test('retry with backoff keeps one Idempotency-Key across every attempt', async ({
+  page,
+  context,
+}) => {
   mock.override = () => ({ status: 503, body: { title: 'Unavailable', status: 503 } });
   await queueOffline(page, context, ['accept']);
   await mock.goOnline(context);

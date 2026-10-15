@@ -64,11 +64,15 @@ export function assertQueueable(kind: string, action?: string | null): asserts k
 }
 
 /** The sync engine's own gate over a stored row: returns the refusal, or null when it may be sent. */
-export function refusalOfStoredItem(item: Pick<QueueItem, 'kind' | 'action'>): OfflineRefusalError | null {
+export function refusalOfStoredItem(
+  item: Pick<QueueItem, 'kind' | 'action'>,
+): OfflineRefusalError | null {
   try {
     assertQueueable(item.kind, item.action);
     return null;
   } catch (error) {
-    return error instanceof OfflineRefusalError ? error : new OfflineRefusalError('offline_approval_not_allowed');
+    return error instanceof OfflineRefusalError
+      ? error
+      : new OfflineRefusalError('offline_approval_not_allowed');
   }
 }

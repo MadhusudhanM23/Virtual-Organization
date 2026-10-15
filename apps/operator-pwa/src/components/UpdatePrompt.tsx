@@ -18,7 +18,11 @@ export function UpdatePrompt() {
       <p className="m-0">{needRefresh ? t('pwa.updateReady') : t('pwa.offlineReady')}</p>
       <div className="mt-2 flex gap-2">
         {needRefresh ? (
-          <button type="button" className="btn btn-primary" onClick={() => void updateServiceWorker(true)}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => void updateServiceWorker(true)}
+          >
             {t('pwa.update')}
           </button>
         ) : null}

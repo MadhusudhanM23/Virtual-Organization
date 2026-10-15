@@ -47,7 +47,9 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-async function reencode(file: Blob): Promise<{ bytes: Uint8Array; width: number; height: number } | null> {
+async function reencode(
+  file: Blob,
+): Promise<{ bytes: Uint8Array; width: number; height: number } | null> {
   if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return null;
   let bitmap: ImageBitmap;
   try {
@@ -66,9 +68,12 @@ async function reencode(file: Blob): Promise<{ bytes: Uint8Array; width: number;
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
   for (const quality of [0.85, 0.72, 0.6, 0.48, 0.36]) {
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', quality),
+    );
     if (!blob) return null;
-    if (blob.size <= TARGET_BYTES) return { bytes: new Uint8Array(await blob.arrayBuffer()), width, height };
+    if (blob.size <= TARGET_BYTES)
+      return { bytes: new Uint8Array(await blob.arrayBuffer()), width, height };
   }
   return null;
 }

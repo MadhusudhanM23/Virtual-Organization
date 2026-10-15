@@ -18,10 +18,20 @@ const STYLE: Record<TruthKind, { chip: string; glyph: string }> = {
   LOCAL: { chip: 'chip-warning', glyph: '▣' }, // square in square
 };
 
-export function TruthLabel({ kind, cachedAt }: { kind: TruthKind; cachedAt?: number | null | undefined }) {
+export function TruthLabel({
+  kind,
+  cachedAt,
+}: {
+  kind: TruthKind;
+  cachedAt?: number | null | undefined;
+}) {
   const style = STYLE[kind];
   const text =
-    kind === 'NONE' ? t('truth.noData') : kind === 'LOCAL' ? t('truth.local') : t(`truth.mode.${kind}`);
+    kind === 'NONE'
+      ? t('truth.noData')
+      : kind === 'LOCAL'
+        ? t('truth.local')
+        : t(`truth.mode.${kind}`);
   const aria =
     kind === 'NONE'
       ? t('truth.noData.aria')
@@ -35,7 +45,9 @@ export function TruthLabel({ kind, cachedAt }: { kind: TruthKind; cachedAt?: num
         <span aria-hidden="true">{text}</span>
       </span>
       {cachedAt ? (
-        <span className="ml-2 text-sm text-ink-600">{t('truth.cached', { time: formatTime(cachedAt) })}</span>
+        <span className="ml-2 text-sm text-ink-600">
+          {t('truth.cached', { time: formatTime(cachedAt) })}
+        </span>
       ) : null}
     </p>
   );

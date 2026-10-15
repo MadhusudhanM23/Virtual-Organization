@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useOnline, useRuntime } from '../../app/runtime';
 import type { SiteView } from '../../lib/api/types';
 import { markStaleForTasks } from '../../lib/queue/queue';
@@ -99,7 +108,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   }, [store, siteId]);
 
   const refresh = useCallback(async () => {
-    if (!store || !navigator.onLine || useSessionStore.getState().status !== 'authenticated') return;
+    if (!store || !navigator.onLine || useSessionStore.getState().status !== 'authenticated')
+      return;
     setRefreshing(true);
     setError(false);
     try {
@@ -117,7 +127,9 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       const previous = await loadCachedTasks(store, site);
       const next = await fetchMyTasks(site);
       const nextIds = new Set(next.map((t) => t.id));
-      const gone = new Set((previous?.items ?? []).filter((t) => !nextIds.has(t.id)).map((t) => t.id));
+      const gone = new Set(
+        (previous?.items ?? []).filter((t) => !nextIds.has(t.id)).map((t) => t.id),
+      );
       if (gone.size > 0) await markStaleForTasks(store, gone);
       setReassigned(gone);
       const now = Date.now();
@@ -139,7 +151,18 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   }, [store, online, status, refresh]);
 
   const value = useMemo<TasksValue>(
-    () => ({ sites, siteId, setSiteId, tasks, cachedAt, loaded, refreshing, error, reassigned, refresh }),
+    () => ({
+      sites,
+      siteId,
+      setSiteId,
+      tasks,
+      cachedAt,
+      loaded,
+      refreshing,
+      error,
+      reassigned,
+      refresh,
+    }),
     [sites, siteId, setSiteId, tasks, cachedAt, loaded, refreshing, error, reassigned, refresh],
   );
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

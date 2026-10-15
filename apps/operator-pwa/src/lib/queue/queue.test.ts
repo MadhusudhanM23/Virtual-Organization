@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { OfflineRefusalError } from './policy';
-import { countByStatus, discard, enqueue, markStaleForTasks, pendingCount, pruneSynced, retry, update } from './queue';
+import {
+  countByStatus,
+  discard,
+  enqueue,
+  markStaleForTasks,
+  pendingCount,
+  pruneSynced,
+  retry,
+  update,
+} from './queue';
 import { freshStore, make } from './testing';
 
 describe('offline queue', () => {
@@ -75,7 +84,15 @@ describe('offline queue', () => {
 
   it('refuses approvals and emergency-stop execution at enqueue and stores nothing', async () => {
     const store = await freshStore();
-    const base = { ownerActorRef: 'u', taskId: null, siteId: 's', body: {}, blob: null, label: 'x', capturedAt: 'n' };
+    const base = {
+      ownerActorRef: 'u',
+      taskId: null,
+      siteId: 's',
+      body: {},
+      blob: null,
+      label: 'x',
+      capturedAt: 'n',
+    };
     await expect(
       enqueue(store, { ...base, kind: 'APPROVAL' as never, action: null }),
     ).rejects.toBeInstanceOf(OfflineRefusalError);

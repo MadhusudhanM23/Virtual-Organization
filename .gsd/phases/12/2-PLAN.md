@@ -1,4 +1,4 @@
-﻿---
+---
 # Plan 12.2 - Operator PWA scaffold: installable, offline app shell
 
 Working plan (brief). Source: REQ-120; BLUEPRINT section 12 "Client technology"; ADR-78.

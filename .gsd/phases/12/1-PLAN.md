@@ -1,4 +1,4 @@
-﻿---
+---
 # Plan 12.1 - Field-sync API additions (conflict-aware task commands, evidence, scans, urgent records)
 
 Working plan (brief). Source: REQ-120; BLUEPRINT section 12 conflict rules; ADR-75, ADR-76, ADR-77.
