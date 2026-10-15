@@ -7,11 +7,13 @@ import io.vorg.api.platform.command.CommandResult;
 import io.vorg.api.platform.events.ActorType;
 import io.vorg.api.platform.events.DataMode;
 import io.vorg.api.platform.events.DomainEvents;
+import io.vorg.api.platform.events.EnvelopeCodec;
 import io.vorg.api.platform.events.EventDraft;
 import io.vorg.api.platform.events.EventEnvelope;
 import io.vorg.api.platform.events.EventLocation;
 import io.vorg.api.platform.events.EventSource;
 import io.vorg.api.platform.web.ApiProblemException;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -33,10 +35,20 @@ public class TaskService {
     public static final String AGGREGATE = "TASK";
     public static final String ASSIGNED_EVENT = "TASK_ASSIGNED";
     public static final String ISSUE_EVENT = "TASK_ISSUE_REPORTED";
+    public static final String SYNC_CONFLICT_EVENT = "TASK_SYNC_CONFLICT";
     public static final Set<String> ISSUE_TYPES = Set.of("BLOCKED", "DAMAGED_GOODS", "WRONG_LOCATION",
             "EQUIPMENT_FAULT", "SAFETY_CONCERN", "OTHER");
 
     public record Place(String label, double x, double y) {}
+
+    /**
+     * What an offline client says about a command it queued (BLUEPRINT section 12, ADR-75): {@code queuedOffline}
+     * switches on the conflict rules, {@code baseVersion} is the task version the device last saw, {@code capturedAt}
+     * the device clock when the operator acted.
+     */
+    public record SyncContext(boolean queuedOffline, Integer baseVersion, Instant capturedAt) {
+        public static final SyncContext NONE = new SyncContext(false, null, null);
+    }
 
     /** A task to create; {@code sourceSystem}/{@code sourceRecordId} make creation idempotent when both are set. */
     public record NewTask(UUID tenantId, UUID siteId, String type, int priority, String title, String sourceSystem,
@@ -48,10 +60,12 @@ public class TaskService {
 
     private final JdbcClient jdbc;
     private final DomainEvents events;
+    private final EnvelopeCodec codec;
 
-    public TaskService(JdbcClient jdbc, DomainEvents events) {
+    public TaskService(JdbcClient jdbc, DomainEvents events, EnvelopeCodec codec) {
         this.jdbc = jdbc;
         this.events = events;
+        this.codec = codec;
     }
 
     /** Creates the task (status ASSIGNED) and its TASK_ASSIGNED event; returns the existing id for a known source record. */
@@ -98,7 +112,20 @@ public class TaskService {
 
     /** Applies a lifecycle transition under a row lock. Runs in the command transaction. */
     public CommandResult transition(UUID tenantId, UUID taskId, Transition transition, String reason) {
+        return transition(tenantId, taskId, transition, reason, SyncContext.NONE, null);
+    }
+
+    /**
+     * As above, with the offline sync rules (section 12): a command queued offline against a task that is already
+     * terminal is not applied (first valid server command wins). It becomes a {@code TASK_SYNC_CONFLICT} event and a
+     * {@code SYNC_CONFLICT} field record and the ack says {@code applied: false}, so a replay never applies it twice.
+     */
+    public CommandResult transition(UUID tenantId, UUID taskId, Transition transition, String reason,
+            SyncContext sync, UUID actor) {
         Row row = lock(tenantId, taskId);
+        if (sync.queuedOffline() && row.status().terminal()) {
+            return conflict(tenantId, row, taskId, transition, sync, actor);
+        }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("task_id", taskId.toString());
         result.put("transition", transition.name());
@@ -136,7 +163,50 @@ public class TaskService {
                 .source(EventSource.API).dataMode(row.dataMode()).location(EventLocation.site(row.siteId())));
         result.put("status", next.name());
         result.put("changed", true);
+        result.put("applied", true);
+        if (sync.queuedOffline() && sync.baseVersion() != null && sync.baseVersion() != row.version()) {
+            result.put("base_version_stale", true);
+        }
         result.put("version", row.version() + 1);
+        result.put("event_id", event.eventId().toString());
+        result.put("sequence", event.sequence());
+        return CommandResult.of(result);
+    }
+
+    private CommandResult conflict(UUID tenantId, Row row, UUID taskId, Transition transition, SyncContext sync,
+            UUID actor) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("conflict", "already_terminal");
+        payload.put("attempted_transition", transition.name());
+        payload.put("task_status", row.status().name());
+        payload.put("task_version", row.version());
+        if (sync.baseVersion() != null) {
+            payload.put("base_version", sync.baseVersion());
+        }
+        if (sync.capturedAt() != null) {
+            payload.put("captured_at", sync.capturedAt().toString());
+        }
+        EventEnvelope event = events.record(EventDraft.of(AGGREGATE, taskId, SYNC_CONFLICT_EVENT, payload)
+                .source(EventSource.API).dataMode(row.dataMode()).location(EventLocation.site(row.siteId())));
+        jdbc.sql("""
+                insert into ops.field_records (id, tenant_id, site_id, kind, task_id, payload, captured_at,
+                    reported_by, event_id) values (:id, :tenant, :site, 'SYNC_CONFLICT', :task, cast(:payload as jsonb),
+                    :captured, :by, :event)
+                """)
+                .param("id", Ids.newId()).param("tenant", tenantId).param("site", row.siteId()).param("task", taskId)
+                .param("payload", codec.write(payload))
+                .param("captured", java.sql.Timestamp.from(sync.capturedAt() == null ? Instant.now()
+                        : sync.capturedAt()))
+                .param("by", actor == null ? Ids.newId() : actor).param("event", event.eventId()).update();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("task_id", taskId.toString());
+        result.put("transition", transition.name());
+        result.put("previous_status", row.status().name());
+        result.put("status", row.status().name());
+        result.put("changed", false);
+        result.put("applied", false);
+        result.put("conflict", "already_terminal");
+        result.put("version", row.version());
         result.put("event_id", event.eventId().toString());
         result.put("sequence", event.sequence());
         return CommandResult.of(result);
@@ -202,3 +272,5 @@ public class TaskService {
         };
     }
 }
+
+

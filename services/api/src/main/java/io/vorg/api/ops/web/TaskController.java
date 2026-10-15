@@ -3,6 +3,7 @@ package io.vorg.api.ops.web;
 import io.vorg.api.ops.TaskQueryService;
 import io.vorg.api.ops.TaskQueryService.TaskView;
 import io.vorg.api.ops.TaskService;
+import io.vorg.api.ops.TaskService.SyncContext;
 import io.vorg.api.ops.TaskStateMachine.Transition;
 import io.vorg.api.platform.authz.Action;
 import io.vorg.api.platform.authz.PolicyContext;
@@ -14,6 +15,7 @@ import io.vorg.api.platform.identity.Subject;
 import io.vorg.api.platform.web.ApiProblemException;
 import io.vorg.api.platform.web.ApiProblemException.FieldError;
 import io.vorg.api.platform.web.PageParams.Page;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,9 +47,10 @@ public class TaskController {
     private static final int MAX_REASON = 500;
     private static final int MAX_DESCRIPTION = 1000;
 
-    public record ReasonRequest(String reason) {}
+    /** {@code queuedOffline}, {@code baseVersion} and {@code capturedAt} are the optional offline sync context (ADR-75). */
+    public record ReasonRequest(String reason, Boolean queuedOffline, Integer baseVersion, Instant capturedAt) {}
 
-    public record IssueRequest(String issueType, String description) {}
+    public record IssueRequest(String issueType, String description, Boolean queuedOffline, Instant capturedAt) {}
 
     private final TaskQueryService queries;
     private final TaskService tasks;
@@ -139,6 +142,9 @@ public class TaskController {
                     "One or more fields are invalid.", errors);
         }
         TaskView task = queries.find(id);
+        if (body != null && Boolean.TRUE.equals(body.queuedOffline())) {
+            requireStillAssigned(task, subject);
+        }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("task_id", id.toString());
         payload.put("issue_type", type);
@@ -165,9 +171,23 @@ public class TaskController {
                     "One or more fields are invalid.", List.of(new FieldError("reason", "is required to fail a task")));
         }
         TaskView task = queries.find(id);
+        SyncContext sync = body == null || !Boolean.TRUE.equals(body.queuedOffline()) ? SyncContext.NONE
+                : new SyncContext(true, body.baseVersion(), body.capturedAt());
+        if (sync.queuedOffline()) {
+            requireStillAssigned(task, subject);
+        }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("task_id", id.toString());
         payload.put("transition", transition.name());
+        if (sync.queuedOffline()) {
+            payload.put("queued_offline", true);
+            if (sync.baseVersion() != null) {
+                payload.put("base_version", sync.baseVersion());
+            }
+            if (sync.capturedAt() != null) {
+                payload.put("captured_at", sync.capturedAt().toString());
+            }
+        }
         if (reason != null && !reason.isEmpty()) {
             payload.put("reason", reason);
         }
@@ -177,6 +197,19 @@ public class TaskController {
                 Action.EXECUTE_STANDARD_COMMAND, ResourceRef.site(subject.tenantId(), task.siteId()), context, payload);
         String finalReason = reason == null || reason.isEmpty() ? null : reason;
         return ResponseEntity.ok(gateway.execute(spec,
-                () -> tasks.transition(subject.tenantId(), id, transition, finalReason)));
+                () -> tasks.transition(subject.tenantId(), id, transition, finalReason, sync, subject.actorRef())));
+    }
+
+    /**
+     * Section 12, rule 1: a command queued offline for a task that has since been assigned to someone else is
+     * refused, the server assignment wins; the client marks the queued item stale and asks the operator to refresh.
+     */
+    private static void requireStillAssigned(TaskView task, Subject subject) {
+        if (task.assignedActorRef() != null && !task.assignedActorRef().equals(subject.actorRef())) {
+            throw new ApiProblemException(HttpStatus.CONFLICT, "Task reassigned",
+                    "The task is assigned to someone else now; the server assignment wins. Refresh before continuing.",
+                    "task_reassigned", Map.of("task_id", task.id().toString()));
+        }
     }
 }
+
