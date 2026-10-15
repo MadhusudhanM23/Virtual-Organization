@@ -1,6 +1,5 @@
 package io.vorg.api.platform.identity;
 
-import java.time.Duration;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
@@ -63,7 +62,7 @@ public class IdentityConfig {
     }
 
     @Bean
-    LoginRateLimiter loginRateLimiter() {
-        return new LoginRateLimiter(5, Duration.ofMinutes(1));
+    LoginThrottle loginThrottle() {
+        return LoginThrottle.standard();
     }
 }

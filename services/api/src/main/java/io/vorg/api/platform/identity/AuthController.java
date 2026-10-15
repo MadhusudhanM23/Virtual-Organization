@@ -30,10 +30,10 @@ public class AuthController {
     public record TokenResponse(String accessToken, String tokenType, long expiresIn) {}
 
     private final AuthService auth;
-    private final LoginRateLimiter limiter;
+    private final LoginThrottle limiter;
     private final boolean cookieSecure;
 
-    public AuthController(AuthService auth, LoginRateLimiter limiter,
+    public AuthController(AuthService auth, LoginThrottle limiter,
             @Value("${vo.auth.cookie-secure:true}") boolean cookieSecure) {
         this.auth = auth;
         this.limiter = limiter;
@@ -42,19 +42,18 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest body, HttpServletRequest request) {
-        String key = request.getRemoteAddr() + "|"
-                + (body.email() == null ? "" : body.email().trim().toLowerCase(Locale.ROOT));
-        if (limiter.isBlocked(key)) {
+        String ip = request.getRemoteAddr();
+        if (limiter.isBlocked(ip, body.tenant(), body.email())) {
             return problem(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Try again later.")
                     .header(HttpHeaders.RETRY_AFTER, "60").body(detail(HttpStatus.TOO_MANY_REQUESTS,
                             "Too many attempts. Try again later."));
         }
         Optional<AuthService.Tokens> tokens = auth.login(body.tenant(), body.email(), body.password());
         if (tokens.isEmpty()) {
-            limiter.recordFailure(key);
+            limiter.recordFailure(ip, body.tenant(), body.email());
             return invalid();
         }
-        limiter.recordSuccess(key);
+        limiter.recordSuccess(ip, body.email());
         return ok(tokens.get());
     }
 

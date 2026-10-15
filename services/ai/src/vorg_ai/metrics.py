@@ -35,7 +35,8 @@ class Metrics:
         with self._lock:
             for outcome, counts in sorted(self._counts.items()):
                 for i, bound in enumerate(BUCKETS):
-                    lines.append(f'vo_ai_request_duration_seconds_bucket{{outcome="{outcome}",le="{bound}"}} {counts[i]}')
+                    labels = f'outcome="{outcome}",le="{bound}"'
+                    lines.append(f"vo_ai_request_duration_seconds_bucket{{{labels}}} {counts[i]}")
                 lines.append(f'vo_ai_request_duration_seconds_bucket{{outcome="{outcome}",le="+Inf"}} {counts[-1]}')
                 lines.append(f'vo_ai_request_duration_seconds_sum{{outcome="{outcome}"}} {self._sums[outcome]}')
                 lines.append(f'vo_ai_request_duration_seconds_count{{outcome="{outcome}"}} {counts[-1]}')
