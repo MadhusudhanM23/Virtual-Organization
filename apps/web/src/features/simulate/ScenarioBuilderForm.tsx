@@ -1,6 +1,7 @@
 import { useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/cn';
+import { SignatureScenarioSection } from './SignatureScenarioSection';
 import {
   BASELINE_REF,
   type CreateScenarioBody,
@@ -160,10 +161,19 @@ export function ScenarioBuilderForm({ siteId, onCancel, onSubmit, submitting }: 
         </div>
       </div>
 
-      <DockClosures draft={draft} setDraft={setDraft} errors={errors} />
-      <ForkliftOutages draft={draft} setDraft={setDraft} errors={errors} />
-      <WorkerReductions draft={draft} setDraft={setDraft} errors={errors} />
-      <DemandMultiplierSection draft={draft} setDraft={setDraft} errors={errors} />
+      <SignatureScenarioSection
+        draft={draft.signature}
+        setSignature={(u) => setDraft((d) => ({ ...d, signature: typeof u === 'function' ? u(d.signature) : u }))}
+        errors={errors}
+      />
+      {draft.signature.type === 'custom' ? (
+        <>
+          <DockClosures draft={draft} setDraft={setDraft} errors={errors} />
+          <ForkliftOutages draft={draft} setDraft={setDraft} errors={errors} />
+          <WorkerReductions draft={draft} setDraft={setDraft} errors={errors} />
+          <DemandMultiplierSection draft={draft} setDraft={setDraft} errors={errors} />
+        </>
+      ) : null}
       <RunSettingsSection draft={draft} setDraft={setDraft} errors={errors} />
 
       {attempted && errors.length > 0 ? (

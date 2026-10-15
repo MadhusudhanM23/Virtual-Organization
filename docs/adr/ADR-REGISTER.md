@@ -920,3 +920,80 @@ instead of a before value. (b) Add a penalized "unserved trip" term so `objectiv
 changes the objective's meaning and needs an ADR-62 revision.
 **Consequences:** with the default, a whole-shift closure cannot produce a recommendation through the API; the
 simulation comparison (Phase 6) still shows its impact.
+
+
+### ADR-79 Signature scenarios: typed overlays over the existing engine, route blockage, no recommendation coupling yet — Proposed
+**Context:** REQ-140 asks for four signature scenarios (demand surge, forklift outage, route blockage, shift shortage).
+The Phase 6 engine (ADR-48/49) already has overlay primitives for three of them (`demand_multiplier`,
+`forklift_outages`, `worker_reductions`); a route blockage has no primitive. The Phase 8 recommendation generator
+(ADR-62/63) optimizes dock and forklift re-assignment from `dock_closures` only.
+**Decision (conservative default):** (1) add one primitive, `route_blockages` `{zone, start_min, end_min,
+detour_factor, reason}`: putaway into / retrieval from a storage zone that *starts* in the window takes
+`detour_factor` times its layout travel time; `detour_factor` is required in (1, 10], with no default, so the detour is
+always a stated scenario input and never a hidden constant. (2) Add a typed layer, `SignatureScenarios`, that validates
+type-specific parameters (path `signature.params.<name>`) and *expands* to an ordinary overlay. The stored scenario
+document, the engine, `Comparison` and its hashes are unchanged; the API accepts `signature` (exclusive with
+`overlay`) and serves the catalog at `GET /api/scenario-types`. (3) Each type has a deterministic fixture (seed
+20261012, 10 replications, 480 min, fixed parameters labelled ASSUMPTION). (4) The recommendation generator does **not**
+consume the new types: none has a dock or forklift re-assignment lever, and inventing one would change ADR-62's
+objective. Documented as future work.
+**Options for the owner:** (a) let the generator propose forklift re-balancing for a forklift outage; (b) model a route
+blockage as a layout edge removal (needs a lane graph in the model input, today only zone centres) instead of a
+multiplier; (c) a per-type default detour taken from the lane graph of the world seed.
+**Consequences:** the four scenarios are comparable against the baseline with the existing paired CRN machinery; the
+multiplier is coarse (it does not reroute individual forklifts or create congestion) and says so in the docs.
+
+### ADR-80 Monte Carlo distributions: reported next to the comparison, not inside its hash — Proposed
+**Context:** The comparison reports the mean paired delta with a 95% CI. REQ-140 also wants distributions of the KPIs
+over seeds (median, p5/p95, CI), deterministic for a seed set.
+**Decision (conservative default):** the replications of a run are the Monte Carlo sample (N = `run.replications`, seeds
+derived by ADR-47 from `run.master_seed`; `SimulationRunner.runSeeds` accepts an explicit seed list with the same
+result). `MonteCarlo.report` returns `vorg.simulation.distributions.v1`: per KPI and for baseline, scenario and the
+paired delta: n, mean, median, p5, p95 (Hyndman-Fan type 7), min, max, sd and the Student-t 95% CI of the mean, plus the
+seed list and a `distributions_hash`. The API stores it as `results.distributions` beside the comparison; the
+comparison and `results_hash` (= `comparison_hash`) are unchanged, so existing hashes and clients keep working. KPIs
+undefined in a replication are excluded and `n` says how many were defined; with fewer than two defined values the
+spread fields are null, never zero.
+**Options for the owner:** raise `MAX_REPLICATIONS` (200) for tighter tail estimates; add antithetic or stratified
+sampling; add an explicit `run.seeds` field to the scenario document (today the seed set is the master seed's).
+**Consequences:** p5 and p95 of 10 replications are interpolated between the 1st and 2nd order statistics; with the
+default N they are descriptive of the sample, not tight estimates of the population tails (the docs say so).
+
+### ADR-81 Cross-process async transport: NATS JetStream is not justified yet (REQ-150) — Proposed
+**Context:** ADR-10 names NATS JetStream for cross-process asynchronous delivery "when scale needs it". The roadmap says
+to build it only when evidence requires. `docs/reports/scale-evidence.md` measures the single-process Postgres
+outbox poller and the in-process WebSocket fan-out on the dev machine.
+**Decision (conservative default):** do not introduce NATS now. Keep the Postgres outbox (ADR-02) and the in-process
+`LiveHub`. Measured: events are written at about 224 to 345 per second (one thread, one transaction per observation);
+the poller drains and projects about 145 to 155 outbox rows per second with no sockets and about 72 to 136 with 1 to
+400 live sockets (one 100-socket run was the low point on a machine shared with other work); the 400 sockets received
+about 525 MB without a slow-socket close or a gap. The Phase 10 measurement of the live demo is about 6.5 outbox rows per
+second, so the demo uses about 4% of the measured drain ceiling.
+**Decision criteria to revisit (any one, sustained, measured in the target environment):** (1) the steady event
+rate exceeds half the measured drain ceiling (about 75 rows/s on this class of machine) or outbox publish p95 exceeds
+the 2 s NFR-03 target for 10 minutes; (2) a consumer must run in another process or another language (the AI gateway and
+the vision service are API clients today, not consumers); (3) more than about 400 concurrent live sockets per API
+instance, or slow-socket closes (4429) above 1% of connections; (4) a second API instance must share fan-out.
+Before NATS, cheaper levers exist and are measured first: more poller threads (`FOR UPDATE SKIP LOCKED` already
+allows concurrent pollers), a larger batch, a Redis pub/sub fan-out between API instances.
+**Options for the owner:** (a) accept this verdict (nothing to build); (b) fund a Phase 11 k6 load test to replace the
+single-machine numbers; (c) pick JetStream anyway for a cross-process consumer, which reopens ADR-02 delivery semantics.
+**Consequences:** REQ-150 stays Deferred with evidence. The numbers are from one shared i3 machine with the load
+generator in the server JVM; they are an order-of-magnitude statement, not a capacity plan.
+
+### ADR-82 Calibration: one fitted parameter, holdout error, no real-world claim — Proposed
+**Context:** blueprint section 8 asks to compare simulation outcomes with observed outcomes and report error. The
+platform's event store holds only SIMULATED movement and SIM-WMS/TMS data; there is no real warehouse observation.
+**Decision (conservative default):** calibration is a pure engine function (`Calibration.fitScalar`) plus a read-only
+API service (`CalibrationService`) over `evt.events`. It fits one scalar assumption, `forklift_speed_m_per_s`, to the
+`speed_mps` of moving `FORKLIFT_POSITION_UPDATED` events, with a temporal split (first half fit, second half holdout),
+holdout error before and after (relative bias, MAE, RMSE), a cluster 95% CI (Student-t over per-forklift means) and a
+refusal to apply with fewer than 30 samples or 3 entities. Every other assumption (truck and order arrival rates, dock,
+pick, pack and load times) has no observed counterpart and is listed as not fitted, with the reason. The report states
+that the observations are SIMULATED, so a good fit shows the procedure works, not that the model matches a real
+warehouse. The fitted value is **not** written back to the baseline model automatically: applying it is an explicit
+scenario override.
+**Options for the owner:** (a) an authorized endpoint and a UI card for the report; (b) task-duration calibration once
+real WMS/TMS timestamps exist; (c) fit distributions, not scalars (needs real, independent samples).
+**Consequences:** on the measured run the speed assumption (2.0 m/s) moves to 2.18 m/s and the holdout bias falls from
+-8.8% to -0.6%; this is agreement with the movement generator's documented 1.8 to 2.6 m/s range (mean 2.2), nothing more.

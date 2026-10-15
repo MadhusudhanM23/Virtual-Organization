@@ -5,6 +5,7 @@ import io.vorg.api.platform.web.ApiProblemException.FieldError;
 import io.vorg.simulation.warehouse.Baselines;
 import io.vorg.simulation.warehouse.InvalidInputException;
 import io.vorg.simulation.warehouse.Scenario;
+import io.vorg.simulation.warehouse.SignatureScenarios;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.LinkedHashMap;
@@ -17,12 +18,49 @@ import org.springframework.http.HttpStatus;
  * {@link InvalidInputException} ("path: message", see {@code services/simulation}'s {@code Fields}) into a 400
  * problem naming the bad field (REQ-070/071).
  */
-final class ScenarioJson {
+public final class ScenarioJson {
 
     /** Plan 6.3 always overlays the one demo baseline (ADR-60); no live snapshot is taken. */
     static final String BASELINE_REF = Baselines.BENGALURU_WAREHOUSE_01;
 
     private ScenarioJson() {}
+
+    /**
+     * The overlay of a create request: the given {@code overlay}, or the expansion of a typed {@code signature}
+     * ({@code {type, params}}, REQ-140, ADR-79). Both at once is a 400, as is any invalid signature parameter (the
+     * field path is {@code signature.params.<name>}).
+     */
+    public static Map<String, Object> resolveOverlay(Map<String, Object> overlay, Map<String, Object> signature) {
+        if (signature == null) {
+            return overlay;
+        }
+        if (overlay != null && !overlay.isEmpty()) {
+            throw new ApiProblemException(HttpStatus.BAD_REQUEST, "Invalid scenario",
+                    "signature and overlay are mutually exclusive.",
+                    List.of(new FieldError("signature", "cannot be combined with overlay")));
+        }
+        try {
+            if (!signature.keySet().stream().allMatch(k -> k.equals("type") || k.equals("params"))) {
+                throw new InvalidInputException("signature: only 'type' and 'params' are allowed");
+            }
+            Object type = signature.get("type");
+            if (!(type instanceof String t) || t.isBlank()) {
+                throw new InvalidInputException("signature.type: non-empty string required");
+            }
+            Object params = signature.get("params");
+            if (params != null && !(params instanceof Map)) {
+                throw new InvalidInputException("signature.params: object required");
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> pm = (Map<String, Object>) params;
+            return SignatureScenarios.expand(t, pm, Baselines.load(BASELINE_REF));
+        } catch (InvalidInputException ex) {
+            throw toProblem(ex);
+        } catch (ClassCastException | NumberFormatException ex) {
+            throw new ApiProblemException(HttpStatus.BAD_REQUEST, "Invalid scenario",
+                    "signature: fields have the wrong type.", List.of(new FieldError("signature", ex.getMessage())));
+        }
+    }
 
     /**
      * Builds and parses the scenario document. {@code run} may omit {@code master_seed}; one is then derived

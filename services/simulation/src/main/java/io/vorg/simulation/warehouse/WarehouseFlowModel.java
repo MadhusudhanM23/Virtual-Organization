@@ -390,7 +390,7 @@ public final class WarehouseFlowModel {
             rw.release(w);
             forklifts.request(FL_PUTAWAY, "putaway|" + pl.id, fl -> {
                 move(pl, Loc.PUTAWAY);
-                double min = pl.putawayHandlingMin + putawayTravelMin.get(pl.zone);
+                double min = pl.putawayHandlingMin + putawayTravelMin.get(pl.zone) * routeFactor(pl.zone, sim.now());
                 sim.schedule(SimTime.ofMinutes(min), "stored|" + pl.id, () -> {
                     forklifts.release(fl);
                     move(pl, Loc.STORED);
@@ -403,6 +403,18 @@ public final class WarehouseFlowModel {
     }
 
     // ------------------------------------------------------------------ orders
+
+    /** Travel-time multiplier of the route to/from {@code zone} at {@code now} (1 unless blocked; worst blockage wins). */
+    private double routeFactor(String zone, long now) {
+        double f = 1.0;
+        double m = SimTime.toMinutes(now);
+        for (Overlay.RouteBlockage b : overlay.routeBlockages()) {
+            if (b.zone().equals(zone) && m >= b.startMin() && m < b.endMin()) {
+                f = Math.max(f, b.detourFactor());
+            }
+        }
+        return f;
+    }
 
     private double demandFactor(long now) {
         Overlay.DemandMultiplier d = overlay.demandMultiplier();
@@ -452,7 +464,7 @@ public final class WarehouseFlowModel {
         pl.order = o;
         move(pl, Loc.RETRIEVAL);
         forklifts.request(FL_RETRIEVE, "retrieve|" + pl.id, fl -> {
-            double min = o.retrievalMin[line] + retrievalTravelMin.get(pl.zone);
+            double min = o.retrievalMin[line] + retrievalTravelMin.get(pl.zone) * routeFactor(pl.zone, sim.now());
             sim.schedule(SimTime.ofMinutes(min), "retrieved|" + pl.id, () -> {
                 forklifts.release(fl);
                 move(pl, Loc.PICKING);

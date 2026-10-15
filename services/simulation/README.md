@@ -50,6 +50,7 @@ under a second (see Performance).
     "forklift_outages":  [ { "forklift_id": "FL-10", "start_min": 120, "end_min": 300, "reason": "battery fault" } ],
     "worker_reductions": [ { "role": "PICKING", "count": 2, "start_min": 0, "end_min": 240, "reason": "absence" } ],
     "demand_multiplier": { "factor": 1.25, "start_min": 180, "end_min": 360 },
+    "route_blockages":   [ { "zone": "STORAGE_A", "start_min": 120, "end_min": 300, "detour_factor": 4.0, "reason": "pallet spill" } ],
     "parameter_overrides": { "inbound_truck_arrival_rate_per_hour": 4.0,
                              "unload_time_per_pallet_min": { "dist": "triangular", "min": 1.4, "mode": 1.9, "max": 3.0 } }
   }
@@ -63,6 +64,9 @@ under a second (see Performance).
   before the horizon. `demand_multiplier` (factor in (0, 10]) scales **order** arrivals; `end_min` defaults to the
   horizon. `parameter_overrides` replaces assumption values (same kind: number or distribution); the output marks them
   `overridden: true`. Unknown fields, docks, forklifts, roles or assumption keys are errors, never ignored.
+- `route_blockages` (Phase 13, ADR-79): putaway into and retrieval from the storage `zone` that *start* in the window take
+  `detour_factor` (required, in (1, 10]) times their layout travel time; the worst overlapping blockage wins. Omitted from
+  the normalized overlay when empty, so earlier hashes are unchanged.
 - Examples: [`scenarios/`](scenarios) (`baseline.json`, `dock-closure-in-02.json`, `combined-disruption.json`).
 
 ### Model input JSON (`vorg.simulation.model-input.v1`)
@@ -214,10 +218,22 @@ time goes to stderr.
 `PerformanceTest` runs the dock-closure scenario and its baseline (2 x 10 replications x 480 min, about 160 000
 events) and logs the time; on the reference dev machine it takes about 0.4-0.7 s.
 
+## Signature scenarios, Monte Carlo and calibration (Phase 13, REQ-140)
+
+- `SignatureScenarios`: typed parameters for `demand_surge`, `forklift_outage`, `route_blockage` and `shift_shortage`;
+  `expand(type, params, model)` validates (errors are `signature.params.<name>: ...`) and returns an overlay map;
+  `fixture(type)` is the deterministic fixture (seed 20261012, 10 replications, 480 min). `catalog()` documents them.
+  See [docs/scenarios/library.md](../../docs/scenarios/library.md).
+- `MonteCarlo.report(comparison)` (`vorg.simulation.distributions.v1`): per KPI mean, median, p5, p95, min, max, sd and
+  the 95% CI, for baseline, scenario and the paired delta; `SimulationRunner.runSeeds` / `runWithBaseline(scenario, seeds)`
+  run an explicit seed set. Deterministic for a seed set (ADR-80).
+- `Calibration.fitScalar`: fits one scalar assumption to observed samples with a temporal holdout and reports the error
+  before and after (ADR-82); see [docs/scenarios/calibration.md](../../docs/scenarios/calibration.md).
+
 ## Tests
 
 `mvnw -B -pl services/simulation verify`: event ordering and ties, run control and warm-up, trace hashes, RNG stream
 independence/reproducibility and golden values, distribution moments, hand-checked queueing cases, downtime semantics,
 stores, statistics and CI, canonical JSON, model input/scenario validation, conservation laws, determinism (same seed =>
 identical bytes and traces; different seed => different), warm-up invariance of the sample path, dock closure worse than
-baseline with common random numbers, overlay effects, performance, CLI.
+baseline with common random numbers, overlay effects, signature scenario validation and determinism, Monte Carlo quantiles and seed sets, calibration, performance, CLI.

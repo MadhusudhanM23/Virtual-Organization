@@ -1,0 +1,98 @@
+{
+  "schema" : "vorg.calibration.report.v1",
+  "window_from" : "2026-10-15T09:01:11.851664200Z",
+  "window_to" : "2026-10-15T09:02:47.033071800Z",
+  "observed_data_modes" : {
+    "SIMULATED" : 6042
+  },
+  "observation_source" : "evt.events FORKLIFT_POSITION_UPDATED (status MOVING, speed_mps > 0)",
+  "fit" : {
+    "parameter" : "forklift_speed_m_per_s",
+    "unit" : "m/s",
+    "model_value" : 2.0,
+    "observed_from" : "evt.events",
+    "n_samples" : 6042,
+    "n_groups" : 10,
+    "observed_mean" : 2.187710691823918,
+    "observed_median" : 2.19,
+    "observed_p5" : 1.841,
+    "observed_p95" : 2.553,
+    "observed_mean_ci95_low" : 2.1729578005477936,
+    "observed_mean_ci95_high" : 2.202913622308465,
+    "ci_method" : "student_t_over_group_means",
+    "applied" : true,
+    "fitted_value" : 2.1815038066865426,
+    "split" : "temporal: first half fit, second half holdout",
+    "n_fit" : 3021,
+    "n_holdout" : 3021,
+    "fit_error" : {
+      "fit_set_before" : {
+        "n" : 3021,
+        "observed_mean" : 2.1815038066865426,
+        "relative_bias" : -0.08320123308069143,
+        "mae" : 0.23575604104601006,
+        "rmse" : 0.2905549422149756
+      },
+      "fit_set_after" : {
+        "n" : 3021,
+        "observed_mean" : 2.1815038066865426,
+        "relative_bias" : 0.0,
+        "mae" : 0.19737950883591956,
+        "rmse" : 0.22688883314047686
+      },
+      "holdout_before" : {
+        "n" : 3021,
+        "observed_mean" : 2.1939175769612844,
+        "relative_bias" : -0.08838872480791764,
+        "mae" : 0.2504193975504768,
+        "rmse" : 0.304929119563267
+      },
+      "holdout_after" : {
+        "n" : 3021,
+        "observed_mean" : 2.1939175769612844,
+        "relative_bias" : -0.0056582664750494584,
+        "mae" : 0.20811252075151832,
+        "rmse" : 0.23565195309085274
+      }
+    },
+    "holdout_improved" : true,
+    "fitted_value_hash" : "fc79232900b6b0866bda75ac7ab4c31428a1917739fd8c007934831a9305d5da"
+  },
+  "inventory" : {
+    "position_events_all_entities" : 21607,
+    "forklift_position_events" : 7249,
+    "task_started_events" : 0,
+    "task_completed_events" : 0,
+    "truck_arriving_position_events" : 155,
+    "not_fitted" : {
+      "task durations (service times)" : "TASK_STARTED to TASK_COMPLETED measures a whole task by a human through the API (0 completed here); the model's service times are per-pallet sub-steps (unload, check, pick, pack, load), so the two are not the same quantity. Not fitted.",
+      "inbound_truck_arrival_rate_per_hour" : "The movement source cycles two demo trucks for the live view; that cadence is a visual generator, not an arrival process of a dock schedule. Not fitted.",
+      "order_arrival_rate_per_hour" : "Orders arrive through the SIM-WMS adapter as mirror records, not as events with their own arrival process; no observed order stream exists. Not fitted.",
+      "all other assumptions" : "No observed counterpart in the event store (dock-in and dock-out times, pick, pack and load times, pallets per truck or order). They stay ASSUMPTIONs."
+    }
+  },
+  "effect_on_model" : {
+    "method" : "same seeds, uncalibrated model vs model with the fitted value (10 replications x 480 min); SIMULATED",
+    "kpis" : [ {
+      "key" : "pallets_received_per_hour",
+      "uncalibrated_mean" : 58.000000000000014,
+      "calibrated_mean" : 58.09333333333334,
+      "verdict" : "no_significant_change"
+    }, {
+      "key" : "forklift_utilization",
+      "uncalibrated_mean" : 0.7373897133333334,
+      "calibrated_mean" : 0.7213420914814815,
+      "verdict" : "decreased"
+    }, {
+      "key" : "forklift_wait_mean_min",
+      "uncalibrated_mean" : 2.5310976080257452,
+      "calibrated_mean" : 2.1939718690606584,
+      "verdict" : "better"
+    }, {
+      "key" : "order_cycle_time_mean_min",
+      "uncalibrated_mean" : 59.36099743893758,
+      "calibrated_mean" : 59.15710656438698,
+      "verdict" : "no_significant_change"
+    } ]
+  }
+}

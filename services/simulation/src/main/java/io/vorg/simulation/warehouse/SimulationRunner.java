@@ -1,6 +1,5 @@
 package io.vorg.simulation.warehouse;
 
-import io.vorg.simulation.random.StreamSeeds;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,14 +13,26 @@ public final class SimulationRunner {
 
     public static SimulationResults run(Scenario scenario) {
         RunSettings run = scenario.run();
-        List<Long> seeds = new ArrayList<>();
+        return runSeeds(scenario, MonteCarlo.seedSet(run.masterSeed(), run.replications()));
+    }
+
+    /** Runs one replication per given seed (an explicit Monte Carlo seed set); replication i uses seeds[i]. */
+    public static SimulationResults runSeeds(Scenario scenario, List<Long> seedSet) {
+        if (seedSet.isEmpty() || seedSet.size() > RunSettings.MAX_REPLICATIONS) {
+            throw new InvalidInputException("seeds: between 1 and " + RunSettings.MAX_REPLICATIONS + " seeds");
+        }
+        List<Long> seeds = new ArrayList<>(seedSet);
         List<ReplicationResult> reps = new ArrayList<>();
-        for (int i = 0; i < run.replications(); i++) {
-            long seed = StreamSeeds.replicationSeed(run.masterSeed(), i);
-            seeds.add(seed);
-            reps.add(new WarehouseFlowModel(scenario.effectiveModel(), scenario.overlay(), run, i, seed).run());
+        for (int i = 0; i < seeds.size(); i++) {
+            reps.add(new WarehouseFlowModel(scenario.effectiveModel(), scenario.overlay(),
+                    scenario.run().withReplications(seeds.size()), i, seeds.get(i)).run());
         }
         return new SimulationResults(scenario, seeds, reps);
+    }
+
+    /** Baseline and scenario over the same explicit seed set (paired). */
+    public static Comparison runWithBaseline(Scenario scenario, List<Long> seedSet) {
+        return new Comparison(runSeeds(scenario.baselineCounterpart(), seedSet), runSeeds(scenario, seedSet));
     }
 
     /** Runs the scenario's baseline counterpart (overlay removed) and the scenario with the same seeds, and compares. */

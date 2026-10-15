@@ -42,7 +42,8 @@ well under a second).
   which case one is derived deterministically from the server-assigned scenario id (REQ-072 requires a stored seed,
   not that the caller supply it — the same scenario always re-derives the same default seed).
 - `overlay` accepts the engine's overlay fields verbatim (`dock_closures`, `forklift_outages`, `worker_reductions`,
-  `demand_multiplier`, `parameter_overrides`); an unknown field, dock, forklift or role is rejected (see Errors below).
+  `demand_multiplier`, `route_blockages`, `parameter_overrides`); an unknown field, dock, forklift, role or zone is
+  rejected (see Errors below). Instead of `overlay` a request may carry a typed `signature` (next section).
 - The command result, and `GET /api/scenarios/{id}`, return:
 
 ```json
@@ -57,6 +58,33 @@ well under a second).
 ```
 
 `GET /api/scenarios?site_id=[&limit=&cursor=]` lists scenarios of a site, newest first.
+
+## Signature scenarios (Phase 13, REQ-140, ADR-79)
+
+Instead of an `overlay`, `POST /api/scenarios` accepts `signature: {type, params}` (exclusive with `overlay`; both is a
+`400` on field `signature`). The API validates the parameters and expands them to the ordinary overlay, which is what is
+stored and returned, so a signature scenario is run, compared and listed exactly like any other.
+
+```json
+{ "site_id": "<uuid>", "name": "Block storage A", "run": { "master_seed": 20261012, "replications": 10 },
+  "signature": { "type": "route_blockage",
+                 "params": { "zone": "STORAGE_A", "detour_factor": 4, "start_min": 120, "end_min": 300 } } }
+```
+
+| `type` | `params` (all also take `start_min`, `end_min`) | Expands to |
+|---|---|---|
+| `demand_surge` | `factor` in (1, 10] | `demand_multiplier` |
+| `forklift_outage` | `count` 1..10 (the highest-numbered forklifts) | `forklift_outages` x count |
+| `route_blockage` | `zone` (`STORAGE_A`, `STORAGE_B`), `detour_factor` in (1, 10] (required) | `route_blockages` |
+| `shift_shortage` | `role` (`RECEIVING`, `PICKING`, `PACKING`, `DISPATCH`), `count` 1..headcount | `worker_reductions` |
+
+A bad parameter is `400` with the field path `signature.params.<name>` (`signature.type` for an unknown type); a window
+outside the run horizon is reported on the expanded overlay path, for example `overlay.route_blockages[0].start_min`.
+`overlay.route_blockages` items are `{zone, start_min, end_min, detour_factor, reason?}`.
+
+`GET /api/scenario-types` (any authenticated user; static) returns `{items: [{type, label, description, model_effect,
+params[{name, kind, unit, description, fixture_value}], fixture{master_seed, replications, horizon_min, warmup_min,
+params}, provenance}]}`. Fixtures and provenance: [docs/scenarios/library.md](../scenarios/library.md).
 
 ## Simulation runs
 
@@ -84,6 +112,23 @@ itself, creating the run row, completes synchronously; the simulation keeps goin
 (`worse`/`better`/`increased`/`decreased`/`no_significant_change`), and `affected_entities` for SIMULATE-lens
 highlighting (REQ-075, Plan 6.4).
 
+A succeeded run's `results` also carries `distributions` (ADR-80): the Monte Carlo report over the run's replications,
+
+```json
+{ "schema": "vorg.simulation.distributions.v1", "data_mode": "SIMULATED", "lens": "SIMULATE", "source": "SIMULATION",
+  "seed_scheme": "sha256-name-v1", "quantile_method": "linear_interpolation_type7", "n_replications": 10,
+  "replication_seeds": [ "..." ],
+  "kpis": [ { "key": "forklift_wait_mean_min", "label": "...", "unit": "min", "better": "lower",
+              "baseline": { "n": 10, "mean": 2.53, "median": 1.65, "p5": 0.61, "p95": 6.79, "min": 0.19, "max": 9.39,
+                            "sd": 2.59, "ci95_low": 0.68, "ci95_high": 4.38 },
+              "scenario": { "...": "same fields" }, "delta": { "...": "paired scenario - baseline, same fields" } } ],
+  "distributions_hash": "<sha-256>" }
+```
+
+Same seeds give the same bytes. A KPI undefined in some replications is computed over the defined ones and `n` says how
+many; with fewer than 2 values the spread fields are `null`. `results_hash` is still the hash of the comparison alone;
+`distributions` is outside it and has its own `distributions_hash`. Runs stored before Phase 13 have no `distributions`.
+
 `GET /api/simulation-runs?scenario_id=|site_id=[&limit=&cursor=]`: `scenario_id` is authorized through the scenario
 (and implies its site); otherwise `site_id` is required.
 
@@ -92,8 +137,8 @@ A run never produces a partial result: `FAILED` sets `error_message` and leaves 
 
 ## Errors
 
-- A scenario field the engine's strict parser rejects (unknown field, unknown dock/forklift id, unknown role, bad
-  window, missing baseline) is `400 application/problem+json` with `errors: [{"field": "<dotted path>", "message": "..."}]`
+- A scenario field the engine's strict parser rejects (unknown field, unknown dock/forklift id/zone, unknown role, bad
+  window, bad signature parameter, missing baseline) is `400 application/problem+json` with `errors: [{"field": "<dotted path>", "message": "..."}]`
   — the field is exactly the engine's own path (e.g. `overlay.dock_closures[0].dock_id`), never a generic message.
 - An unknown `site_id` is `404`. A known site outside the caller's role scope is `403`. A scenario or run of another
   tenant, or an unknown id, is `404` (RLS hides the row; there is no way to distinguish "not found" from "not yours").

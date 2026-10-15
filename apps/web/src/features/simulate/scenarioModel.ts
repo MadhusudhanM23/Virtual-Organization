@@ -8,6 +8,7 @@ import type {
   ScenarioOverlay,
   WorkerReductionOverlay,
 } from './simulationApi';
+import { defaultSignatureDraft, toSignatureRequest, validateSignature, type SignatureDraft } from './signatureModel';
 
 /** Known docks of the single baseline model (bengaluru-warehouse-01, services/simulation/README.md). */
 export const KNOWN_DOCKS = ['IN-01', 'IN-02', 'IN-03', 'OUT-01', 'OUT-02', 'OUT-03'] as const;
@@ -83,6 +84,8 @@ export interface ScenarioFormDraft {
   forkliftOutages: ForkliftOutageDraft[];
   workerReductions: WorkerReductionDraft[];
   demandMultiplier: DemandMultiplierDraft;
+  /** A typed signature scenario (REQ-140); `type: 'custom'` means the generic overlay sections above are used. */
+  signature: SignatureDraft;
   run: RunSettingsDraft;
 }
 
@@ -106,6 +109,7 @@ export function defaultScenarioForm(): ScenarioFormDraft {
     forkliftOutages: [],
     workerReductions: [],
     demandMultiplier: { enabled: false, factor: '1.5', start_min: '0', end_min: '' },
+    signature: defaultSignatureDraft(),
     run: {
       replications: String(RUN_LIMITS.replicationsDefault),
       horizon_min: String(RUN_LIMITS.horizonMinDefault),
@@ -156,7 +160,14 @@ export function validateScenarioForm(draft: ScenarioFormDraft): FieldError[] {
 
   const horizon = toInt(draft.run.horizon_min) ?? RUN_LIMITS.horizonMinDefault;
 
+  if (draft.signature.type !== 'custom') {
+    errors.push(...validateSignature(draft.signature, horizon));
+  }
+
+  // A typed signature replaces the generic overlay: those sections are hidden and not sent (ADR-79).
+  const custom = draft.signature.type === 'custom';
   draft.dockClosures.forEach((d, i) => {
+    if (!custom) return;
     if (!KNOWN_DOCKS.includes(d.dock_id as (typeof KNOWN_DOCKS)[number])) {
       errors.push({ field: `overlay.dock_closures[${i}].dock_id`, message: `Unknown dock "${d.dock_id}".` });
     }
@@ -164,6 +175,7 @@ export function validateScenarioForm(draft: ScenarioFormDraft): FieldError[] {
   });
 
   draft.forkliftOutages.forEach((d, i) => {
+    if (!custom) return;
     if (!KNOWN_FORKLIFTS.includes(d.forklift_id)) {
       errors.push({ field: `overlay.forklift_outages[${i}].forklift_id`, message: `Unknown forklift "${d.forklift_id}".` });
     }
@@ -171,6 +183,7 @@ export function validateScenarioForm(draft: ScenarioFormDraft): FieldError[] {
   });
 
   draft.workerReductions.forEach((d, i) => {
+    if (!custom) return;
     const known = KNOWN_ROLES.find((r) => r.role === d.role);
     if (!known) {
       errors.push({ field: `overlay.worker_reductions[${i}].role`, message: `Unknown role "${d.role}".` });
@@ -187,7 +200,7 @@ export function validateScenarioForm(draft: ScenarioFormDraft): FieldError[] {
     errors.push(...windowErrors(`overlay.worker_reductions[${i}]`, d.start_min, d.end_min, horizon));
   });
 
-  if (draft.demandMultiplier.enabled) {
+  if (custom && draft.demandMultiplier.enabled) {
     const factor = toNumber(draft.demandMultiplier.factor);
     if (factor === null || factor <= 0) {
       errors.push({ field: 'overlay.demand_multiplier.factor', message: 'Factor must be a positive number.' });
@@ -224,8 +237,7 @@ export function validateScenarioForm(draft: ScenarioFormDraft): FieldError[] {
   return errors;
 }
 
-/** Builds the create-scenario request body from a validated draft. */
-export function toCreateScenarioBody(siteId: string, draft: ScenarioFormDraft): CreateScenarioBody {
+function customOverlay(draft: ScenarioFormDraft): ScenarioOverlay {
   const overlay: ScenarioOverlay = {};
   if (draft.dockClosures.length > 0) {
     overlay.dock_closures = draft.dockClosures.map<DockClosureOverlay>((d) => ({
@@ -259,6 +271,12 @@ export function toCreateScenarioBody(siteId: string, draft: ScenarioFormDraft): 
     if (draft.demandMultiplier.end_min.trim() !== '') m.end_min = Number(draft.demandMultiplier.end_min);
     overlay.demand_multiplier = m;
   }
+  return overlay;
+}
+
+/** Builds the create-scenario request body from a validated draft. */
+export function toCreateScenarioBody(siteId: string, draft: ScenarioFormDraft): CreateScenarioBody {
+  const signature = toSignatureRequest(draft.signature);
 
   const run: RunSettings = {
     replications: Number(draft.run.replications),
@@ -271,7 +289,7 @@ export function toCreateScenarioBody(siteId: string, draft: ScenarioFormDraft): 
     site_id: siteId,
     name: draft.name.trim(),
     ...(draft.description.trim() ? { description: draft.description.trim() } : {}),
-    overlay,
+    ...(signature ? { signature } : { overlay: customOverlay(draft) }),
     run,
   };
 }
@@ -287,6 +305,11 @@ export function summarizeOverlay(overlay: ScenarioOverlay): string {
   }
   if (overlay.worker_reductions?.length) {
     parts.push(`${overlay.worker_reductions.length} worker reduction${overlay.worker_reductions.length > 1 ? 's' : ''}`);
+  }
+  if (overlay.route_blockages?.length) {
+    parts.push(
+      overlay.route_blockages.map((b) => `route blockage ${b.zone} x${b.detour_factor}`).join(', '),
+    );
   }
   if (overlay.demand_multiplier) {
     parts.push(`demand x${overlay.demand_multiplier.factor}`);
