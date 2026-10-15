@@ -27,8 +27,9 @@ events) that later domains reuse.
 | 8 Recommendations & approvals | OR-Tools optimizer, recommendation contract, approvals (separation of duties, expiry), stale-baseline check, verified execution, recommendations UI | Built and tested |
 | 9 AI assistant | Provider-neutral LLM gateway (`services/ai`: deterministic offline provider + OpenAI), allowlisted identity-scoped tools, cited grounded answers that highlight and frame the twin, assistant panel, eval suite | Built (offline by default; OpenAI turns on when the owner adds `OPENAI_API_KEY` and allows the tenant, see [docs/api/assistant.md](docs/api/assistant.md)) |
 | 10 MCD integration | All 12 MCD steps automated end to end on the real stack (`npm run e2e:mcd`), truth-label audit of every screen, measured SLO report, presenter runbook, stack scripts `scripts/mcd-*.ps1` | Built and tested (last run 2026-10-14: 14 of 14 passed; SLOs measured on one dev machine, availability and the OpenAI path not measured; see [docs/reports/mcd-slo-report.md](docs/reports/mcd-slo-report.md)) |
+| 11 Hardening (Milestone 2) | k6 load tests, chaos suite, security suite, accessibility audit, DR drill, Grafana dashboards and Prometheus alerts, SBOMs and image scans | Built and measured on one dev machine (2026-10-15): load [report](docs/reports/hardening-load-report.md), chaos [report](docs/reports/hardening-chaos-report.md), a11y [report](docs/reports/hardening-a11y-report.md), supply chain [report](docs/reports/hardening-supply-chain.md), [DR runbook](docs/runbooks/disaster-recovery.md). Open: the "no acknowledged audit loss" half of NFR-09 needs WAL archiving (ADR-71, Proposed) |
 
-Milestone 2 (hardening, offline operator PWA, scenario library and scale) follows the MCD. Phase plans live in
+Milestone 2 started with Phase 11 (hardening); the offline operator PWA, the scenario library and scale follow. Phase plans live in
 `.gsd/phases/{N}/`; decisions in [docs/adr/ADR-REGISTER.md](docs/adr/ADR-REGISTER.md).
 
 ## Repository layout
@@ -46,15 +47,16 @@ Layout follows blueprint §20.
 | `packages/contracts/` | Language-neutral JSON Schemas (event envelope, problems, command acks), permission matrix, event catalog |
 | `packages/twin-schema/` | Coordinate system and world-to-renderer helpers |
 | `infra/docker/` | `compose.yaml` for local infrastructure (+ `observability` profile) |
-| `infra/monitoring/` | Prometheus / Grafana configuration |
+| `infra/monitoring/` | Prometheus scrape config and SLO alert rules (`alerts.yml`), provisioned Grafana datasource and SLO dashboard |
 | `infra/db/` | Database roles and row-level-security notes ([README](infra/db/README.md)) |
 | `docs/product/` | Master blueprint (source of truth) |
 | `docs/adr/` | Architecture decision records |
 | `docs/api/` | HTTP/JSON conventions and endpoint catalog ([README](docs/api/README.md)) |
 | `docs/scenarios/` | Demo data provenance, scenario reproduction steps and the MCD runbook |
-| `docs/reports/` | Measured reports (MCD SLO and readiness report) |
-| `tests/` | Cross-cutting suites (contract tests, AI evaluation in `tests/ai-eval`) |
-| `scripts/` | Maven wrapper helpers, MCD stack scripts (`mcd-up`, `mcd-check`, `mcd-down`, `mcd-vision`), SLO measurement (`scripts/slo/`), GSD validation scripts |
+| `docs/reports/` | Measured reports (MCD SLO and readiness, Phase 11 load, chaos, accessibility and supply chain) |
+| `docs/runbooks/` | Operations runbooks (disaster recovery) |
+| `tests/` | Cross-cutting suites (contract tests, AI evaluation in `tests/ai-eval`, k6 load tests in `tests/load`) |
+| `scripts/` | Maven wrapper helpers, MCD stack scripts (`mcd-up`, `mcd-check`, `mcd-down`, `mcd-vision`), SLO measurement (`scripts/slo/`), chaos (`scripts/chaos/`), disaster recovery (`scripts/dr-*.ps1`), secrets scan and supply chain (`scripts/security/`, `scripts/supply-chain.ps1`), GSD validation scripts |
 | `.gsd/` | Spec, requirements, roadmap, architecture conventions, phase plans |
 
 Planned, not yet present: `apps/operator-pwa/` (Milestone 2).
@@ -167,6 +169,36 @@ To measure the SLOs: `python scripts/slo/measure.py --api http://127.0.0.1:8080 
 `node scripts/slo/ws_latency.mjs --api http://localhost:8080`. The method and results are in
 [docs/reports/mcd-slo-report.md](docs/reports/mcd-slo-report.md).
 
+## Hardening (Phase 11)
+
+Each check runs against a local stack from `scripts/mcd-up.ps1`; if a port is taken pass `-ApiPort` and friends. Use a
+separate compose project (`COMPOSE_PROJECT_NAME`, `POSTGRES_PORT`, `REDIS_PORT` in `.env`) when another stack is running.
+Results and method: the reports under `docs/reports/hardening-*.md`.
+
+```powershell
+$env:DEMO_USER_PASSWORD = "<the stack's demo password>"
+# Load (Docker, grafana/k6): reads, commands with Idempotency-Key, WebSocket fan-out, simulation runs
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/load/run.ps1 -ApiPort 8080
+# Chaos (LOCAL ONLY: kills the API, stops redis and postgres): invariants checked with SQL, results in .mcd/chaos/
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/chaos/chaos.ps1 -ApiPort 8080
+# Disaster recovery: backup, restore and verify, or the full destroy-and-restore drill (deletes the postgres volume)
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dr-backup.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dr-drill.ps1 -ApiPort 8080
+# Supply chain: CycloneDX SBOMs (Maven, npm, Python) and Trivy / npm audit scans -> sbom/
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/supply-chain.ps1
+node scripts/security/secrets-scan.mjs
+# Accessibility (axe on every screen at desktop and 390 px) and the UI chaos check
+cd apps/web
+$env:E2E_DEMO_PASSWORD = $env:DEMO_USER_PASSWORD
+$env:E2E_API_ORIGIN = "http://localhost:8080"; $env:E2E_AI_ORIGIN = "http://localhost:8090"
+npm run e2e:a11y
+```
+
+Observability: `docker compose -f infra/docker/compose.yaml --env-file .env --profile observability up -d` starts Prometheus
+(9090, alert rules from `infra/monitoring/alerts.yml`) and Grafana (3000, the "Virtual Organization - SLOs" dashboard is
+provisioned). Set `PROMETHEUS_CONFIG`, `PROMETHEUS_PORT` and `GRAFANA_PORT` to run it beside another stack. The security
+suite is part of `scripts/mvnw.ps1 -B verify` (`io.vorg.api.security.*IT`) and `pytest services/ai`.
+
 ## Tests
 
 | Suite | Command |
@@ -177,6 +209,9 @@ To measure the SLOs: `python scripts/slo/measure.py --api http://127.0.0.1:8080 
 | Web end-to-end (Playwright, mocked API) | in `apps/web`: `npm run e2e`, plus one config per feature suite: `e2e:live`, `e2e:incidents`, `e2e:replay`, `npx playwright test -c playwright.simulate.config.ts` |
 | Web end-to-end against the real stack | in `apps/web`: `npm run e2e:real` (API and infrastructure running) |
 | MCD: 12 steps + truth-label audit, real stack | in `apps/web`: `npm run e2e:mcd` (stack from `scripts/mcd-up.ps1`; see above) |
+| Accessibility sweep (axe, keyboard, reflow), real stack | in `apps/web`: `npm run e2e:a11y` |
+| UI degraded-state chaos check, real stack | in `apps/web`: `npm run e2e:chaos` (needs `scripts/chaos/control.ps1 -Action path-start`) |
+| Security suite (Java) | `scripts/mvnw.ps1 -B verify` runs `io.vorg.api.security.*IT`; AI tool permissions: `pytest` in `services/ai` |
 
 ## Documentation
 
@@ -189,4 +224,6 @@ To measure the SLOs: `python scripts/slo/measure.py --api http://127.0.0.1:8080 
 - [docs/scenarios/vision-demo-clip.md](docs/scenarios/vision-demo-clip.md): vision model weights and demo clip provenance
 - [docs/scenarios/mcd-runbook.md](docs/scenarios/mcd-runbook.md): MCD presenter script (12 steps, expected screens, truth labels)
 - [docs/reports/mcd-slo-report.md](docs/reports/mcd-slo-report.md): MCD suite result, truth-label audit and measured SLOs
+- [docs/reports/hardening-load-report.md](docs/reports/hardening-load-report.md), [hardening-chaos-report.md](docs/reports/hardening-chaos-report.md), [hardening-a11y-report.md](docs/reports/hardening-a11y-report.md), [hardening-supply-chain.md](docs/reports/hardening-supply-chain.md): Phase 11 measured reports
+- [docs/runbooks/disaster-recovery.md](docs/runbooks/disaster-recovery.md): backup, restore and the measured DR drill
 - [PROJECT_RULES.md](PROJECT_RULES.md): how work is planned, executed, verified and committed

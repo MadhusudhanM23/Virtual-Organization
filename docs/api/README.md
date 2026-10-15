@@ -49,6 +49,25 @@ All are `GET`, require a bearer token, and authorize `VIEW_OPERATIONAL_STATE` on
 The seeded data behind these endpoints is documented in
 [`docs/scenarios/bengaluru-warehouse-01.md`](../scenarios/bengaluru-warehouse-01.md).
 
+## Operations endpoints, throttling and response headers (Phase 11)
+
+| Endpoint | Notes |
+|---|---|
+| `GET /actuator/health/liveness` | the process is up; independent of every dependency |
+| `GET /actuator/health/readiness` | `200` when the API can serve requests: application state plus the runtime database (`appDatabase`, answers `503` within about 3 s when the database is down). Redis is **not** part of readiness (ADR-73) |
+| `GET /actuator/health` | overall status; also `503` when Redis is down |
+| `GET /actuator/prometheus` | Prometheus metrics, open only where `vo.security.permit-prometheus=true` (local); `http.server.requests` is published as a histogram, plus `vo.command.ack`, `vo.outbox.*`, `vo.live.ws.*` and the Hikari pool metrics |
+| `GET /api/assistant/metrics` (AI gateway, port 8090) | Prometheus text: `vo_ai_request_duration_seconds` histogram and `vo_ai_requests_total` by outcome; no tenant or user data |
+
+- `POST /api/auth/login` answers `429` with `Retry-After: 60` after repeated failures: 5 per minute for one address and
+  account, 30 per 10 minutes for one address across accounts (password spraying), 20 per 10 minutes for one account from
+  all addresses (ADR-72).
+- Every API response carries `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy` and `Cache-Control:
+  no-store`; HSTS is added over HTTPS. CORS is closed: no cross-origin caller exists.
+- Pool timeouts: a database that is down makes a command fail with `500` after at most 3 s (`vo.db.connection-timeout-ms`).
+  Retry with the same `Idempotency-Key`: the retry returns the original acknowledgement (verified by `scripts/chaos/chaos.ps1`).
+
 ## Implemented: live operations (Phase 3 backend)
 
 All endpoints need a bearer token; the tenant comes from the token. Lists share `{items, next_cursor}` with keyset
@@ -158,7 +177,7 @@ events, what is reconstructed vs. recorded): [`replay.md`](replay.md). Decisions
 | `GET /api/replay/state?site_id=&at=[&floor_id=]` | same | reconstructed state at `at` (ISO-8601 UTC, `earliest_at <= at <= now`, else `400`): `{lens, data_mode:"REPLAY", site_id, at, floor_id, reconstructed_from{snapshot_id, snapshot_at, origin, events_read, events_applied, events_ignored, events_skipped}, recorded{recorded_at, replay_treatment:"RECORDED", world_version, docks[]}, entities[] (twin entity shape without version, + lens), tasks{total, by_status, items[]}, incidents{total, by_status, items[]}, alerts[], not_reconstructed[{domain, treatment, note}], state_hash}`; byte-for-byte identical for the same inputs |
 | `GET /api/replay/frames?site_id=&from=&to=[&step_ms=1000][&floor_id=]` | same | playback: `{..., keyframe{at, recorded, entities[], tasks[], incidents[], alerts[], state_hash}, frame_count, frames[{at, entities[{id, floor_id, zone_id, status, pose, lens}], tasks[], incidents[], alerts[], removed{tasks[], incidents[], alerts[]}}], events_applied, next_from}`; frames only where something changed; `step_ms` 100..60000; at most 600 frames / 50 000 events per call, continue from `next_from` |
 | `GET /api/replay/events?site_id=&from=&to=[&scope=replayable or all][&limit=&cursor=]` | same | ascending replay order `(occurred_at, sequence, event_id)`, `from` inclusive, `to` exclusive: `{lens, site_id, from, to, scope, items[{replay_role: RECONSTRUCTED / RECORDED, event: <full envelope>}], next_cursor}`; `scope=all` adds the captured integration events (`MIRROR_RECORD_UPDATED`, `INTEGRATION_FINDING_RECORDED`, `RECORDED`) |
-| `POST /api/replay/snapshots` | `VIEW_OPERATIONAL_STATE` on the site, or Platform Administrator (technical configuration) | command (`Idempotency-Key`); body `{"site_id"}`; on-demand snapshot; result `{snapshot_id, site_id, snapshot_at, origin, entity_count, task_count, incident_count, alert_count, events_applied, size_bytes, state_sha256}` |
+| `POST /api/replay/snapshots` | `VIEW_OPERATIONAL_STATE` on the site, or Platform Administrator (technical configuration) | command (`Idempotency-Key`); body `{"site_id"}`; on-demand snapshot; result `{snapshot_id, site_id, snapshot_at, origin, entity_count, task_count, incident_count, alert_count, events_applied, size_bytes, state_sha256}`; for a Platform Administrator the counts and `events_applied` are omitted (technical metadata only, ADR-72) |
 
 Periodic snapshots: `vo.replay.snapshots.enabled` (on in `local`), every `vo.replay.snapshots.interval` (5 min), retention
 `vo.replay.snapshots.retention` (7 days, newest always kept). Driver/Operator and Platform Administrator cannot read replay

@@ -920,3 +920,75 @@ instead of a before value. (b) Add a penalized "unserved trip" term so `objectiv
 changes the objective's meaning and needs an ADR-62 revision.
 **Consequences:** with the default, a whole-shift closure cannot produce a recommendation through the API; the
 simulation comparison (Phase 6) still shows its impact.
+
+### ADR-71 Disaster recovery: consistent dumps now, point-in-time recovery before production — Proposed
+**Context:** NFR-09 asks for RPO <= 15 min, RTO <= 60 min and no acknowledged audit loss. The Phase 11 drill
+(`scripts/dr-drill.ps1`, [runbook](../runbooks/disaster-recovery.md)) destroyed the postgres container and its volume
+and restored from an online `pg_dump --snapshot` backup: RTO 50.7 s, every pre-backup acknowledged command and its
+idempotency record present, event and audit digests equal. The same drill lost every command, event and audit row
+written after the backup (82 acknowledged audit rows in a 62 s window), because a dump only protects up to its own
+snapshot time.
+**Decision (conservative default):** the platform ships backup, restore and verification scripts based on consistent
+online dumps plus a roles dump. RPO equals the backup interval, so the operator must schedule `dr-backup.ps1` at least
+every 10 minutes to meet the 15 minute RPO. The "no acknowledged audit loss" half of NFR-09 is **not** claimed.
+**Options for the owner:** (a) WAL archiving with base backups and point-in-time recovery (`archive_mode`, an archive
+volume or object store, `pg_basebackup`, a restore script that replays to a target time): RPO of seconds, and the audit
+log is recoverable to the last archived segment; needs an archive target. (b) A synchronous streaming replica (RPO 0 for
+acknowledged writes, cost: write latency and a second node). (c) Both. Production hosting is undecided, so the choice
+waits for it.
+**Consequences:** until (a) or (b) exists, an acknowledged command can be lost in a disaster and the system must say so
+(the runbook does). The JWT signing key and `.env` are outside the database and need their own backup.
+
+### ADR-72 Security hardening baseline: login throttling, API headers, audit tamper evidence — Proposed
+**Context:** the Phase 11 security suite (tenant isolation over every table and endpoint, the permission matrix for every
+role against every endpoint, token forgery, headers, audit integrity) found three gaps. (1) Login failures were limited
+per address+account only (5 per minute), so one password tried against many accounts from one address, or a
+distributed attack on one account, was never limited. (2) API responses carried only Spring's default headers.
+(3) `POST /api/replay/snapshots` returned operational counts (entities, tasks, incidents, alerts) to the Platform
+Administrator, who may trigger a snapshot (ADR-43 pattern) but has no business-data authority (ADR-06).
+**Decision:** (1) `LoginThrottle`: three sliding windows of failed logins, address+account 5/min, address 30/10 min,
+account 20/10 min; a success clears only the first. (2) Every API response carries `Content-Security-Policy:
+default-src 'none'; frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`, `Cache-Control: no-store`, and HSTS over HTTPS. CORS
+stays closed (no cross-origin caller exists; the web app is same-origin through its proxy). (3) The administrator's
+snapshot ack carries technical metadata only.
+**Not decided here (owner):** the audit log is append-only for every role (a trigger rejects UPDATE, DELETE and TRUNCATE
+even for the owner), but it is not tamper-evident against a database superuser who disables the trigger. A per-tenant
+hash chain (each row stores the hash of the previous one) with a periodic anchor outside the database would detect that;
+it costs serialized audit writes per tenant. Also: the login throttle is in memory (single node); a shared store is
+needed before a second API node. An address budget lets an attacker lock a shared NAT address out for the window; that is
+accepted for now.
+**Consequences:** the three window sizes are hypotheses, not measured; tune them from production login metrics.
+
+### ADR-73 Resilience contract: what survives which failure, and what readiness means — Proposed
+**Context:** the Phase 11 chaos scripts (`scripts/chaos/chaos.ps1`) kill the API mid-write, stop Redis, stop Postgres, cut
+the outbox publisher's database role and drop the WebSocket path while idempotent commands are being written, and check
+exactly-once effects with SQL. Real findings: with Postgres down `/actuator/health` hung (three pool timeouts in a row)
+and readiness stayed UP, so an orchestrator would have kept routing traffic to an API that could only answer 500.
+**Decision:** (1) The invariants the platform promises, and the chaos suite verifies on every run: no acknowledged command
+is lost, none is duplicated (one command row and one event per Idempotency-Key), per-aggregate event sequences have no
+gap, the outbox drains by itself with nothing DEAD, a retry of an acknowledged key returns the original command id, and a
+WebSocket client never receives an event twice on one connection nor an event that is not in the store. The WebSocket
+stream is best effort: after a reconnect the client re-reads over REST (`resync`), exactly as `liveClient.ts` does.
+(2) Readiness means "can serve requests": the runtime database is required (`appDatabase` health indicator, fail fast,
+connection timeout 3 s on every pool), Redis is not (it holds no authoritative state; the rate limiter is in memory).
+Liveness stays independent of dependencies. (3) A killed API is restarted by a supervisor (compose `restart:` or the
+platform's); the chaos harness plays that role locally, and recovery of the outbox is automatic on restart.
+**Consequences:** clients must retry with the same Idempotency-Key (the chaos writer does). The harness is local only;
+production chaos needs its own safeguards.
+
+### ADR-74 Observability and supply-chain gates — Proposed
+**Context:** Phase 11 adds Prometheus alert rules and a provisioned Grafana dashboard for the section 17 SLOs, CycloneDX
+SBOMs and scans.
+**Decision:** (1) Alerts: API down, outbox oldest-pending age over 5 s, outbox publish p95 over 2 s, any DEAD outbox event,
+API read p95 over 500 ms, command ack p95 over 1 s, 5xx rate over 1 %, WebSocket lag p95 over 2 s, database pool over 80 %
+or threads waiting, AI p95 over 10 s, AI gateway down. They restate the provisional targets and must be re-tuned from
+measurements (`docs/reports/hardening-load-report.md` shows the outbox-to-socket delay is the signal to watch). Prometheus
+metrics are the contract: `http.server.requests` and the pool metrics are published as histograms, the AI gateway exposes
+`/api/assistant/metrics`. (2) Supply chain: CycloneDX SBOMs (Maven aggregate, npm production, Python) and Trivy (SBOMs,
+repository secrets and misconfiguration, the compose images) run in CI (`supply-chain.yml`) and locally
+(`scripts/supply-chain.ps1`); `npm audit --omit=dev --audit-level=high` gates npm. A HIGH or CRITICAL finding fails the job
+unless it is listed with a reason in `scripts/supply-chain-allowlist.json`. Maven dependencies are pinned by the Spring Boot
+parent; npm by the lockfile (`npm ci`); images by tag (digests are the next step).
+**Consequences:** the first scan results and every accepted finding are in `docs/reports/hardening-supply-chain.md`.
+
