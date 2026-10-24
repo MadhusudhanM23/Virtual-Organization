@@ -23,6 +23,15 @@ services:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Continuous WAL archive for point-in-time recovery (ADR-71); local disk only, gitignored (backups/).
+      - ../../backups/wal-archive:/wal-archive
+    command:
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=test ! -f /wal-archive/%f && cp %p /wal-archive/%f
     healthcheck:
       # TCP check: the image's first-run init server listens on the unix socket only,
       # so the container turns healthy only once the final server accepts connections.

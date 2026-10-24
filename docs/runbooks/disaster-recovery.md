@@ -2,8 +2,9 @@
 
 Targets (REQ-130, NFR-09): **RPO at most 15 minutes, RTO at most 60 minutes, no acknowledged audit loss.**
 This runbook covers the local stack (compose project from `.env`, PostgreSQL 16 + PostGIS in the `postgres` container).
-Production hosting is not defined yet; the same steps apply to any PostgreSQL, but the gap in "What this does not
-cover" must be closed first (ADR-71, Proposed).
+Production hosting is not defined yet; the same steps apply to any PostgreSQL. WAL archiving (below) closes the
+"no acknowledged audit loss" gap for crashes up to the last archived segment, but only once a future deployment also
+has an archive target off this machine (ADR-71, Accepted for local scope; the production target is still open).
 
 ## What is protected
 
@@ -24,8 +25,10 @@ cover" must be closed first (ADR-71, Proposed).
 | `scripts/dr-backup.ps1 [-OutDir backups]` | Online, consistent backup. One `REPEATABLE READ` transaction exports a snapshot and computes the **manifest** (row count of every table, event digest, audit digest, sequence-continuity and duplicate checks); `pg_dump --snapshot` dumps exactly that snapshot, so the manifest describes the dump even while the platform keeps writing. Output: `backups/<UTC timestamp>/{vorg.dump, globals.sql, manifest.json, backup-info.json}`. |
 | `scripts/dr-restore.ps1 -BackupDir backups/<timestamp>` | Restores roles, drops and recreates the database, `pg_restore --exit-on-error`, recomputes the manifest on the restored database and compares **every** field. Exit code 0 only if everything matches. |
 | `scripts/dr-drill.ps1 -ApiPort <port>` | The full drill: acknowledge marker commands, back up, keep writing, destroy (kill the API, remove the postgres container **and its data volume**), start a fresh postgres, restore and verify, restart the API, check the markers and idempotent retries, print RPO and RTO as JSON. Local stacks only. |
+| `scripts/dr-backup-wal.ps1 [-OutDir backups/wal-base]` | Takes a `pg_basebackup` base backup (`base.tar` + `base-info.json`) against the running postgres container, which has `archive_mode=on` (`infra/docker/compose.yaml`) continuously copying each completed WAL segment into the local, gitignored `backups/wal-archive`. |
+| `scripts/dr-restore-pitr.ps1 -BaseBackupDir backups/wal-base/<timestamp> [-TargetTime '...']` | Point-in-time restore drill: unpacks the base backup and replays every archived WAL segment (or up to `-TargetTime`) inside a disposable, throwaway container, then runs the same manifest query as `dr-restore.ps1`. Never touches the real postgres container or volume; the scratch container is removed on every exit, success or failure. |
 
-`backups/` is gitignored and **secret** (the roles file holds password hashes).
+`backups/` is gitignored and **secret** (the roles file holds password hashes; the WAL archive holds row-level data).
 
 ## Backup procedure
 
@@ -77,14 +80,19 @@ events and 5,120 audit rows (47 tables, dump 3,319,212 bytes). Command:
 - **RPO <= 15 min: met only if backups run at least that often**, because a dump-based RPO equals the time since the
   last backup. The scripts make a 10 minute schedule cheap (2 s here). No scheduler is shipped: run the script from the
   host scheduler or the platform's job runner.
-- **"No acknowledged audit loss": NOT met by this mechanism.** Anything written after the last backup is gone,
-  including acknowledged commands and their audit rows (82 audit rows in the drill). Closing that gap needs continuous
-  WAL archiving with point-in-time recovery, or a synchronous replica, which is infrastructure the platform does not
-  have yet. This is recorded in ADR-71 (Proposed) and is the one DR item that remains open.
+- **"No acknowledged audit loss": NOT met by the dump-only mechanism above.** Anything written after the last `dr-backup.ps1`
+  run is gone if WAL archiving is not also running (82 audit rows in the drill). **WAL archiving (ADR-71, Accepted)
+  closes this gap for crashes up to the last archived segment**, verified 2026-10-24: a base backup plus full WAL
+  replay recovered inside a disposable container in ~70 s, with the recovered row counts matching the live database
+  at drill time. It still does **not** protect against the local disk itself failing — the archive lives on the same
+  machine as the database — only a second disk, a replica, or an off-machine archive target closes that remaining gap,
+  and that target is undecided until production hosting is picked (see ADR-71's Update).
 
 ## What this does not cover
 
 - Loss of the JWT signing key or of `.env` (secrets live outside the database).
 - A corrupted-but-restorable database (silent corruption is copied into the next backup): keep several generations.
-- Point-in-time recovery to an arbitrary second, and cross-region copies (ADR-71).
+- The local disk that holds `backups/wal-archive` failing (single point of failure until a future deployment has an
+  off-machine archive target or a replica; see ADR-71's Update).
+- Cross-region copies.
 - Restoring a single tenant: backups are whole-database. Tenant-level export is not built.

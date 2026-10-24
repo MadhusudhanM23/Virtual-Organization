@@ -903,6 +903,17 @@ session, track, media time, a ±5 s window, the media href) next to the nearest-
 are only fed by their camera). Real multi-camera identity (BLUEPRINT section 11) would replace (4) with an association
 step to canonical entities; the contract of the endpoint does not change.
 
+**Update 2026-10-24 — Accepted as-is, with a documented rotation procedure, no code change.** The owner reviewed the
+blast radius (a leaked `VO_VISION_INGEST_SECRET` lets an attacker inject fake camera observations into
+`/api/vision/**` only — it cannot reach any human endpoint, escalate roles, or forge a `Subject`) and judged it
+acceptable while there is one local vision container and no real network boundary to cross. Rotation procedure:
+generate a new 24+ character secret, set it as `VO_VISION_INGEST_SECRET` in `.env`, restart `services/vision` and the
+API; the old secret's hash stops matching on the next request, so there is no overlap window — rotate during a
+maintenance gap, not while a batch is mid-ingest. A short-lived OAuth2 client-credentials token through the existing
+identity service was considered but deferred: it needs a token endpoint, expiry and refresh, which is new
+infrastructure not justified until there is an actual network-connected camera to defend against. Revisit before any
+deployment puts the vision service on a different host or network from the API.
+
 ### ADR-70 Recommendation when the current plan cannot be scheduled at all — Proposed
 **Context:** Plan 10.1 ran the MCD on the real stack. The OR-Tools generator (ADR-62/63) refuses with
 `422 not_actionable` whenever the optimizer's `objective_before` (the current assignment, best schedule) is null.
@@ -938,6 +949,25 @@ acknowledged writes, cost: write latency and a second node). (c) Both. Productio
 waits for it.
 **Consequences:** until (a) or (b) exists, an acknowledged command can be lost in a disaster and the system must say so
 (the runbook does). The JWT signing key and `.env` are outside the database and need their own backup.
+
+**Update 2026-10-24 — Accepted, option (a), local scope only.** The owner picked WAL archiving over a replica (lower
+cost, no second node) but ruled out any cloud/object storage target while hosting stays local-only (free-tier
+deployment undecided). Implemented: `infra/docker/compose.yaml` turns on `archive_mode=on` /
+`wal_level=replica`, archiving each completed segment to a local, gitignored `backups/wal-archive` bind mount.
+`scripts/dr-backup-wal.ps1` takes a `pg_basebackup` base backup. `scripts/dr-restore-pitr.ps1` replays the base
+backup plus every archived WAL segment (or to an explicit `recovery_target_time`) inside a disposable, throwaway
+container — it never touches the real postgres container or volume. Drilled 2026-10-24: base backup + full WAL
+replay recovered in ~70 s inside the scratch container, with the recovered event count matching the live database
+at drill time. This closes the "no acknowledged audit loss" gap for crashes **up to the last archived segment**
+(seconds of RPO, versus the dump-only RPO of up to the backup interval); it does not protect against the local disk
+itself failing, since the archive lives on the same machine as the database — only a second disk, a replica, or an
+off-machine target removes that single point of failure.
+**Deferred (needs a hosting decision before choosing):** where WAL archives and base backups go once this deploys
+somewhere other than this machine. Compared, not chosen: (1) Neon or Supabase free tier — built-in continuous
+backup/PITR, zero ops, but free-tier retention windows are short; (2) Litestream-style continuous replication to a
+free object-storage tier (e.g. Cloudflare R2's free allowance) — more control, fully self-operated; (3) a cron'd
+`dr-backup-wal.ps1` run plus an rsync of `backups/wal-archive` to a free-tier VM disk or bucket — simplest to reason
+about, fully self-operated. None of these needs deciding until hosting is picked.
 
 ### ADR-72 Security hardening baseline: login throttling, API headers, audit tamper evidence — Proposed
 **Context:** the Phase 11 security suite (tenant isolation over every table and endpoint, the permission matrix for every
