@@ -716,6 +716,54 @@ function EntityTags({
   );
 }
 
+// Recent ground positions per moving forklift. Kept outside React state on purpose: it is a render-side cache that
+// grows by one point per ~0.6 m travelled, and a re-render must not be triggered to extend it.
+const trailHistory = new Map<string, Vec3[]>();
+const TRAIL_POINTS = 14;
+const TRAIL_STEP_M = 0.6;
+
+/** Dashed route line behind each moving forklift, built from where it actually was (not a planned path). */
+function MotionTrails({ entities }: { entities: Entity[] }) {
+  const trails = useMemo(() => {
+    const out: { id: string; points: Vec3[] }[] = [];
+    const seen = new Set<string>();
+    for (const e of entities) {
+      if (e.entity_type !== 'FORKLIFT' || statusTone(e.status) !== 'active') continue;
+      seen.add(e.id);
+      const p: Vec3 = [e.pose.x, e.pose.z + 0.06, -e.pose.y];
+      const h = trailHistory.get(e.id) ?? [];
+      const last = h[h.length - 1];
+      if (!last || Math.hypot(last[0] - p[0], last[2] - p[2]) > TRAIL_STEP_M) {
+        // A jump (teleport, replay seek) starts a fresh trail instead of drawing a line across the floor.
+        if (last && Math.hypot(last[0] - p[0], last[2] - p[2]) > 12) h.length = 0;
+        h.push(p);
+        if (h.length > TRAIL_POINTS) h.shift();
+        trailHistory.set(e.id, h);
+      }
+      if (h.length >= 2) out.push({ id: e.id, points: [...h, p] });
+    }
+    for (const id of trailHistory.keys()) if (!seen.has(id)) trailHistory.delete(id);
+    return out;
+  }, [entities]);
+  return (
+    <group name="motion-trails">
+      {trails.map((tr) => (
+        <Line
+          key={tr.id}
+          points={tr.points.map((q) => [q[0], q[1], q[2]] as [number, number, number])}
+          color="#2563eb"
+          lineWidth={2.2}
+          dashed
+          dashSize={0.7}
+          gapSize={0.45}
+          transparent
+          opacity={0.75}
+        />
+      ))}
+    </group>
+  );
+}
+
 function humanizeStatus(status: string): string {
   const s = status.replace(/_/g, ' ').toLowerCase();
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -1048,7 +1096,7 @@ export default function Scene3D(props: Scene3DProps) {
       shadows="percentage"
       dpr={[1, 1.75]}
       camera={{ fov: 45, near: 0.5, far: 1200, position: [...initial.position], up: [0, 1, 0] }}
-      gl={{ antialias: true, powerPreference: 'high-performance' }}
+      gl={{ antialias: true, powerPreference: 'high-performance', alpha: callouts }}
       onCreated={({ gl }) => {
         // Keyboard access: the canvas takes focus so OrbitControls arrow-key panning works.
         gl.domElement.tabIndex = 0;
@@ -1057,11 +1105,17 @@ export default function Scene3D(props: Scene3DProps) {
       onPointerMissed={() => onSelect(null)}
       data-testid="twin-canvas"
     >
-      <color attach="background" args={[background]} />
+      {/* The command view lets the page's sky gradient show through; a light fog fades the far yard into it. */}
+      {callouts ? (
+        <fog attach="fog" args={['#e3ecf6', 260, 620]} />
+      ) : (
+        <color attach="background" args={[background]} />
+      )}
       <Lights />
       <Structure world={world} floor={floor} stockByZone={stockByZone} showCallouts={callouts} />
       <EntityLayers entities={entities} onSelect={onSelect} />
       {callouts ? <EntityTags entities={entities} onSelect={onSelect} /> : null}
+      {callouts && !reducedMotion ? <MotionTrails entities={entities} /> : null}
       {selected ? <SelectionMarker entity={selected} /> : null}
       {overlay ? <IncidentMarker3D overlay={overlay} elevation={floor.elevation_m} /> : null}
       {pair.map((e) => (

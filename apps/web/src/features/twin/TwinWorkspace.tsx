@@ -373,7 +373,7 @@ function ReadyView(p: ReadyProps) {
     }
     return m;
   }, [floorEntities]);
-  const [legendOpen, setLegendOpen] = useState(true);
+  const [legendOpen, setLegendOpen] = useState(() => window.innerHeight >= SHORT_SCREEN_PX);
 
   if (!floor) {
     return (
@@ -419,7 +419,7 @@ function ReadyView(p: ReadyProps) {
         ) : null}
 
         <div
-          className="relative h-[clamp(30rem,70vh,54rem)] overflow-hidden rounded-card border border-line bg-[#dce7f2] shadow-card"
+          className="relative h-[max(26rem,calc(100dvh-17.5rem))] overflow-hidden rounded-card border border-line bg-[linear-gradient(180deg,#b9d3ee_0%,#dce8f5_45%,#e9eff6_100%)] shadow-card"
           data-testid="twin-viewport"
           data-view={p.view}
           data-camera-mode={p.cameraMode}
@@ -493,7 +493,7 @@ function ReadyView(p: ReadyProps) {
               <FloorRail floors={floors} floorId={floor.id} onChange={p.onFloor} />
             </HudSlot>
           ) : null}
-          {legendOpen ? (
+          {legendOpen || p.view === '3d' ? (
             <HudSlot className="bottom-3 left-3 flex w-44 flex-col-reverse gap-2">
               {p.view === '3d' ? (
                 <div className="h-28 w-44 overflow-hidden rounded-xl border border-white/20 bg-surface shadow-float">
@@ -513,11 +513,13 @@ function ReadyView(p: ReadyProps) {
                   />
                 </div>
               ) : null}
-              <MiniLegend
-                counts={counts}
-                hiddenTypes={p.hiddenTypes}
-                onToggleType={p.onToggleType}
-              />
+              {legendOpen ? (
+                <MiniLegend
+                  counts={counts}
+                  hiddenTypes={p.hiddenTypes}
+                  onToggleType={p.onToggleType}
+                />
+              ) : null}
             </HudSlot>
           ) : null}
           {p.view === '3d' ? (

@@ -34,27 +34,36 @@ interface TileProps {
 function Tile({ icon: Icon, tint, label, value, sub, trend, badge, testId }: TileProps) {
   return (
     <div
-      className="flex min-w-0 items-center gap-2.5 rounded-card border border-line bg-surface px-2.5 py-2.5 shadow-card"
+      className="flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface px-2.5 py-2 shadow-card"
       data-testid={testId}
     >
-      <span
-        aria-hidden="true"
-        className="grid size-9 shrink-0 place-items-center rounded-xl text-white shadow-card"
-        style={{ backgroundColor: tint }}
-      >
-        <Icon className="size-4.5" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs text-ink-600">{label}</p>
-        <p className="flex items-end gap-2">
-          <span className="text-xl leading-tight font-semibold text-ink-900 tabular-nums">
-            {value}
-          </span>
-          {trend ? <Sparkline values={trend} className="mb-1 h-5 w-14" /> : null}
+      <div className="flex min-w-0 items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="grid size-7 shrink-0 place-items-center rounded-lg text-white"
+          style={{ backgroundColor: tint }}
+        >
+          <Icon className="size-4" />
+        </span>
+        <p className="min-w-0 truncate text-xs font-medium text-ink-700" title={label}>
+          {label}
         </p>
-        {sub ? <p className="truncate text-[11px] text-ink-600">{sub}</p> : null}
-        {badge ? <div className="mt-1 [&>*]:scale-90 [&>*]:origin-left">{badge}</div> : null}
       </div>
+      <div className="flex items-end justify-between gap-1">
+        <span className="text-xl leading-tight font-semibold text-ink-900 tabular-nums">
+          {value}
+        </span>
+        {trend ? <Sparkline values={trend} className="mb-1 h-5 w-12 shrink-0" /> : null}
+      </div>
+      {sub ? (
+        <p
+          className="truncate text-[11px] text-ink-600"
+          title={typeof sub === 'string' ? sub : undefined}
+        >
+          {sub}
+        </p>
+      ) : null}
+      {badge ? <div className="origin-left scale-90">{badge}</div> : null}
     </div>
   );
 }
@@ -111,7 +120,7 @@ export function KpiStrip() {
     <div className="@container">
       <section
         aria-label={t('command.kpis.label')}
-        className="grid grid-cols-2 gap-2.5 @xl:grid-cols-3 @5xl:grid-cols-6"
+        className="grid grid-cols-2 gap-2.5 @lg:grid-cols-3 @3xl:grid-cols-6"
         aria-busy={kpis.loading}
       >
         <Tile

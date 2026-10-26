@@ -43,12 +43,19 @@ export function overviewPose(bounds: Bounds, elevationM: number, aspect = 1.6): 
   const cx = (bounds.min_x + bounds.max_x) / 2;
   const cy = (bounds.min_y + bounds.max_y) / 2;
   const fitHalf = Math.max(depth / 2, width / 2 / Math.max(aspect, 0.5));
-  const distance = (fitHalf / Math.tan((FOV_DEG / 2) * (Math.PI / 180))) * 1.1;
-  // renderer: x = world x, z = -world y. The camera sits south of the target (renderer +z) and above it.
-  const pitch = (58 * Math.PI) / 180;
+  const distance = (fitHalf / Math.tan((FOV_DEG / 2) * (Math.PI / 180))) * 1.18;
+  // renderer: x = world x, z = -world y. The camera sits south of the target (renderer +z), a little to the east
+  // (a three-quarter angle reads as 3D; straight-on reads as a plan), and above it.
+  const pitch = (50 * Math.PI) / 180;
+  const azimuth = (20 * Math.PI) / 180;
+  const flat = distance * Math.cos(pitch);
   return {
     target: [cx, elevationM, -cy],
-    position: [cx, elevationM + distance * Math.sin(pitch), -cy + distance * Math.cos(pitch)],
+    position: [
+      cx + flat * Math.sin(azimuth),
+      elevationM + distance * Math.sin(pitch),
+      -cy + flat * Math.cos(azimuth),
+    ],
   };
 }
 
