@@ -5,7 +5,9 @@
     "time_zone" : "Asia/Kolkata",
     "locale" : "en-IN",
     "currency" : "INR",
-    "unit_system" : "METRIC"
+    "unit_system" : "METRIC",
+    "latitude" : 12.9716,
+    "longitude" : 77.5946
   },
   "world_version" : {
     "version" : 1,

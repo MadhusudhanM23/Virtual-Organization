@@ -93,8 +93,8 @@ public class DemoSeeder implements ApplicationRunner {
             organization(TENANT_A, ORG_A, "MarutiFlex Traders (Demo)");
             region(TENANT_A, REGION_SOUTH, ORG_A, "South");
             region(TENANT_A, REGION_WEST, ORG_A, "West");
-            site(TENANT_A, SITE_BLR, REGION_SOUTH, "Bengaluru Warehouse 01", "Asia/Kolkata");
-            site(TENANT_A, SITE_MUM, REGION_WEST, "Mumbai Warehouse 02", "Asia/Kolkata");
+            site(TENANT_A, SITE_BLR, REGION_SOUTH, "Bengaluru Warehouse 01", "Asia/Kolkata", 12.9716, 77.5946);
+            site(TENANT_A, SITE_MUM, REGION_WEST, "Mumbai Warehouse 02", "Asia/Kolkata", 19.076, 72.8777);
 
             user(TENANT_A, EXEC_A, "exec", "Demo Executive", hash, Role.EXECUTIVE, ScopeType.ORG, null);
             user(TENANT_A, REGIONAL_SOUTH, "regional.south", "Demo Regional Manager (South)", hash,
@@ -116,7 +116,7 @@ public class DemoSeeder implements ApplicationRunner {
         TenantContext.callWith(TENANT_B, () -> {
             organization(TENANT_B, ORG_B, "Tenant B Logistics (Demo)");
             region(TENANT_B, REGION_B, ORG_B, "Central");
-            site(TENANT_B, SITE_B, REGION_B, "Pune Warehouse 01", "Asia/Kolkata");
+            site(TENANT_B, SITE_B, REGION_B, "Pune Warehouse 01", "Asia/Kolkata", 18.5204, 73.8567);
             user(TENANT_B, EXEC_B, "exec", "Tenant B Executive", hash, Role.EXECUTIVE, ScopeType.ORG, null);
             user(TENANT_B, WM_B, "wm", "Tenant B Warehouse Manager", hash,
                     Role.WAREHOUSE_MANAGER, ScopeType.SITE, SITE_B);
@@ -136,13 +136,14 @@ public class DemoSeeder implements ApplicationRunner {
                 """).param("id", id).param("t", tenant).param("o", org).param("n", name).update();
     }
 
-    private void site(UUID tenant, UUID id, UUID region, String name, String timeZone) {
+    private void site(UUID tenant, UUID id, UUID region, String name, String timeZone, double lat, double lon) {
         jdbc.sql("""
-                insert into world.sites (id, tenant_id, region_id, name, kind, time_zone, locale, currency, unit_system)
-                values (:id, :t, :r, :n, 'WAREHOUSE', :tz, 'en-IN', 'INR', 'METRIC')
+                insert into world.sites (id, tenant_id, region_id, name, kind, time_zone, locale, currency, unit_system,
+                                         latitude, longitude)
+                values (:id, :t, :r, :n, 'WAREHOUSE', :tz, 'en-IN', 'INR', 'METRIC', :lat, :lon)
                 on conflict do nothing
                 """).param("id", id).param("t", tenant).param("r", region).param("n", name).param("tz", timeZone)
-                .update();
+                .param("lat", lat).param("lon", lon).update();
     }
 
     private void user(UUID tenant, UUID actor, String localPart, String displayName, String hash, Role role,

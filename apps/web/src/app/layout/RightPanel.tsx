@@ -4,11 +4,18 @@ import { RIGHT_PANELS } from './panelDefinitions';
 import { t } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { useUiStore } from '../../stores/uiStore';
+import { useTwinStore } from '../../features/twin/twinStore';
 
 /** Right column: inspector, live camera, events, AI assistant (desktop). Collapsible to a slim rail. */
 export function RightPanel() {
   const collapsed = useUiStore((s) => s.rightPanelCollapsed);
   const toggle = useUiStore((s) => s.toggleRightPanel);
+  const lens = useUiStore((s) => s.lens);
+  const hasSelection = useTwinStore((s) => s.selectedEntityId !== null);
+  // The inspector only earns its space when something is selected (or a replay is being inspected).
+  const panels = RIGHT_PANELS.filter(
+    (p) => p.id !== 'inspector' || hasSelection || lens === 'REPLAY',
+  );
   const label = collapsed ? t('panel.right.expand') : t('panel.right.collapse');
   const ToggleIcon = collapsed ? PanelRightOpen : PanelRightClose;
 
@@ -37,7 +44,7 @@ export function RightPanel() {
       </div>
       {collapsed ? null : (
         <div className="flex flex-col gap-4 p-4 pt-2">
-          {RIGHT_PANELS.map((panel) => (
+          {panels.map((panel) => (
             <PanelCard key={panel.id} panel={panel} />
           ))}
         </div>

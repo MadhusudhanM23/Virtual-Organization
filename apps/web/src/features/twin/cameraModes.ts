@@ -1,8 +1,17 @@
 import { headingToDirection, type Bounds, type Entity } from '@vo/twin-schema';
 import { ENTITY_STYLES, type Vec3 } from './sceneModel';
 
-export type CameraMode = 'overview' | 'explore' | 'focus' | 'follow';
-export const CAMERA_MODES: readonly CameraMode[] = ['overview', 'explore', 'focus', 'follow'];
+export type CameraMode =
+  'overview' | 'explore' | 'focus' | 'follow' | 'firstPerson' | 'cinematic' | 'floor';
+export const CAMERA_MODES: readonly CameraMode[] = [
+  'overview',
+  'explore',
+  'focus',
+  'follow',
+  'firstPerson',
+  'cinematic',
+  'floor',
+];
 
 /** Camera position and look-at target in the RENDERER frame (Y up), meters. */
 export interface CameraPose {
@@ -14,7 +23,12 @@ const FOV_DEG = 45;
 
 /** Modes that need a selected entity. */
 export function modeNeedsSelection(mode: CameraMode): boolean {
-  return mode === 'focus' || mode === 'follow';
+  return mode === 'focus' || mode === 'follow' || mode === 'firstPerson';
+}
+
+/** Modes that drive the camera every frame, so the user cannot orbit while they run. */
+export function modeLocksControls(mode: CameraMode): boolean {
+  return mode === 'follow' || mode === 'firstPerson' || mode === 'cinematic';
 }
 
 /** A mode that needs a subject falls back to free exploration when nothing is selected. */
@@ -64,6 +78,49 @@ export function followPose(entity: Entity): CameraPose {
   };
 }
 
+/** Driver's-eye view: at the entity's eye height, looking along its heading. */
+export function firstPersonPose(entity: Entity): CameraPose {
+  const [sx, sy] = ENTITY_STYLES[entity.entity_type].size;
+  const dir = headingToDirection(entity.pose.heading_deg);
+  const eye = entity.pose.z + Math.max(sy * 0.92, 1.6);
+  const x = entity.pose.x - dir.x * sx * 0.1;
+  const y = entity.pose.y - dir.y * sx * 0.1;
+  return {
+    position: [x, eye, -y],
+    target: [x + dir.x * 12, eye - 1.2, -(y + dir.y * 12)],
+  };
+}
+
+/** Straight-down plan view that frames the whole floor (a tiny z offset keeps OrbitControls' up vector valid). */
+export function floorViewPose(bounds: Bounds, elevationM: number, aspect = 1.6): CameraPose {
+  const width = bounds.max_x - bounds.min_x;
+  const depth = bounds.max_y - bounds.min_y;
+  const cx = (bounds.min_x + bounds.max_x) / 2;
+  const cy = (bounds.min_y + bounds.max_y) / 2;
+  const fitHalf = Math.max(depth / 2, width / 2 / Math.max(aspect, 0.5));
+  const distance = (fitHalf / Math.tan((FOV_DEG / 2) * (Math.PI / 180))) * 1.08;
+  return { target: [cx, elevationM, -cy], position: [cx, elevationM + distance, -cy + 0.01] };
+}
+
+/** Cinematic orbit around the floor center at `angle` radians; the overview distance, a lower pitch. */
+export function cinematicPose(
+  bounds: Bounds,
+  elevationM: number,
+  angle: number,
+  aspect = 1.6,
+): CameraPose {
+  const base = overviewPose(bounds, elevationM, aspect);
+  const [tx, ty, tz] = base.target;
+  const dx = base.position[0] - tx;
+  const dz = base.position[2] - tz;
+  const flat = Math.hypot(dx, dz) * 1.15;
+  const height = (base.position[1] - ty) * 0.62;
+  return {
+    target: base.target,
+    position: [tx + Math.sin(angle) * flat, ty + height, tz + Math.cos(angle) * flat],
+  };
+}
+
 /**
  * Cinematic incident shot (REQ-053): an elevated three-quarter view from the south-east that frames the spatial
  * evidence (world point, meters) with room around it for the forklift/worker pair.
@@ -93,6 +150,14 @@ export function desiredPose(mode: CameraMode, ctx: PoseContext): CameraPose | nu
   }
   if (m === 'focus' && ctx.selected) return focusPose(ctx.selected);
   if (m === 'follow' && ctx.selected) return followPose(ctx.selected);
+  if (m === 'firstPerson' && ctx.selected) return firstPersonPose(ctx.selected);
+  if (m === 'floor' && ctx.floorBounds) {
+    return floorViewPose(ctx.floorBounds, ctx.floorElevation, ctx.aspect);
+  }
+  // Cinematic starts from the angle of the overview shot; the controller advances it every frame.
+  if (m === 'cinematic' && ctx.floorBounds) {
+    return cinematicPose(ctx.floorBounds, ctx.floorElevation, 0, ctx.aspect);
+  }
   return null;
 }
 

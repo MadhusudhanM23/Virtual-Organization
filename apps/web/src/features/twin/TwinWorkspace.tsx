@@ -16,7 +16,10 @@ import { EmptyState } from '../../components/EmptyState';
 import { t, type MessageId } from '../../i18n';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useReducedMotion } from '../../lib/motion';
-import { useUiStore } from '../../stores/uiStore';
+import { useUiStore, type Lens } from '../../stores/uiStore';
+import { AnalyticsRow } from '../command/AnalyticsRow';
+import { KpiStrip } from '../command/KpiStrip';
+import { CameraBar, FloorRail, HudSlot, MiniLegend, SceneHeader, ViewSwitch } from './Hud';
 import { DemoProximityControl } from '../incidents/DemoProximityControl';
 import { LiveStreamStatus } from '../live/ConnectionIndicator';
 import { useAnimatedEntities, useMergedEntities } from '../live/useLiveEntities';
@@ -86,10 +89,17 @@ export interface TwinWorkspaceProps {
   titleId: MessageId;
   descriptionId: MessageId;
   defaultView: ViewMode;
+  /** Live command view: KPI row, controls inside the scene, analytics row under it. */
+  command?: boolean;
 }
 
 /** Shared body of Live View (3D first) and Map View (2D first). Data mode and lens are labeled on both. */
-export function TwinWorkspace({ titleId, descriptionId, defaultView }: TwinWorkspaceProps) {
+export function TwinWorkspace({
+  titleId,
+  descriptionId,
+  defaultView,
+  command = false,
+}: TwinWorkspaceProps) {
   const title = t(titleId);
   useDocumentTitle(title);
   const siteId = useUiStore((s) => s.selectedSiteId);
@@ -100,10 +110,10 @@ export function TwinWorkspace({ titleId, descriptionId, defaultView }: TwinWorks
   // On short screens the analytics row would leave the scene a thin strip; restore it when leaving the twin.
   useEffect(() => {
     const ui = useUiStore.getState();
-    if (window.innerHeight >= SHORT_SCREEN_PX || ui.bottomPanelCollapsed) return;
+    if (command || window.innerHeight >= SHORT_SCREEN_PX || ui.bottomPanelCollapsed) return;
     ui.setBottomPanelCollapsed(true);
     return () => useUiStore.getState().setBottomPanelCollapsed(false);
-  }, []);
+  }, [command]);
 
   const webgl = useMemo(() => isWebGLAvailable(), []);
   const [view, setView] = useState<ViewMode>(defaultView === '3d' && webgl ? '3d' : '2d');
@@ -235,6 +245,9 @@ export function TwinWorkspace({ titleId, descriptionId, defaultView }: TwinWorks
       focusRequest={focusRequest}
       assistant={assistantHighlight}
       onClearAssistant={clearAssistantHighlight}
+      command={command}
+      title={title}
+      lens={lens}
     />
   );
 }
@@ -330,6 +343,9 @@ type ReadyProps = {
   focusRequest: TwinViewState['focusRequest'];
   assistant: AssistantHighlight | null;
   onClearAssistant: () => void;
+  command: boolean;
+  title: string;
+  lens: Lens;
 };
 
 function ReadyView(p: ReadyProps) {
@@ -350,6 +366,14 @@ function ReadyView(p: ReadyProps) {
     () => entities.find((e) => e.id === p.selectedId) ?? null,
     [entities, p.selectedId],
   );
+  const stockByZone = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of floorEntities) {
+      if (e.entity_type === 'PALLET' && e.zone_id) m.set(e.zone_id, (m.get(e.zone_id) ?? 0) + 1);
+    }
+    return m;
+  }, [floorEntities]);
+  const [legendOpen, setLegendOpen] = useState(true);
 
   if (!floor) {
     return (
@@ -370,6 +394,167 @@ function ReadyView(p: ReadyProps) {
     p.onCameraMode('explore');
     p.onPan(x, y);
   };
+
+  const recenter = () => {
+    // Re-selecting the current mode would not re-fly the camera, so step through explore for one frame.
+    p.onCameraMode('explore');
+    requestAnimationFrame(() => p.onCameraMode('overview'));
+  };
+
+  if (p.command) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 p-4">
+        <h1 className="sr-only">{p.title}</h1>
+        <KpiStrip />
+
+        {p.incident ? <IncidentBanner overlay={p.incident} onClear={p.onClearIncident} /> : null}
+        {p.assistant ? <AssistantBanner onClear={p.onClearAssistant} /> : null}
+        {p.noWebgl || p.sceneFailed ? (
+          <p
+            role="status"
+            className="rounded-control border border-warning-line bg-warning-bg px-3 py-2 text-sm text-warning-fg"
+          >
+            {t('twin.webgl.unavailable')}
+          </p>
+        ) : null}
+
+        <div
+          className="relative h-[clamp(30rem,70vh,54rem)] overflow-hidden rounded-card border border-line bg-[#dce7f2] shadow-card"
+          data-testid="twin-viewport"
+          data-view={p.view}
+          data-camera-mode={p.cameraMode}
+          data-camera-target={
+            p.target ? `${p.target.x.toFixed(1)},${p.target.y.toFixed(1)}` : undefined
+          }
+        >
+          {p.view === '3d' ? (
+            <section
+              aria-label={t('twin.scene.label', { site: world.site.name, floor: floor.name })}
+              className="size-full"
+            >
+              <SceneBoundary onError={p.onSceneFailed}>
+                <Suspense
+                  fallback={
+                    <p
+                      role="status"
+                      className="grid size-full place-items-center text-sm text-ink-700"
+                    >
+                      {t('twin.loading')}
+                    </p>
+                  }
+                >
+                  <AnimatedScene3D
+                    world={world}
+                    floor={floor}
+                    entities={visible}
+                    selected={selected}
+                    onSelect={p.onSelect}
+                    cameraMode={p.cameraMode}
+                    reducedMotion={p.reducedMotion}
+                    panRequest={p.panRequest}
+                    onTarget={p.onTarget}
+                    incident={p.incident}
+                    assistant={p.assistant}
+                    focusRequest={p.focusRequest}
+                    stockByZone={stockByZone}
+                    callouts
+                  />
+                </Suspense>
+              </SceneBoundary>
+            </section>
+          ) : (
+            <AnimatedFloorMap2D
+              floor={floor}
+              zones={world.zones}
+              racks={world.racks}
+              docks={world.docks}
+              entities={visible}
+              selectedId={p.selectedId}
+              onSelect={p.onSelect}
+              siteName={world.site.name}
+              incident={p.incident}
+              assistant={p.assistant}
+            />
+          )}
+
+          <HudSlot className="top-3 right-3 left-3 flex flex-wrap items-start justify-between gap-2">
+            <SceneHeader world={world} lens={p.lens} />
+            <ViewSwitch
+              view={p.view}
+              onView={p.onView}
+              webgl={p.webgl}
+              legendOpen={legendOpen}
+              onToggleLegend={() => setLegendOpen((v) => !v)}
+              onRecenter={recenter}
+            />
+          </HudSlot>
+          {floors.length > 1 ? (
+            <HudSlot className="top-32 left-3">
+              <FloorRail floors={floors} floorId={floor.id} onChange={p.onFloor} />
+            </HudSlot>
+          ) : null}
+          {legendOpen ? (
+            <HudSlot className="bottom-3 left-3 flex w-44 flex-col-reverse gap-2">
+              {p.view === '3d' ? (
+                <div className="h-28 w-44 overflow-hidden rounded-xl border border-white/20 bg-surface shadow-float">
+                  <AnimatedFloorMap2D
+                    compact
+                    floor={floor}
+                    zones={world.zones}
+                    racks={world.racks}
+                    docks={world.docks}
+                    entities={visible}
+                    selectedId={p.selectedId}
+                    siteName={world.site.name}
+                    cameraTarget={p.target}
+                    onPanTo={panTo}
+                    incident={p.incident}
+                    assistant={p.assistant}
+                  />
+                </div>
+              ) : null}
+              <MiniLegend
+                counts={counts}
+                hiddenTypes={p.hiddenTypes}
+                onToggleType={p.onToggleType}
+              />
+            </HudSlot>
+          ) : null}
+          {p.view === '3d' ? (
+            <HudSlot className="bottom-3 left-1/2 max-w-[calc(100%-1.5rem)] -translate-x-1/2 max-lg:left-auto max-lg:right-3 max-lg:translate-x-0">
+              <CameraBar
+                mode={p.cameraMode}
+                hasSelection={selected !== null}
+                onChange={p.onCameraMode}
+              />
+            </HudSlot>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {p.view === '3d' && p.reducedMotion ? (
+            <p className="text-xs text-ink-600">{t('twin.camera.reduced')}</p>
+          ) : null}
+          <DemoProximityControl compact className="ml-auto" />
+        </div>
+
+        <AnalyticsRow siteName={world.site.name} />
+
+        <Legend
+          counts={counts}
+          hiddenTypes={p.hiddenTypes}
+          onToggleType={p.onToggleType}
+          zones={world.zones.filter((z) => z.floor_id === floor.id)}
+        />
+        <EntityTable
+          entities={floorEntities}
+          floorName={floor.name}
+          zoneNames={zoneNames}
+          selectedId={p.selectedId}
+          onSelect={p.onSelect}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto h-full w-full max-w-[1600px]">

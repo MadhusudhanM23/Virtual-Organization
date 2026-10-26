@@ -1,5 +1,5 @@
 import { useEffect, type MouseEvent } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import { BottomPanel } from './BottomPanel';
 import { LiveConnector } from '../../features/live/LiveConnector';
 import { AlertRegion } from '../../features/incidents/AlertRegion';
@@ -32,6 +32,8 @@ export function AppShell() {
   const lens = useUiStore((s) => s.lens);
   const mobileNavOpen = useUiStore((s) => s.mobileNavOpen);
   const setMobileNavOpen = useUiStore((s) => s.setMobileNavOpen);
+  // The live command view lays out its own analytics row under the scene.
+  const ownAnalytics = useLocation().pathname.startsWith('/twin/live');
   useReducedMotionEffects();
 
   // Leaving the narrow layout must not leave the off-canvas menu "open" in state.
@@ -101,7 +103,7 @@ export function AppShell() {
         <Outlet />
       </main>
       <RightPanel />
-      <BottomPanel />
+      {ownAnalytics ? null : <BottomPanel />}
     </div>
   );
 }

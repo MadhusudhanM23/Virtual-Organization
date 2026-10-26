@@ -63,7 +63,8 @@ test.describe('Twin: Live View and Map View', () => {
     await expect(inspector.getByText(first.pose.source)).toBeVisible();
     await page.screenshot({ path: 'test-results/twin-live-inspector.png' });
     await inspector.getByRole('button', { name: 'Clear selection' }).click();
-    await expect(inspector.getByText(/Select an entity/)).toBeVisible();
+    // The right column only shows the inspector while something is selected.
+    await expect(inspector).toHaveCount(0);
   });
 
   test('camera modes: focus and follow need a selection', async ({ page }) => {

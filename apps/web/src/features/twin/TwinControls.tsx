@@ -10,6 +10,9 @@ const MODE_LABELS: Record<CameraMode, MessageId> = {
   explore: 'twin.camera.explore',
   focus: 'twin.camera.focus',
   follow: 'twin.camera.follow',
+  firstPerson: 'twin.camera.firstPerson',
+  cinematic: 'twin.camera.cinematic',
+  floor: 'twin.camera.floor',
 };
 
 const groupClass =

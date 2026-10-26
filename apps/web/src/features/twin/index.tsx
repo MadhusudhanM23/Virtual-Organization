@@ -6,6 +6,7 @@ export function LiveViewPage() {
       titleId="nav.twin.live"
       descriptionId="page.twin.live.description"
       defaultView="3d"
+      command
     />
   );
 }

@@ -6,7 +6,7 @@ import { ConnectedEventsPanel } from '../../features/live/EventsPanel';
 import { HeatmapPanel, OrderFlowPanel, PerformancePanel } from '../../features/kpi/panels';
 import { ConnectedReplayInspector } from '../../features/replay/ReplayInspector';
 import { AssistantPanel } from '../../features/assistant/AssistantPanel';
-import { CameraSummaryPanel } from '../../features/cameras/CameraSummaryPanel';
+import { LiveCameraCard } from '../../features/cameras/LiveCameraCard';
 import { useUiStore } from '../../stores/uiStore';
 
 /** Body of a panel: always an empty state until real (seeded/simulated) data exists. */
@@ -27,7 +27,7 @@ export function PanelEmpty({ panel }: { panel: PanelDefinition }) {
   // The assistant is live since Plan 9.3 (services/ai).
   if (panel.id === 'assistant') return <AssistantPanel />;
   // The camera registry and feeds are live since Plan 7.3.
-  if (panel.id === 'camera') return <CameraSummaryPanel />;
+  if (panel.id === 'camera') return <LiveCameraCard />;
   return (
     <EmptyState
       compact

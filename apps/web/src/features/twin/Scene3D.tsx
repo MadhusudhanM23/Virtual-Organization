@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, type ComponentRef } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { Edges, Grid, Line, OrbitControls } from '@react-three/drei';
+import { Edges, Grid, Html, Line, OrbitControls } from '@react-three/drei';
+import { Boxes } from 'lucide-react';
 import { CanvasTexture, Color, Object3D, SRGBColorSpace, type InstancedMesh } from 'three';
 import {
   ENTITY_TYPES,
@@ -11,10 +12,13 @@ import {
 } from '@vo/twin-schema';
 import { t } from '../../i18n';
 import type { AssistantHighlight, IncidentOverlay } from './twinStore';
+import { MODELS, modelInstances, type ModelPart, type PartInstance } from './models';
 import {
+  cinematicPose,
   desiredPose,
   effectiveMode,
   incidentFocusPose,
+  modeLocksControls,
   lerpVec,
   moveFraction,
   overviewPose,
@@ -28,7 +32,9 @@ import {
   floorSlab,
   rackBodies,
   rackShelves,
+  rackUprights,
   sortFloors,
+  statusTone,
   zonePatches,
   type InstanceSpec,
   type Vec3,
@@ -54,6 +60,10 @@ export interface Scene3DProps {
   focusRequest?: { x: number; y: number; z: number; nonce: number } | null;
   /** Scene background; the REPLAY lens tints it so playback never looks like the live view. */
   background?: string;
+  /** Pallets per zone on this floor (from loaded entities), shown on the zone callouts. */
+  stockByZone?: ReadonlyMap<string, number>;
+  /** Rich HTML callouts for zones, docks and vehicles (the live command view); plain labels otherwise. */
+  callouts?: boolean;
 }
 
 const scratch = new Object3D();
@@ -72,7 +82,7 @@ function InstancedLayer({
   name,
 }: {
   specs: InstanceSpec[];
-  shape?: 'box' | 'cylinder';
+  shape?: 'box' | 'cylinder' | 'sphere';
   opacity?: number;
   roughness?: number;
   metalness?: number;
@@ -132,6 +142,8 @@ function InstancedLayer({
     >
       {shape === 'cylinder' ? (
         <cylinderGeometry args={[0.5, 0.5, 1, 14]} />
+      ) : shape === 'sphere' ? (
+        <sphereGeometry args={[0.5, 12, 9]} />
       ) : (
         <boxGeometry args={[1, 1, 1]} />
       )}
@@ -206,12 +218,198 @@ function Label({
     </sprite>
   );
 }
-function Structure({ world, floor }: { world: WorldResponse; floor: Floor }) {
+function ZoneCallout({
+  name,
+  type,
+  color,
+  stock,
+}: {
+  name: string;
+  type: string;
+  color: string;
+  stock: number | undefined;
+}) {
+  return (
+    <div className="flex min-w-[7.5rem] items-center gap-2 rounded-lg border border-white/70 bg-white/92 px-2.5 py-1.5 shadow-float backdrop-blur-sm">
+      <span
+        aria-hidden="true"
+        className="grid size-7 shrink-0 place-items-center rounded-md text-white"
+        style={{ backgroundColor: color }}
+      >
+        <Boxes className="size-4" />
+      </span>
+      <span className="leading-tight whitespace-nowrap">
+        <span className="block text-[12px] font-semibold text-ink-900">{name}</span>
+        <span className="block text-[10px] text-ink-600">{humanizeStatus(type)}</span>
+        {stock !== undefined ? (
+          <span className="block text-[11px] font-semibold text-ink-900">
+            {t('twin.callout.pallets', { count: stock })}
+          </span>
+        ) : null}
+      </span>
+    </div>
+  );
+}
+
+function DockCallout({ name, status, color }: { name: string; status: string; color: string }) {
+  return (
+    <div className="flex items-center gap-1.5 rounded-lg border border-white/70 bg-white/92 px-2 py-1 shadow-float">
+      <span
+        aria-hidden="true"
+        className="size-2.5 rounded-full"
+        style={{ backgroundColor: color }}
+      />
+      <span className="leading-tight whitespace-nowrap">
+        <span className="block text-[11px] font-semibold text-ink-900">{name}</span>
+        <span className="block text-[10px] text-ink-600">{humanizeStatus(status)}</span>
+      </span>
+    </div>
+  );
+}
+
+/** Deterministic pseudo-random in [0, 1) so the yard looks the same on every load. */
+function hash01(n: number): number {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** Asphalt apron and lawn around the building, with a tree line: context only, not part of the world model. */
+function Yard({ floor }: { floor: Floor }) {
+  const slab = floorSlab(floor);
+  const apron = 34;
+  const trees = useMemo(() => {
+    const out: { trunk: InstanceSpec; crown: InstanceSpec }[] = [];
+    const halfW = slab.width / 2 + apron + 8;
+    const halfD = slab.depth / 2 + apron + 8;
+    const ring: [number, number][] = [];
+    for (let x = -halfW; x <= halfW; x += 11) ring.push([x, -halfD], [x, halfD]);
+    for (let z = -halfD + 11; z < halfD; z += 11) ring.push([-halfW, z], [halfW, z]);
+    ring.forEach(([x, z], i) => {
+      const h = 4 + hash01(i) * 3;
+      const px = slab.center[0] + x + (hash01(i + 50) - 0.5) * 4;
+      const pz = slab.center[2] + z + (hash01(i + 90) - 0.5) * 4;
+      out.push({
+        trunk: {
+          id: `t${i}`,
+          position: [px, h * 0.25, pz],
+          yaw: 0,
+          scale: [0.45, h * 0.5, 0.45],
+          color: '#7c5a3a',
+        },
+        crown: {
+          id: `c${i}`,
+          position: [px, h * 0.72, pz],
+          yaw: 0,
+          scale: [h * 0.62, h * 0.7, h * 0.62],
+          color: hash01(i + 7) > 0.5 ? '#4f8a3c' : '#3f7a35',
+        },
+      });
+    });
+    return out;
+  }, [slab.width, slab.depth, slab.center]);
+  return (
+    <group name="yard">
+      <mesh
+        position={[slab.center[0], -0.45, slab.center[2]]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[slab.width + apron * 2 + 80, slab.depth + apron * 2 + 80]} />
+        <meshStandardMaterial color="#c9dcb8" roughness={1} />
+      </mesh>
+      <mesh
+        position={[slab.center[0], -0.4, slab.center[2]]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[slab.width + apron * 2, slab.depth + apron * 2]} />
+        <meshStandardMaterial color="#aeb6c1" roughness={0.95} />
+      </mesh>
+      <InstancedLayer
+        name="tree-trunks"
+        shape="cylinder"
+        specs={trees.map((t) => t.trunk)}
+        roughness={0.9}
+        castShadow
+      />
+      <InstancedLayer
+        name="tree-crowns"
+        shape="sphere"
+        specs={trees.map((t) => t.crown)}
+        roughness={0.85}
+        castShadow
+      />
+    </group>
+  );
+}
+
+/** Building envelope: full-height side walls and a low parapet along the dock walls so trucks stay visible. */
+function Shell({ floor }: { floor: Floor }) {
+  const b = floor.bounds;
+  const h = 7;
+  const t = 0.4;
+  const w = b.max_x - b.min_x;
+  const d = b.max_y - b.min_y;
+  const cz = -(b.min_y + b.max_y) / 2;
+  const walls: { pos: Vec3; size: Vec3 }[] = [
+    { pos: [b.min_x - t / 2, h / 2, cz], size: [t, h, d + t * 2] },
+    { pos: [b.max_x + t / 2, h / 2, cz], size: [t, h, d + t * 2] },
+    { pos: [(b.min_x + b.max_x) / 2, 0.6, -b.min_y + t / 2], size: [w, 1.2, t] },
+    { pos: [(b.min_x + b.max_x) / 2, 0.6, -b.max_y - t / 2], size: [w, 1.2, t] },
+  ];
+  const columns = useMemo(() => {
+    const out: InstanceSpec[] = [];
+    for (let x = b.min_x; x <= b.max_x + 0.01; x += 20) {
+      for (const y of [b.min_y, b.max_y]) {
+        out.push({
+          id: `col${x}-${y}`,
+          position: [x, h / 2, -y],
+          yaw: 0,
+          scale: [0.5, h, 0.5],
+          color: '#94a3b8',
+        });
+      }
+    }
+    return out;
+  }, [b.min_x, b.max_x, b.min_y, b.max_y]);
+  return (
+    <group name="building-shell">
+      {walls.map((wall, i) => (
+        <mesh key={i} position={[wall.pos[0], wall.pos[1], wall.pos[2]]} castShadow receiveShadow>
+          <boxGeometry args={[wall.size[0], wall.size[1], wall.size[2]]} />
+          <meshStandardMaterial color="#dfe4ec" roughness={0.85} />
+        </mesh>
+      ))}
+      <InstancedLayer name="columns" specs={columns} roughness={0.5} metalness={0.3} castShadow />
+    </group>
+  );
+}
+
+function Structure({
+  world,
+  floor,
+  stockByZone,
+  showCallouts,
+}: {
+  world: WorldResponse;
+  floor: Floor;
+  stockByZone: ReadonlyMap<string, number> | undefined;
+  showCallouts: boolean;
+}) {
   const floors = useMemo(() => sortFloors(world.floors), [world.floors]);
   const zones = useMemo(() => zonePatches(world.zones, floor), [world.zones, floor]);
   const docks = useMemo(() => dockMarkers(world.docks, floor), [world.docks, floor]);
   const bodies = useMemo(() => rackBodies(world.racks, floor), [world.racks, floor]);
   const shelves = useMemo(() => rackShelves(world.racks, floor), [world.racks, floor]);
+  const uprights = useMemo(() => rackUprights(world.racks, floor), [world.racks, floor]);
+  const zoneTypes = useMemo(
+    () => new Map(world.zones.map((z) => [z.id, z.zone_type])),
+    [world.zones],
+  );
+  const dockStatus = useMemo(
+    () => new Map(world.docks.map((d) => [d.id, d.status])),
+    [world.docks],
+  );
   const elev = floor.elevation_m;
 
   return (
@@ -262,6 +460,9 @@ function Structure({ world, floor }: { world: WorldResponse; floor: Floor }) {
         infiniteGrid={false}
       />
 
+      {floor.level === Math.min(...floors.map((f) => f.level)) ? <Yard floor={floor} /> : null}
+      {floor.level === Math.min(...floors.map((f) => f.level)) ? <Shell floor={floor} /> : null}
+
       {zones.map((z) => (
         <group key={z.id}>
           <mesh
@@ -269,7 +470,7 @@ function Structure({ world, floor }: { world: WorldResponse; floor: Floor }) {
             rotation={[-Math.PI / 2, 0, 0]}
           >
             <planeGeometry args={[z.width, z.depth]} />
-            <meshBasicMaterial color={z.color} transparent opacity={0.3} depthWrite={false} />
+            <meshBasicMaterial color={z.color} transparent opacity={0.22} depthWrite={false} />
           </mesh>
           <Line
             color={z.color}
@@ -282,7 +483,23 @@ function Structure({ world, floor }: { world: WorldResponse; floor: Floor }) {
               [z.center[0] - z.width / 2, z.center[1] + 0.06, z.center[2] - z.depth / 2],
             ]}
           />
-          <Label position={[z.center[0], z.center[1] + 0.3, z.center[2]]}>{z.name}</Label>
+          {showCallouts ? (
+            <Html
+              position={[z.center[0], z.center[1] + 4, z.center[2]]}
+              center
+              zIndexRange={[8, 0]}
+              className="pointer-events-none"
+            >
+              <ZoneCallout
+                name={z.name}
+                type={zoneTypes.get(z.id) ?? ''}
+                color={z.color}
+                stock={stockByZone?.get(z.id)}
+              />
+            </Html>
+          ) : (
+            <Label position={[z.center[0], z.center[1] + 0.3, z.center[2]]}>{z.name}</Label>
+          )}
         </group>
       ))}
 
@@ -296,13 +513,38 @@ function Structure({ world, floor }: { world: WorldResponse; floor: Floor }) {
             <boxGeometry args={[1.4, 0.3, d.width]} />
             <meshStandardMaterial color={d.color} roughness={0.5} />
           </mesh>
-          <Label tone="dock" position={[d.position[0], d.position[1] + 1.4, d.position[2]]}>
-            {d.name}
-          </Label>
+          <group position={[d.position[0], d.position[1], d.position[2]]} rotation={[0, d.yaw, 0]}>
+            <mesh position={[0, 2.3, d.width / 2 + 0.15]} castShadow>
+              <boxGeometry args={[0.35, 4.6, 0.3]} />
+              <meshStandardMaterial color="#475569" roughness={0.6} />
+            </mesh>
+            <mesh position={[0, 2.3, -d.width / 2 - 0.15]} castShadow>
+              <boxGeometry args={[0.35, 4.6, 0.3]} />
+              <meshStandardMaterial color="#475569" roughness={0.6} />
+            </mesh>
+            <mesh position={[0, 4.75, 0]} castShadow>
+              <boxGeometry args={[0.35, 0.3, d.width + 0.6]} />
+              <meshStandardMaterial color={d.color} roughness={0.5} />
+            </mesh>
+          </group>
+          {showCallouts ? (
+            <Html
+              position={[d.position[0], d.position[1] + 6.2, d.position[2]]}
+              center
+              zIndexRange={[8, 0]}
+              className="pointer-events-none"
+            >
+              <DockCallout name={d.name} status={dockStatus.get(d.id) ?? ''} color={d.color} />
+            </Html>
+          ) : (
+            <Label tone="dock" position={[d.position[0], d.position[1] + 1.4, d.position[2]]}>
+              {d.name}
+            </Label>
+          )}
         </group>
       ))}
 
-      <InstancedLayer name="rack-bodies" specs={bodies} opacity={0.14} roughness={0.9} />
+      <InstancedLayer name="rack-bodies" specs={bodies} opacity={0.1} roughness={0.9} />
       <InstancedLayer
         name="rack-shelves"
         specs={shelves}
@@ -310,11 +552,76 @@ function Structure({ world, floor }: { world: WorldResponse; floor: Floor }) {
         metalness={0.3}
         castShadow
       />
+      <InstancedLayer
+        name="rack-uprights"
+        specs={uprights}
+        roughness={0.45}
+        metalness={0.4}
+        castShadow
+      />
     </group>
   );
 }
 
-const ENTITY_SHAPE: Partial<Record<EntityType, 'cylinder'>> = { WORKER: 'cylinder' };
+/** One model part across every entity of a type: a single instanced draw call, pickable per entity. */
+function PartLayer({
+  part,
+  instances,
+  name,
+  onPick,
+}: {
+  part: ModelPart;
+  instances: PartInstance[];
+  name: string;
+  onPick: (id: string) => void;
+}) {
+  const ref = useRef<InstancedMesh>(null);
+  const count = instances.length;
+  useLayoutEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    instances.forEach((inst, i) => {
+      mesh.setMatrixAt(i, inst.matrix);
+      mesh.setColorAt(i, scratchColor.set(inst.color));
+    });
+    mesh.count = count;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }, [instances, count]);
+  if (count === 0) return null;
+  return (
+    <instancedMesh
+      key={`${name}-${count}`}
+      ref={ref}
+      name={name}
+      args={[undefined, undefined, count]}
+      frustumCulled={false}
+      castShadow
+      receiveShadow
+      onClick={(e: ThreeEvent<MouseEvent>) => {
+        e.stopPropagation();
+        const id = e.instanceId === undefined ? undefined : instances[e.instanceId]?.id;
+        if (id) onPick(id);
+      }}
+      onPointerOver={() => {
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = '';
+      }}
+    >
+      {part.shape === 'cylinder' ? (
+        <cylinderGeometry args={[0.5, 0.5, 1, 16]} />
+      ) : part.shape === 'sphere' ? (
+        <sphereGeometry args={[0.5, 14, 10]} />
+      ) : (
+        <boxGeometry args={[1, 1, 1]} />
+      )}
+      <meshStandardMaterial roughness={part.roughness ?? 0.6} metalness={part.metalness ?? 0.05} />
+    </instancedMesh>
+  );
+}
 
 function EntityLayers({
   entities,
@@ -323,30 +630,95 @@ function EntityLayers({
   entities: Entity[];
   onSelect: (id: string) => void;
 }) {
-  const byType = useMemo(() => {
-    const map = new Map<EntityType, InstanceSpec[]>();
-    for (const type of ENTITY_TYPES) map.set(type, []);
-    for (const e of entities) map.get(e.entity_type)?.push(entityInstance(e));
-    return map;
-  }, [entities]);
+  const layers = useMemo(
+    () =>
+      ENTITY_TYPES.map((type) => ({
+        type,
+        parts: modelInstances(
+          type,
+          entities.filter((e) => e.entity_type === type),
+        ),
+      })),
+    [entities],
+  );
   return (
     <group>
-      {ENTITY_TYPES.map((type) => {
-        const shape = ENTITY_SHAPE[type];
-        return (
-          <InstancedLayer
-            key={type}
-            name={`entities-${type.toLowerCase()}`}
-            specs={byType.get(type) ?? []}
-            {...(shape ? { shape } : {})}
-            pickable
-            castShadow
+      {layers.map(({ type, parts }) =>
+        MODELS[type].map((part, i) => (
+          <PartLayer
+            key={`${type}-${i}`}
+            name={`entities-${type.toLowerCase()}-${i}`}
+            part={part}
+            instances={parts[i] ?? []}
             onPick={onSelect}
           />
+        )),
+      )}
+    </group>
+  );
+}
+
+// Trucks sit at docks that already carry a callout; tagging them too would bury the docks.
+const TAGGED_TYPES: ReadonlySet<EntityType> = new Set(['FORKLIFT', 'ROBOT']);
+const MAX_TAGS = 30;
+
+/** Floating code + status tags over vehicles, like the concept's "F-028 Moving" chips. */
+function EntityTags({
+  entities,
+  onSelect,
+}: {
+  entities: Entity[];
+  onSelect: (id: string) => void;
+}) {
+  const tagged = useMemo(
+    () =>
+      entities
+        .filter((e) => TAGGED_TYPES.has(e.entity_type) || statusTone(e.status) === 'alert')
+        .slice(0, MAX_TAGS),
+    [entities],
+  );
+  return (
+    <group name="entity-tags">
+      {tagged.map((e) => {
+        const spec = entityInstance(e);
+        const tone = statusTone(e.status);
+        return (
+          <Html
+            key={e.id}
+            position={[
+              spec.position[0],
+              spec.position[1] + spec.scale[1] / 2 + 1.4,
+              spec.position[2],
+            ]}
+            center
+            zIndexRange={[9, 0]}
+            className="pointer-events-none"
+          >
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => onSelect(e.id)}
+              className={`pointer-events-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] leading-tight font-semibold whitespace-nowrap text-white shadow-float ${
+                tone === 'alert'
+                  ? 'bg-danger-fg'
+                  : tone === 'active'
+                    ? 'bg-accent-600'
+                    : 'bg-ink-700'
+              }`}
+            >
+              <span>{e.code}</span>
+              <span className="font-normal opacity-90">{humanizeStatus(e.status)}</span>
+            </button>
+          </Html>
         );
       })}
     </group>
   );
+}
+
+function humanizeStatus(status: string): string {
+  const s = status.replace(/_/g, ' ').toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function SelectionMarker({ entity }: { entity: Entity }) {
@@ -507,6 +879,7 @@ function CameraController({
   const reducedRef = useRef(reducedMotion);
   const lastPan = useRef(0);
   const lastFocus = useRef(0);
+  const orbitAngle = useRef(0);
 
   useEffect(() => {
     reducedRef.current = reducedMotion;
@@ -528,6 +901,7 @@ function CameraController({
     });
     // Explore leaves the camera to the user, but must not cancel a pan or incident flight already under way.
     if (next !== null || live !== 'explore') goal.current = next;
+    orbitAngle.current = 0;
     invalidate();
     // `selected` is represented by its pose fields: a new object with the same pose must not re-fly the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -576,6 +950,12 @@ function CameraController({
   useFrame((_, dt) => {
     const c = controls.current;
     if (!c) return;
+    // Cinematic: a slow orbit, advanced every frame. Reduced motion holds the starting shot instead.
+    const orbiting = live === 'cinematic' && !reducedRef.current;
+    if (orbiting) {
+      orbitAngle.current += Math.min(Math.max(dt, 0), 0.1) * 0.07;
+      goal.current = cinematicPose(floor.bounds, floor.elevation_m, orbitAngle.current, aspect);
+    }
     const g = goal.current;
     if (g) {
       const snap = snapNext.current || reducedRef.current;
@@ -590,6 +970,7 @@ function CameraController({
       if (snap || poseDistance(now, g) < 0.05) goal.current = null;
       else invalidate();
     }
+    if (orbiting) invalidate();
     onTarget?.(c.target.x, -c.target.z);
   });
 
@@ -598,7 +979,7 @@ function CameraController({
       ref={controls}
       makeDefault
       enableDamping={false}
-      enabled={live !== 'follow'}
+      enabled={!modeLocksControls(live)}
       maxPolarAngle={Math.PI * 0.49}
       minDistance={4}
       maxDistance={400}
@@ -610,16 +991,17 @@ function CameraController({
 function Lights() {
   return (
     <>
-      <hemisphereLight args={['#ffffff', '#b6c3d6', 0.85]} />
+      <hemisphereLight args={['#f4f8ff', '#a9b4a0', 0.95]} />
       <directionalLight
-        position={[70, 110, 60]}
-        intensity={1.5}
+        position={[150, 140, 40]}
+        intensity={1.75}
+        color="#fff6e8"
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-100}
-        shadow-camera-right={100}
-        shadow-camera-top={100}
-        shadow-camera-bottom={-100}
+        shadow-camera-left={-140}
+        shadow-camera-right={140}
+        shadow-camera-top={140}
+        shadow-camera-bottom={-140}
         shadow-camera-near={10}
         shadow-camera-far={300}
         shadow-bias={-0.0004}
@@ -642,7 +1024,9 @@ export default function Scene3D(props: Scene3DProps) {
     incident = null,
     assistant = null,
     focusRequest = null,
-    background = '#eaeff7',
+    background = '#dce7f2',
+    stockByZone,
+    callouts = false,
   } = props;
   const overlay =
     incident && (!incident.floorId || incident.floorId === floor.id) ? incident : null;
@@ -675,8 +1059,9 @@ export default function Scene3D(props: Scene3DProps) {
     >
       <color attach="background" args={[background]} />
       <Lights />
-      <Structure world={world} floor={floor} />
+      <Structure world={world} floor={floor} stockByZone={stockByZone} showCallouts={callouts} />
       <EntityLayers entities={entities} onSelect={onSelect} />
+      {callouts ? <EntityTags entities={entities} onSelect={onSelect} /> : null}
       {selected ? <SelectionMarker entity={selected} /> : null}
       {overlay ? <IncidentMarker3D overlay={overlay} elevation={floor.elevation_m} /> : null}
       {pair.map((e) => (

@@ -58,7 +58,8 @@ export const messagesEn = {
   'panel.inspector.description':
     'Details of the selected entity appear here and stay until dismissed.',
   'panel.camera.title': 'Cameras',
-  'panel.camera.description': 'Recorded and synthetic camera feeds with labeled detections and evidence links.',
+  'panel.camera.description':
+    'Recorded and synthetic camera feeds with labeled detections and evidence links.',
   'panel.events.title': 'Live events',
   'panel.events.description': 'Operational events stream here with their data-mode label.',
   'panel.assistant.title': 'AI operations assistant',
@@ -747,9 +748,11 @@ export const messagesEn = {
   'rec.execution.finished': 'Finished {time}',
   'rec.evidence.title': 'Evidence',
   'rec.evidence.stepFailed': 'Step #{seq} ({target}) was refused by {source}: {code}. {message}',
-  'rec.evidence.compensationFailed': 'Compensation of step #{seq} ({target}) failed: {code}. {message}',
+  'rec.evidence.compensationFailed':
+    'Compensation of step #{seq} ({target}) failed: {code}. {message}',
   'rec.evidence.compensated': 'Every applied step was compensated.',
-  'rec.evidence.timeout': 'Not every target was observed with its new value within {batches} source batches.',
+  'rec.evidence.timeout':
+    'Not every target was observed with its new value within {batches} source batches.',
   'rec.evidence.observed': '{target}: expected {expected}, observed {observed}',
   'rec.outcome.VERIFIED': 'Verified: every target was observed with its new value.',
   'rec.outcome.PARTIAL': 'Partially applied: some compensations failed. See the step evidence.',
@@ -791,10 +794,12 @@ export const messagesEn = {
   'assistant.provider.reason.no_api_key': 'no external model configured',
   'assistant.provider.reason.tenant_external_disallowed': 'external LLM use is off for this tenant',
   'assistant.provider.reason.offline_mode_configured': 'offline mode configured',
-  'assistant.provider.reason.tenant_external_allowed': 'external LLM allowed for this tenant (redacted)',
+  'assistant.provider.reason.tenant_external_allowed':
+    'external LLM allowed for this tenant (redacted)',
   'assistant.provider.reason.external_answer_ungrounded':
     'the external answer was not grounded; offline answer shown',
-  'assistant.provider.reason.external_provider_failed': 'the external model failed; offline answer shown',
+  'assistant.provider.reason.external_provider_failed':
+    'the external model failed; offline answer shown',
   'assistant.provider.reason.refusal_is_deterministic': 'refusals are always answered offline',
   'assistant.grounded': 'Grounded: every number is cited',
   'assistant.notGrounded': 'Not fully grounded',
@@ -802,7 +807,8 @@ export const messagesEn = {
   'assistant.citations': 'Sources ({n})',
   'assistant.flag.untrusted':
     'Some retrieved text looked like instructions to the assistant. It was treated as data and ignored.',
-  'assistant.flag.ungrounded': 'Some numbers in this answer could not be matched to a cited source.',
+  'assistant.flag.ungrounded':
+    'Some numbers in this answer could not be matched to a cited source.',
   'assistant.flag.replaced': 'The external model answer was replaced because it was not grounded.',
   'assistant.flag.notRecorded': 'This exchange could not be recorded by the platform.',
   'assistant.action.showInTwin': 'Show in twin',
@@ -863,11 +869,14 @@ export const messagesEn = {
   'sim.sig.type.forklift_outage': 'Forklift outage',
   'sim.sig.type.route_blockage': 'Route blockage',
   'sim.sig.type.shift_shortage': 'Shift shortage',
-  'sim.sig.desc.demand_surge': 'Customer order arrivals run at a multiple of the baseline rate for a window.',
-  'sim.sig.desc.forklift_outage': 'Several forklifts are out of service for a window; work in progress finishes.',
+  'sim.sig.desc.demand_surge':
+    'Customer order arrivals run at a multiple of the baseline rate for a window.',
+  'sim.sig.desc.forklift_outage':
+    'Several forklifts are out of service for a window; work in progress finishes.',
   'sim.sig.desc.route_blockage':
     'The forklift route to and from one storage zone is blocked; putaway and retrieval there take a detour.',
-  'sim.sig.desc.shift_shortage': 'Workers of one role are absent for a window; work in progress finishes.',
+  'sim.sig.desc.shift_shortage':
+    'Workers of one role are absent for a window; work in progress finishes.',
   'sim.sig.field.factor': 'Order-rate multiplier (x)',
   'sim.sig.field.forkliftCount': 'Forklifts out of service',
   'sim.sig.field.zone': 'Blocked storage zone',
@@ -879,7 +888,8 @@ export const messagesEn = {
   'sim.sig.label': 'SIMULATION',
   'sim.sig.assumption':
     'The values are inputs you choose; the defaults are the documented fixture, an ASSUMPTION and not a measurement. Rates, resources and layout come from the SYNTHETIC world seed. Results are labelled SIMULATION, never live.',
-  'sim.sig.customHidden': 'The typed scenario replaces the custom overlay: the overlay sections are not used.',
+  'sim.sig.customHidden':
+    'The typed scenario replaces the custom overlay: the overlay sections are not used.',
   'sim.dist.title': 'Distribution over seeded replications',
   'sim.dist.caption':
     'Monte Carlo over {n} replications (one seed each, same seeds for baseline and scenario). Median with the 5th to 95th percentile band, and the mean with its 95% confidence interval. SIMULATED.',
@@ -889,8 +899,60 @@ export const messagesEn = {
   'sim.dist.col.scenario': 'Scenario median (p5 to p95)',
   'sim.dist.col.delta': 'Paired delta mean [95% CI]',
   'sim.dist.col.plot': 'Plot',
-  'sim.dist.plotLabel': 'Baseline and scenario 5th to 95th percentile bands on a shared scale; text equivalent in the row.',
+  'sim.dist.plotLabel':
+    'Baseline and scenario 5th to 95th percentile bands on a shared scale; text equivalent in the row.',
   'sim.dist.hash': 'Distributions hash {hash}',
+
+  'twin.callout.pallets': '{count} pallets',
+  'twin.camera.firstPerson': 'First person',
+  'twin.camera.cinematic': 'Cinematic',
+  'twin.camera.floor': 'Floor view',
+  'twin.hud.layers': 'Show or hide the minimap and legend',
+  'twin.hud.recenter': 'Recenter the camera on the floor',
+  'twin.hud.legend': 'Object types on this floor',
+  'twin.hud.alert': 'Alert',
+  'twin.hud.live': 'Live',
+  'weather.source': 'Current weather at the site, from Open-Meteo',
+  'weather.temp': '{value}°C',
+  'weather.clear': 'Clear',
+  'weather.partly': 'Partly cloudy',
+  'weather.cloudy': 'Cloudy',
+  'weather.fog': 'Fog',
+  'weather.drizzle': 'Drizzle',
+  'weather.rain': 'Rain',
+  'weather.snow': 'Snow',
+  'weather.storm': 'Thunderstorm',
+  'command.kpis.label': 'Key figures for the selected site',
+  'command.kpi.ordersCompleted': 'Orders completed',
+  'command.kpi.window24h': 'Last 24 hours',
+  'command.kpi.ordersOpen': 'Open orders',
+  'command.kpi.trucksDocked': '{count} trucks docked',
+  'command.kpi.dockUtilization': 'Dock utilization',
+  'command.kpi.trucksWaiting': '{count} trucks waiting',
+  'command.kpi.warehouses': 'Warehouses',
+  'command.kpi.inScope': 'In your scope',
+  'command.kpi.vehicles': 'Vehicles',
+  'command.kpi.moving': '{count} active',
+  'command.kpi.workers': 'Workers on site',
+  'command.kpi.onShift': '{count} working or walking',
+  'command.perf.title': 'Warehouse performance',
+  'command.perf.throughput': 'Orders completed',
+  'command.perf.forklift': 'Forklift utilization',
+  'command.perf.dock': 'Dock utilization',
+  'command.perf.events': 'Event throughput',
+  'command.perf.metrics': 'Choose the metric to chart',
+  'command.perf.summary': '{name} over {window}: {count} points, peak {max}.',
+  'command.perf.noData': 'No values in this window yet.',
+  'command.source': 'Source: {source}',
+  'command.heat.title': 'Inventory heatmap',
+  'command.heat.movement': 'Movement',
+  'heat.legend.highShort': 'High',
+  'command.flow.title': 'Order flow',
+  'command.flow.stages': 'Orders by stage in the window',
+  'command.flow.openNow': '{count} orders open now',
+  'command.flow.donut': 'Completed orders: {inbound} inbound, {outbound} outbound.',
+  'command.flow.outboundShare': 'Outbound share of completed',
+  'cameras.panel.select': 'Camera',
 } as const;
 
 export type MessageId = keyof typeof messagesEn;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Entity, EntityType } from '@vo/twin-schema';
-import type { CameraMode } from './cameraModes';
+import { modeNeedsSelection, type CameraMode } from './cameraModes';
 
 /**
  * A safety incident (or its first alert) shown in the twin: a marker at the spatial evidence and a highlight on the
@@ -88,11 +88,9 @@ export const useTwinStore = create<TwinViewState>()((set) => ({
   select: (selectedEntityId) =>
     set((s) => ({
       selectedEntityId,
-      // Focus and follow need a subject: dropping the selection returns to free exploration.
+      // Focus, follow and first person need a subject: dropping the selection returns to free exploration.
       cameraMode:
-        selectedEntityId === null && (s.cameraMode === 'focus' || s.cameraMode === 'follow')
-          ? 'explore'
-          : s.cameraMode,
+        selectedEntityId === null && modeNeedsSelection(s.cameraMode) ? 'explore' : s.cameraMode,
     })),
   setCameraMode: (cameraMode) => set({ cameraMode }),
   toggleType: (type) =>
@@ -110,7 +108,10 @@ export const useTwinStore = create<TwinViewState>()((set) => ({
     set((s) => {
       if (s.incident?.pinned && s.incident.key !== overlay.key) return s;
       return {
-        incident: { ...overlay, pinned: Boolean(s.incident?.key === overlay.key && s.incident.pinned) },
+        incident: {
+          ...overlay,
+          pinned: Boolean(s.incident?.key === overlay.key && s.incident.pinned),
+        },
       };
     }),
   focusIncident: (overlay) =>

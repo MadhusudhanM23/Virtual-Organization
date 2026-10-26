@@ -50,7 +50,7 @@ async function expectSignedIn(page: Page): Promise<void> {
 }
 
 async function siteOptions(page: Page): Promise<string[]> {
-  const select = page.getByLabel('Site', { exact: true });
+  const select = page.getByRole('combobox', { name: 'Site', exact: true });
   await expect(select).toBeVisible();
   return (await select.locator('option').allTextContents()).map((s) => s.trim());
 }

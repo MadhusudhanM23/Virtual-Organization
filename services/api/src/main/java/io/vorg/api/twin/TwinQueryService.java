@@ -55,7 +55,8 @@ public class TwinQueryService {
 
     public record WorldVersion(int version, String contentHash, String label, String dataMode, Instant createdAt) {}
 
-    public record SiteInfo(UUID id, String name, String timeZone, String locale, String currency, String unitSystem) {}
+    public record SiteInfo(UUID id, String name, String timeZone, String locale, String currency, String unitSystem,
+            Double latitude, Double longitude) {}
 
     public record Building(UUID id, String name, int version, String dataMode) {}
 
@@ -126,10 +127,13 @@ public class TwinQueryService {
     public WorldResponse world(Subject subject, UUID siteId) {
         authorizeSite(subject, siteId);
         SiteInfo site = jdbc.sql("""
-                select id, name, time_zone, locale, currency, unit_system from world.sites where id = :s
+                select id, name, time_zone, locale, currency, unit_system,
+                       latitude::float8 as latitude, longitude::float8 as longitude
+                from world.sites where id = :s
                 """).param("s", siteId).query((rs, n) -> new SiteInfo(rs.getObject("id", UUID.class),
                         rs.getString("name"), rs.getString("time_zone"), rs.getString("locale"),
-                        rs.getString("currency"), rs.getString("unit_system"))).optional()
+                        rs.getString("currency"), rs.getString("unit_system"),
+                        rs.getObject("latitude", Double.class), rs.getObject("longitude", Double.class))).optional()
                 .orElseThrow(() -> new ApiProblemException(HttpStatus.NOT_FOUND, "Not found",
                         "The requested site was not found."));
         WorldVersion version = latestVersion(siteId);

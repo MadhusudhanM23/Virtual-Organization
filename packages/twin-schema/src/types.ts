@@ -70,6 +70,9 @@ export interface SiteInfo {
   locale: string;
   currency: string;
   unit_system: 'METRIC' | 'IMPERIAL';
+  /** WGS84 degrees; absent or null when the site has no recorded location. */
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface Building {

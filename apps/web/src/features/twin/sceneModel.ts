@@ -1,4 +1,5 @@
 import {
+  headingToDirection,
   headingToRendererYaw,
   worldToRenderer,
   type Bounds,
@@ -57,6 +58,8 @@ const ACTIVE_STATUSES = new Set([
   'UNLOADING',
   'DOCKED',
   'ON_SHIFT',
+  'WORKING',
+  'WALKING',
   'ACTIVE',
   'ONLINE',
 ]);
@@ -273,6 +276,37 @@ export function rackShelves(racks: readonly Rack[], floor: Floor): InstanceSpec[
         scale: [r.length_m, 0.1, r.depth_m],
         color: RACK_SHELF_COLOR,
       });
+    }
+  }
+  return out;
+}
+
+export const RACK_UPRIGHT_COLOR = '#2563eb';
+
+/** Steel uprights at each bay boundary (about every 2.7 m), front and back of the rack. */
+export function rackUprights(racks: readonly Rack[], floor: Floor): InstanceSpec[] {
+  const out: InstanceSpec[] = [];
+  for (const r of racks) {
+    if (r.floor_id !== floor.id) continue;
+    const dir = headingToDirection(r.heading_deg);
+    const perp = { x: -dir.y, y: dir.x };
+    const bays = Math.max(1, Math.round(r.length_m / 2.7));
+    for (let i = 0; i <= bays; i += 1) {
+      const s = -r.length_m / 2 + (r.length_m * i) / bays;
+      for (const q of [-r.depth_m / 2, r.depth_m / 2]) {
+        const p = worldToRenderer({
+          x: r.position.x + dir.x * s + perp.x * q,
+          y: r.position.y + dir.y * s + perp.y * q,
+          z: r.position.z + r.height_m / 2,
+        });
+        out.push({
+          id: `${r.id}|u${i}${q > 0 ? 'b' : 'f'}`,
+          position: [p.x, p.y, p.z],
+          yaw: headingToRendererYaw(r.heading_deg),
+          scale: [0.09, r.height_m, 0.09],
+          color: RACK_UPRIGHT_COLOR,
+        });
+      }
     }
   }
   return out;
