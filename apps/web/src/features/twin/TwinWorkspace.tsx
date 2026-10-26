@@ -1,4 +1,13 @@
-import { Component, lazy, Suspense, type ComponentProps, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  Component,
+  lazy,
+  Suspense,
+  type ComponentProps,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Link } from 'react-router';
 import { Box, CircleAlert, Loader, TriangleAlert } from 'lucide-react';
 import type { Entity, WorldResponse } from '@vo/twin-schema';
@@ -71,6 +80,7 @@ function StatusBlock({ children }: { children: ReactNode }) {
 }
 
 const NO_ENTITIES: Entity[] = [];
+const SHORT_SCREEN_PX = 900;
 
 export interface TwinWorkspaceProps {
   titleId: MessageId;
@@ -86,6 +96,14 @@ export function TwinWorkspace({ titleId, descriptionId, defaultView }: TwinWorks
   const lens = useUiStore((s) => s.lens);
   const reducedMotion = useReducedMotion();
   const { state, reload } = useTwinData(siteId);
+
+  // On short screens the analytics row would leave the scene a thin strip; restore it when leaving the twin.
+  useEffect(() => {
+    const ui = useUiStore.getState();
+    if (window.innerHeight >= SHORT_SCREEN_PX || ui.bottomPanelCollapsed) return;
+    ui.setBottomPanelCollapsed(true);
+    return () => useUiStore.getState().setBottomPanelCollapsed(false);
+  }, []);
 
   const webgl = useMemo(() => isWebGLAvailable(), []);
   const [view, setView] = useState<ViewMode>(defaultView === '3d' && webgl ? '3d' : '2d');
@@ -230,7 +248,10 @@ function AssistantBanner({ onClear }: { onClear: () => void }) {
       className="flex flex-wrap items-center gap-3 rounded-control border border-line bg-surface px-3 py-2 text-sm text-ink-800"
     >
       <span className="font-semibold">{t('assistant.twin.banner')}</span>
-      <Link to="/assistant" className="font-semibold text-accent-700 underline-offset-2 hover:underline">
+      <Link
+        to="/assistant"
+        className="font-semibold text-accent-700 underline-offset-2 hover:underline"
+      >
         {t('assistant.twin.open')}
       </Link>
       <button
@@ -351,127 +372,134 @@ function ReadyView(p: ReadyProps) {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 p-4 md:p-6">
-      {p.header(world)}
+    <div className="mx-auto h-full w-full max-w-[1600px]">
+      {/* Exactly one screen tall, so the scene takes whatever height the shell leaves; legend and table scroll below. */}
+      <div className="flex h-full min-h-120 flex-col gap-4 p-4 md:p-6">
+        {p.header(world)}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <ViewToggle view={p.view} onChange={p.onView} webglAvailable={p.webgl} />
-        {floors.length > 1 ? (
-          <FloorSwitcher floors={floors} floorId={floor.id} onChange={p.onFloor} />
-        ) : null}
-        {p.view === '3d' ? (
-          <>
-            <CameraToolbar
-              mode={p.cameraMode}
-              hasSelection={selected !== null}
-              onChange={p.onCameraMode}
-            />
-            {p.reducedMotion ? (
-              <span className="text-xs text-ink-600">{t('twin.camera.reduced')}</span>
-            ) : null}
-          </>
-        ) : null}
-        <DemoProximityControl compact className="ml-auto" />
-      </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <ViewToggle view={p.view} onChange={p.onView} webglAvailable={p.webgl} />
+          {floors.length > 1 ? (
+            <FloorSwitcher floors={floors} floorId={floor.id} onChange={p.onFloor} />
+          ) : null}
+          {p.view === '3d' ? (
+            <>
+              <CameraToolbar
+                mode={p.cameraMode}
+                hasSelection={selected !== null}
+                onChange={p.onCameraMode}
+              />
+              {p.reducedMotion ? (
+                <span className="text-xs text-ink-600">{t('twin.camera.reduced')}</span>
+              ) : null}
+            </>
+          ) : null}
+          <DemoProximityControl compact className="ml-auto" />
+        </div>
 
-      {p.incident ? <IncidentBanner overlay={p.incident} onClear={p.onClearIncident} /> : null}
-      {p.assistant ? <AssistantBanner onClear={p.onClearAssistant} /> : null}
+        {p.incident ? <IncidentBanner overlay={p.incident} onClear={p.onClearIncident} /> : null}
+        {p.assistant ? <AssistantBanner onClear={p.onClearAssistant} /> : null}
 
-      {p.noWebgl || p.sceneFailed ? (
-        <p
-          role="status"
-          className="rounded-control border border-warning-line bg-warning-bg px-3 py-2 text-sm text-warning-fg"
-        >
-          {t('twin.webgl.unavailable')}
-        </p>
-      ) : null}
-
-      <div
-        className="relative h-[32rem] overflow-hidden rounded-card border border-line bg-surface shadow-card lg:h-[38rem]"
-        data-testid="twin-viewport"
-        data-view={p.view}
-        data-camera-mode={p.cameraMode}
-        data-camera-target={p.target ? `${p.target.x.toFixed(1)},${p.target.y.toFixed(1)}` : undefined}
-      >
-        {p.view === '3d' ? (
-          <section
-            aria-label={t('twin.scene.label', { site: world.site.name, floor: floor.name })}
-            className="size-full"
+        {p.noWebgl || p.sceneFailed ? (
+          <p
+            role="status"
+            className="rounded-control border border-warning-line bg-warning-bg px-3 py-2 text-sm text-warning-fg"
           >
-            <SceneBoundary onError={p.onSceneFailed}>
-              <Suspense
-                fallback={
-                  <p
-                    role="status"
-                    className="grid size-full place-items-center text-sm text-ink-700"
-                  >
-                    {t('twin.loading')}
-                  </p>
-                }
-              >
-                <AnimatedScene3D
-                  world={world}
+            {t('twin.webgl.unavailable')}
+          </p>
+        ) : null}
+
+        <div
+          className="relative min-h-0 flex-1 overflow-hidden rounded-card border border-line bg-surface shadow-card"
+          data-testid="twin-viewport"
+          data-view={p.view}
+          data-camera-mode={p.cameraMode}
+          data-camera-target={
+            p.target ? `${p.target.x.toFixed(1)},${p.target.y.toFixed(1)}` : undefined
+          }
+        >
+          {p.view === '3d' ? (
+            <section
+              aria-label={t('twin.scene.label', { site: world.site.name, floor: floor.name })}
+              className="size-full"
+            >
+              <SceneBoundary onError={p.onSceneFailed}>
+                <Suspense
+                  fallback={
+                    <p
+                      role="status"
+                      className="grid size-full place-items-center text-sm text-ink-700"
+                    >
+                      {t('twin.loading')}
+                    </p>
+                  }
+                >
+                  <AnimatedScene3D
+                    world={world}
+                    floor={floor}
+                    entities={visible}
+                    selected={selected}
+                    onSelect={p.onSelect}
+                    cameraMode={p.cameraMode}
+                    reducedMotion={p.reducedMotion}
+                    panRequest={p.panRequest}
+                    onTarget={p.onTarget}
+                    incident={p.incident}
+                    assistant={p.assistant}
+                    focusRequest={p.focusRequest}
+                  />
+                </Suspense>
+              </SceneBoundary>
+              <div className="absolute right-3 bottom-3 z-10 h-36 w-52 overflow-hidden rounded-control border border-line-strong bg-surface shadow-float">
+                <AnimatedFloorMap2D
+                  compact
                   floor={floor}
+                  zones={world.zones}
+                  racks={world.racks}
+                  docks={world.docks}
                   entities={visible}
-                  selected={selected}
-                  onSelect={p.onSelect}
-                  cameraMode={p.cameraMode}
-                  reducedMotion={p.reducedMotion}
-                  panRequest={p.panRequest}
-                  onTarget={p.onTarget}
+                  selectedId={p.selectedId}
+                  siteName={world.site.name}
+                  cameraTarget={p.target}
+                  onPanTo={panTo}
                   incident={p.incident}
                   assistant={p.assistant}
-                  focusRequest={p.focusRequest}
                 />
-              </Suspense>
-            </SceneBoundary>
-            <div className="absolute right-3 bottom-3 z-10 h-36 w-52 overflow-hidden rounded-control border border-line-strong bg-surface shadow-float">
-              <AnimatedFloorMap2D
-                compact
-                floor={floor}
-                zones={world.zones}
-                racks={world.racks}
-                docks={world.docks}
-                entities={visible}
-                selectedId={p.selectedId}
-                siteName={world.site.name}
-                cameraTarget={p.target}
-                onPanTo={panTo}
-                incident={p.incident}
-                assistant={p.assistant}
-              />
-            </div>
-          </section>
-        ) : (
-          <AnimatedFloorMap2D
-            floor={floor}
-            zones={world.zones}
-            racks={world.racks}
-            docks={world.docks}
-            entities={visible}
-            selectedId={p.selectedId}
-            onSelect={p.onSelect}
-            siteName={world.site.name}
-            incident={p.incident}
-            assistant={p.assistant}
-          />
-        )}
+              </div>
+            </section>
+          ) : (
+            <AnimatedFloorMap2D
+              floor={floor}
+              zones={world.zones}
+              racks={world.racks}
+              docks={world.docks}
+              entities={visible}
+              selectedId={p.selectedId}
+              onSelect={p.onSelect}
+              siteName={world.site.name}
+              incident={p.incident}
+              assistant={p.assistant}
+            />
+          )}
+        </div>
       </div>
 
-      <Legend
-        counts={counts}
-        hiddenTypes={p.hiddenTypes}
-        onToggleType={p.onToggleType}
-        zones={world.zones.filter((z) => z.floor_id === floor.id)}
-      />
+      <div className="flex flex-col gap-4 px-4 pb-4 md:px-6 md:pb-6">
+        <Legend
+          counts={counts}
+          hiddenTypes={p.hiddenTypes}
+          onToggleType={p.onToggleType}
+          zones={world.zones.filter((z) => z.floor_id === floor.id)}
+        />
 
-      <EntityTable
-        entities={floorEntities}
-        floorName={floor.name}
-        zoneNames={zoneNames}
-        selectedId={p.selectedId}
-        onSelect={p.onSelect}
-      />
+        <EntityTable
+          entities={floorEntities}
+          floorName={floor.name}
+          zoneNames={zoneNames}
+          selectedId={p.selectedId}
+          onSelect={p.onSelect}
+        />
+      </div>
     </div>
   );
 }

@@ -232,16 +232,19 @@ function Structure({ world, floor }: { world: WorldResponse; floor: Floor }) {
               />
               {active ? <Edges color="#9aa8bf" /> : null}
             </mesh>
-            <Label
-              tone="floor"
-              position={[
-                slab.center[0] - slab.width / 2 + 7,
-                slab.center[1] + 0.6,
-                slab.center[2] + slab.depth / 2 + 2.5,
-              ]}
-            >
-              {`${f.name}${f.elevation_m ? ` (+${f.elevation_m} m)` : ''}`}
-            </Label>
+            {/* Floors stack only metres apart, so labelling every slab makes the labels overlap. */}
+            {active ? (
+              <Label
+                tone="floor"
+                position={[
+                  slab.center[0] - slab.width / 2 + 7,
+                  slab.center[1] + 0.6,
+                  slab.center[2] + slab.depth / 2 + 2.5,
+                ]}
+              >
+                {`${f.name}${f.elevation_m ? ` (+${f.elevation_m} m)` : ''}`}
+              </Label>
+            ) : null}
           </group>
         );
       })}
@@ -393,8 +396,12 @@ function AssistantOverlay3D({
   floor: Floor;
 }) {
   const y = floor.elevation_m + 0.12;
-  const zones = world.zones.filter((z) => z.floor_id === floor.id && assistant.zoneIds.includes(z.id));
-  const docks = world.docks.filter((d) => d.floor_id === floor.id && assistant.dockIds.includes(d.id));
+  const zones = world.zones.filter(
+    (z) => z.floor_id === floor.id && assistant.zoneIds.includes(z.id),
+  );
+  const docks = world.docks.filter(
+    (d) => d.floor_id === floor.id && assistant.dockIds.includes(d.id),
+  );
   return (
     <group name="assistant-highlight">
       {zones.map((z) => {
@@ -415,7 +422,10 @@ function AssistantOverlay3D({
                 [b.min_x, y, -b.min_y],
               ]}
             />
-            <Label tone="assistant" position={[(b.min_x + b.max_x) / 2, y + 2.2, -(b.min_y + b.max_y) / 2]}>
+            <Label
+              tone="assistant"
+              position={[(b.min_x + b.max_x) / 2, y + 2.2, -(b.min_y + b.max_y) / 2]}
+            >
               {t('assistant.twin.label', { name: z.name })}
             </Label>
           </group>
@@ -425,7 +435,12 @@ function AssistantOverlay3D({
         <group key={d.id} position={[d.position.x, y, -d.position.y]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}>
             <ringGeometry args={[2.6, 3.1, 40]} />
-            <meshBasicMaterial color={ASSISTANT_COLOR} transparent opacity={0.9} depthWrite={false} />
+            <meshBasicMaterial
+              color={ASSISTANT_COLOR}
+              transparent
+              opacity={0.9}
+              depthWrite={false}
+            />
           </mesh>
           <Label tone="assistant" position={[0, 3.2, 0]}>
             {t('assistant.twin.label', { name: d.name })}
@@ -629,7 +644,8 @@ export default function Scene3D(props: Scene3DProps) {
     focusRequest = null,
     background = '#eaeff7',
   } = props;
-  const overlay = incident && (!incident.floorId || incident.floorId === floor.id) ? incident : null;
+  const overlay =
+    incident && (!incident.floorId || incident.floorId === floor.id) ? incident : null;
   const pair = useMemo(
     () => (overlay ? entities.filter((e) => overlay.entityIds.includes(e.id)) : []),
     [overlay, entities],

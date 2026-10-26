@@ -39,6 +39,7 @@ export interface UiState {
   toggleSidebar: () => void;
   toggleRightPanel: () => void;
   toggleBottomPanel: () => void;
+  setBottomPanelCollapsed: (collapsed: boolean) => void;
   setMobileNavOpen: (open: boolean) => void;
   setDrawerOpen: (open: boolean) => void;
   setDrawerTab: (tab: PanelId) => void;
@@ -68,6 +69,7 @@ export const useUiStore = create<UiState>()((set) => ({
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   toggleRightPanel: () => set((s) => ({ rightPanelCollapsed: !s.rightPanelCollapsed })),
   toggleBottomPanel: () => set((s) => ({ bottomPanelCollapsed: !s.bottomPanelCollapsed })),
+  setBottomPanelCollapsed: (bottomPanelCollapsed) => set({ bottomPanelCollapsed }),
   setMobileNavOpen: (mobileNavOpen) => set({ mobileNavOpen }),
   setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
   setDrawerTab: (drawerTab) => set({ drawerTab }),
