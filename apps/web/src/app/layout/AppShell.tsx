@@ -79,7 +79,9 @@ export function AppShell() {
 
   return (
     <div
-      className="grid h-dvh overflow-hidden"
+      // `relative` makes the shell the containing block of every absolutely positioned descendant (sr-only text,
+      // callouts), so overflow-hidden really clips them and the document itself can never scroll.
+      className="relative grid h-dvh overflow-hidden"
       style={{
         gridTemplateColumns: `${sidebarCollapsed ? SIDEBAR_WIDTH.collapsed : SIDEBAR_WIDTH.expanded} minmax(0, 1fr) ${rightPanelCollapsed ? RIGHT_WIDTH.collapsed : RIGHT_WIDTH.expanded}`,
         gridTemplateRows: 'auto auto minmax(0, 1fr) auto',
