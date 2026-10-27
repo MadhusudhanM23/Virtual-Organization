@@ -679,7 +679,7 @@ function MotionTrails({ entities }: { entities: Entity[] }) {
   );
 }
 
-function SelectionMarker({ entity }: { entity: Entity }) {
+function SelectionMarker({ entity, showLabel = true }: { entity: Entity; showLabel?: boolean }) {
   const spec = useMemo(() => entityInstance(entity), [entity]);
   return (
     <group
@@ -691,9 +691,11 @@ function SelectionMarker({ entity }: { entity: Entity }) {
         <meshBasicMaterial visible={false} />
         <Edges color="#1f5fd1" />
       </mesh>
-      <Label tone="select" position={[0, spec.scale[1] / 2 + 1.6, 0]}>
-        {entity.code}
-      </Label>
+      {showLabel ? (
+        <Label tone="select" position={[0, spec.scale[1] / 2 + 1.6, 0]}>
+          {entity.code}
+        </Label>
+      ) : null}
     </group>
   );
 }
@@ -1028,7 +1030,13 @@ export default function Scene3D(props: Scene3DProps) {
         <CalloutProjector nodes={calloutNodes} world={world} floor={floor} entities={entities} />
       ) : null}
       {callouts && !reducedMotion ? <MotionTrails entities={entities} /> : null}
-      {selected ? <SelectionMarker entity={selected} /> : null}
+      {/* The label is sized in metres: from a chase or driver's-eye camera it would fill the view. */}
+      {selected ? (
+        <SelectionMarker
+          entity={selected}
+          showLabel={!['follow', 'firstPerson'].includes(effectiveMode(cameraMode, true))}
+        />
+      ) : null}
       {overlay ? <IncidentMarker3D overlay={overlay} elevation={floor.elevation_m} /> : null}
       {pair.map((e) => (
         <PairHighlight key={e.id} entity={e} />
