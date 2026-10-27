@@ -20,6 +20,7 @@ import { useUiStore, type Lens } from '../../stores/uiStore';
 import { AnalyticsRow } from '../command/AnalyticsRow';
 import { KpiStrip } from '../command/KpiStrip';
 import { CalloutLayer, type CalloutNodes } from './Callouts';
+import { useOpenAlerts } from './useOpenAlerts';
 import { CameraBar, FloorRail, HudSlot, MiniLegend, SceneHeader, ViewSwitch } from './Hud';
 import { DemoProximityControl } from '../incidents/DemoProximityControl';
 import { LiveStreamStatus } from '../live/ConnectionIndicator';
@@ -377,6 +378,7 @@ function ReadyView(p: ReadyProps) {
   const [legendOpen, setLegendOpen] = useState(() => window.innerHeight >= SHORT_SCREEN_PX);
   // Shared between the DOM callouts and the scene's projector; mutated imperatively, never re-created.
   const [calloutNodes] = useState<CalloutNodes>(() => new Map());
+  const alerts = useOpenAlerts(p.command ? world.site.id : null, floor?.id ?? null);
 
   if (!floor) {
     return (
@@ -461,6 +463,7 @@ function ReadyView(p: ReadyProps) {
                       assistant={p.assistant}
                       focusRequest={p.focusRequest}
                       calloutNodes={calloutNodes}
+                      alerts={alerts}
                     />
                   </Suspense>
                 </SceneBoundary>
@@ -471,6 +474,7 @@ function ReadyView(p: ReadyProps) {
                 floor={floor}
                 entities={visible}
                 stockByZone={stockByZone}
+                alerts={alerts}
                 onSelect={p.onSelect}
               />
             </>

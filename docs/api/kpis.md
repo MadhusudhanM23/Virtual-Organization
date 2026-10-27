@@ -24,7 +24,13 @@ that ends at `computed_at`.
 | `integration_findings_open` | findings | count(status = OPEN) | `integ.findings` |
 | `orders_open` | orders | mirrored ORDER records whose latest status is RELEASED or IN_PROGRESS | `integ.mirror_records` |
 | `orders_completed` | orders | order revisions with status COMPLETED ingested in window | `integ.mirror_revisions` |
+| `shipped_order_value` | INR (the source's currency) | sum of `order_value` over OUTBOUND order revisions with status COMPLETED ingested in window; orders without a source value are not counted (no series) | `integ.mirror_revisions` |
+| `on_time_dispatch` | % | 100 x completed OUTBOUND orders whose completion came within `promised_within_s` of their RELEASED revision / completed OUTBOUND orders carrying a promise (no series) | `integ.mirror_revisions` |
 | `event_throughput` | events/min | events at the site in window / window minutes | `evt.events` |
+
+`order_value`, `currency`, per-line `unit_price` and `promised_within_s` are fields of the source order payload. The
+Simulated WMS fills them from a fixed per-SKU price list and a promise of 5 to 8 sync intervals after release; a real
+WMS adapter maps its own fields or leaves them out, in which case both KPIs report insufficient data rather than 0.
 
 Series (`/api/kpis/{id}/series`) exist for windowed KPIs only (`tasks_completed`, `tasks_failed`, `task_cycle_time_avg`,
 `orders_completed`, `event_throughput`); state KPIs have no stored history and answer `422`. Buckets: 15m/1m, 1h/5m,

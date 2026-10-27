@@ -13,7 +13,20 @@ import java.util.TreeSet;
  */
 public record KpiInputs(Instant now, Instant from, Instant to, Group tasks, Group tasksInWindow,
         List<Sample> cycleSeconds, Group docks, Group entities, Group findings, Group orders, Group orderRevisions,
-        Group events) {
+        Group events, List<Shipped> shipped) {
+
+    public KpiInputs(Instant now, Instant from, Instant to, Group tasks, Group tasksInWindow,
+            List<Sample> cycleSeconds, Group docks, Group entities, Group findings, Group orders,
+            Group orderRevisions, Group events) {
+        this(now, from, to, tasks, tasksInWindow, cycleSeconds, docks, entities, findings, orders, orderRevisions,
+                events, List.of());
+    }
+
+    /**
+     * One outbound order completed inside the window: its source-system value (null when the source sent none), its
+     * promised dispatch window and the measured release-to-completion time in seconds (null when either is unknown).
+     */
+    public record Shipped(Double value, Double promisedSeconds, Double actualSeconds, String mode, Instant at) {}
 
     /** Row counts by key (e.g. a status) with the data modes and the newest timestamp of the contributing rows. */
     public record Group(Map<String, Long> counts, Set<String> modes, Instant asOf) {

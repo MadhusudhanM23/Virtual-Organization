@@ -90,8 +90,31 @@ public class KpiRepository {
                 where (location ->> 'site_id') = :s and occurred_at >= :f and occurred_at < :t
                 group by data_mode
                 """, Map.of("s", siteId.toString(), "f", from, "t", to));
+        // Outbound orders completed in the window, with the time of their release revision (the promise starts there).
+        List<KpiInputs.Shipped> shipped = jdbc.sql("""
+                select (c.payload ->> 'order_value')::numeric as value,
+                       (c.payload ->> 'promised_within_s')::numeric as promised,
+                       extract(epoch from (c.ingested_at - rel.released_at)) as actual,
+                       m.data_mode, c.ingested_at
+                from integ.mirror_revisions c
+                join integ.mirror_records m on m.id = c.mirror_id
+                left join lateral (
+                    select min(r.ingested_at) as released_at from integ.mirror_revisions r
+                    where r.mirror_id = c.mirror_id and (r.payload ->> 'status') = 'RELEASED'
+                ) rel on true
+                where m.site_id = :s and m.record_kind = 'ORDER' and (c.payload ->> 'status') = 'COMPLETED'
+                  and (c.payload ->> 'order_type') = 'OUTBOUND' and c.ingested_at >= :f and c.ingested_at < :t
+                order by c.ingested_at desc limit :lim
+                """).param("s", siteId).param("f", from).param("t", to).param("lim", MAX_SAMPLES)
+                .query((rs, n) -> new KpiInputs.Shipped(nullable(rs, "value"), nullable(rs, "promised"),
+                        nullable(rs, "actual"), rs.getString("data_mode"), instant(rs, "ingested_at"))).list();
         return new KpiInputs(now, w.from(), w.to(), tasks, tasksInWindow, cycle, docks, entities, findings, orders,
-                revisions, events);
+                revisions, events, shipped);
+    }
+
+    private static Double nullable(ResultSet rs, String column) throws SQLException {
+        double v = rs.getDouble(column);
+        return rs.wasNull() ? null : v;
     }
 
     private Group group(String sql, Map<String, Object> params) {

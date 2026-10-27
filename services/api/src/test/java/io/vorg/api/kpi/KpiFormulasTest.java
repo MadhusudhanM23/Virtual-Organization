@@ -206,6 +206,39 @@ class KpiFormulasTest {
                 .isInstanceOf(io.vorg.api.platform.web.ApiProblemException.class);
     }
 
+    private static KpiInputs shipped(KpiInputs.Shipped... rows) {
+        KpiInputs e = KpiInputs.empty(NOW, FROM, NOW);
+        return new KpiInputs(e.now(), e.from(), e.to(), e.tasks(), e.tasksInWindow(), e.cycleSeconds(), e.docks(),
+                e.entities(), e.findings(), e.orders(), e.orderRevisions(), e.events(), List.of(rows));
+    }
+
+    @Test
+    void shippedValueSumsPricedOrdersAndIgnoresUnpricedOnes() {
+        Computed c = KpiFormulas.compute("shipped_order_value", shipped(
+                new KpiInputs.Shipped(12000.0, 90.0, 80.0, "SIMULATED", NOW),
+                new KpiInputs.Shipped(3500.5, 90.0, 95.0, "SIMULATED", NOW),
+                new KpiInputs.Shipped(null, null, null, "SIMULATED", NOW)));
+        assertThat(c.value()).isEqualTo(15500.5);
+        assertThat(c.sampleSize()).isEqualTo(2);
+    }
+
+    @Test
+    void onTimeDispatchIsTheShareWithinThePromise() {
+        Computed c = KpiFormulas.compute("on_time_dispatch", shipped(
+                new KpiInputs.Shipped(1.0, 90.0, 80.0, "SIMULATED", NOW),
+                new KpiInputs.Shipped(1.0, 90.0, 90.0, "SIMULATED", NOW),
+                new KpiInputs.Shipped(1.0, 75.0, 95.0, "SIMULATED", NOW),
+                new KpiInputs.Shipped(1.0, null, 95.0, "SIMULATED", NOW)));
+        assertThat(c.value()).isEqualTo(66.67);
+        assertThat(c.sampleSize()).isEqualTo(3);
+    }
+
+    @Test
+    void orderValueKpisNeedData() {
+        assertThat(KpiFormulas.compute("shipped_order_value", shipped()).value()).isNull();
+        assertThat(KpiFormulas.compute("on_time_dispatch", shipped()).reason()).contains("promised");
+    }
+
     @Test
     void registryDefinitionsAreCompleteAndUnique() {
         assertThat(KpiRegistry.all()).extracting(KpiDefinition::id).doesNotHaveDuplicates();

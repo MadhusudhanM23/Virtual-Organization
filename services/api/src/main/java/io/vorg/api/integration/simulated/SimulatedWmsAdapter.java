@@ -6,6 +6,7 @@ import io.vorg.api.integration.core.SourceAdapter;
 import io.vorg.api.integration.core.SourceBatch;
 import io.vorg.api.integration.core.SourceRecord;
 import io.vorg.api.platform.events.DataMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -40,10 +41,14 @@ public class SimulatedWmsAdapter implements SourceAdapter {
     public static final String SOURCE_SYSTEM = "SIM-WMS";
 
     static final String[] SKUS = new String[20];
+    /** SIM-WMS price list, INR per unit: a fixed function of the SKU, so order values are deterministic too. */
+    static final int[] UNIT_PRICE_INR = new int[SKUS.length];
+    public static final String CURRENCY = "INR";
 
     static {
         for (int i = 0; i < SKUS.length; i++) {
             SKUS[i] = "SKU-" + (1001 + i);
+            UNIT_PRICE_INR[i] = 180 + 65 * ((i * 7) % SKUS.length);
         }
     }
 
@@ -51,19 +56,21 @@ public class SimulatedWmsAdapter implements SourceAdapter {
     private final int faultEvery;
     private final SimWorldProvider worlds;
     private final SimOverrides overrides;
+    private final Duration batchInterval;
 
     public SimulatedWmsAdapter(long seed, int faultEvery, SimWorldProvider worlds) {
-        this(seed, faultEvery, worlds, SimOverrides.NONE);
+        this(seed, faultEvery, worlds, SimOverrides.NONE, Duration.ofSeconds(15));
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public SimulatedWmsAdapter(@Value("${vo.integration.simulated.seed:20261009}") long seed,
             @Value("${vo.integration.simulated.fault-every:0}") int faultEvery, SimWorldProvider worlds,
-            SimOverrides overrides) {
+            SimOverrides overrides, @Value("${vo.live.sync.interval:15s}") Duration batchInterval) {
         this.seed = seed;
         this.faultEvery = faultEvery;
         this.worlds = worlds;
         this.overrides = overrides;
+        this.batchInterval = batchInterval;
     }
 
     @Override
@@ -118,10 +125,15 @@ public class SimulatedWmsAdapter implements SourceAdapter {
         String type = r.nextBoolean() ? "INBOUND" : "OUTBOUND";
         int lineCount = 1 + r.nextInt(3);
         List<Map<String, Object>> lines = new ArrayList<>();
+        long value = 0;
         for (int i = 0; i < lineCount; i++) {
             Map<String, Object> line = new LinkedHashMap<>();
-            line.put("sku", SKUS[r.nextInt(SKUS.length)]);
-            line.put("qty", 10 * (1 + r.nextInt(24)));
+            int sku = r.nextInt(SKUS.length);
+            int qty = 10 * (1 + r.nextInt(24));
+            line.put("sku", SKUS[sku]);
+            line.put("qty", qty);
+            line.put("unit_price", UNIT_PRICE_INR[sku]);
+            value += (long) qty * UNIT_PRICE_INR[sku];
             lines.add(line);
         }
         List<SimWorld.Dock> docks = world.docks(type);
@@ -129,8 +141,15 @@ public class SimulatedWmsAdapter implements SourceAdapter {
         payload.put("order_type", type);
         payload.put("status", status);
         payload.put("lines", lines);
+        payload.put("currency", CURRENCY);
+        payload.put("order_value", value);
         if (!docks.isEmpty()) {
             payload.put("dock_name", docks.get(r.nextInt(docks.size())).name());
+        }
+        if ("OUTBOUND".equals(type)) {
+            // Promised dispatch window, counted from release. Completion is nominally 6 batches after release, so a
+            // promise of 5 to 8 batches is mostly met; sync gaps and restarts make real orders late.
+            payload.put("promised_within_s", (5 + r.nextInt(4)) * batchInterval.toSeconds());
         }
         return new SourceRecord(RecordKind.ORDER, "ORD-" + pad(index + 1), version, now, payload);
     }

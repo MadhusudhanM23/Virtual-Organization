@@ -47,6 +47,8 @@ public final class KpiFormulas {
         FORMULAS.put("orders_open", in -> orderCount(in.orders(), "no mirrored orders for this site", "RELEASED",
                 "IN_PROGRESS"));
         FORMULAS.put("orders_completed", KpiFormulas::ordersCompleted);
+        FORMULAS.put("shipped_order_value", KpiFormulas::shippedValue);
+        FORMULAS.put("on_time_dispatch", KpiFormulas::onTimeDispatch);
         FORMULAS.put("event_throughput", KpiFormulas::eventThroughput);
     }
 
@@ -173,6 +175,45 @@ public final class KpiFormulas {
             return Computed.insufficient("no mirrored orders for this site", 0, all.modes(), all.asOf());
         }
         return Computed.of(in.orderRevisions().count("COMPLETED"), all.total(), all.modes(), all.asOf());
+    }
+
+    private static Computed shippedValue(KpiInputs in) {
+        List<KpiInputs.Shipped> priced = in.shipped().stream().filter(s -> s.value() != null).toList();
+        if (priced.isEmpty()) {
+            return Computed.insufficient("no outbound orders with a source value completed in the window", 0,
+                    modesOf(in.shipped()), asOfOf(in.shipped()));
+        }
+        double sum = priced.stream().mapToDouble(KpiInputs.Shipped::value).sum();
+        return Computed.of(sum, priced.size(), modesOf(priced), asOfOf(priced));
+    }
+
+    private static Computed onTimeDispatch(KpiInputs in) {
+        List<KpiInputs.Shipped> measured = in.shipped().stream()
+                .filter(s -> s.promisedSeconds() != null && s.actualSeconds() != null).toList();
+        if (measured.isEmpty()) {
+            return Computed.insufficient(
+                    "no outbound orders with a promised dispatch window completed in the window", 0,
+                    modesOf(in.shipped()), asOfOf(in.shipped()));
+        }
+        long onTime = measured.stream().filter(s -> s.actualSeconds() <= s.promisedSeconds()).count();
+        return Computed.of(100.0 * onTime / measured.size(), measured.size(), modesOf(measured),
+                asOfOf(measured));
+    }
+
+    private static Set<String> modesOf(List<KpiInputs.Shipped> rows) {
+        Set<String> modes = new TreeSet<>();
+        rows.forEach(s -> modes.add(s.mode()));
+        return modes;
+    }
+
+    private static Instant asOfOf(List<KpiInputs.Shipped> rows) {
+        Instant asOf = null;
+        for (KpiInputs.Shipped s : rows) {
+            if (s.at() != null && (asOf == null || s.at().isAfter(asOf))) {
+                asOf = s.at();
+            }
+        }
+        return asOf;
     }
 
     private static Computed eventThroughput(KpiInputs in) {

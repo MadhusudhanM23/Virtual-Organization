@@ -968,6 +968,12 @@ export const messagesEn = {
   'auth.hero.fact3': 'Nothing executes without a human approval.',
   'auth.hero.scene':
     'Line drawing of a warehouse floor: rack rows, docks with trucks, and forklifts moving along the aisles.',
+  'command.kpi.revenue': 'Revenue (shipped)',
+  'command.kpi.revenueSub': '{count} outbound orders · 24 h',
+  'command.kpi.onTime': 'On-time dispatch',
+  'command.kpi.onTimeSub': '{count} outbound orders · 24 h',
+  'command.kpi.completedSub': '{count} completed · 24 h',
+  'twin.alert.title': 'Safety alert',
   'overview.kicker': 'Site briefing',
   'overview.headline': 'Headline figures',
   'overview.detail': 'All figures by area',

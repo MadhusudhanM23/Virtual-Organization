@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import {
   ClipboardList,
-  Gauge,
-  PackageCheck,
+  IndianRupee,
+  Timer,
   Truck,
   Users,
   Warehouse,
@@ -101,9 +101,8 @@ export function KpiStrip() {
   const items = kpis.data?.items;
   const done = byId(items, 'orders_completed');
   const open = byId(items, 'orders_open');
-  const dock = byId(items, 'dock_utilization');
-  const docked = byId(items, 'trucks_docked');
-  const waiting = byId(items, 'trucks_waiting');
+  const revenue = byId(items, 'shipped_order_value');
+  const onTime = byId(items, 'on_time_dispatch');
 
   const vehicles = entities.filter(
     (e) => e.entity_type === 'FORKLIFT' || e.entity_type === 'TRUCK' || e.entity_type === 'ROBOT',
@@ -112,9 +111,17 @@ export function KpiStrip() {
   const workers = entities.filter((e) => e.entity_type === 'WORKER');
   const onShift = workers.filter((e) => statusTone(e.status) === 'active').length;
 
-  const doneN = useCountUp(done?.value ?? null);
+  const revenueN = useCountUp(revenue?.value ?? null);
+  const onTimeN = useCountUp(onTime?.value ?? null);
   const openN = useCountUp(open?.value ?? null);
-  const dockN = useCountUp(dock?.value ?? null);
+  // Compact money in the site's currency and locale (for example "₹4.8 Cr"); the unit comes from the KPI.
+  const money = (v: number) =>
+    new Intl.NumberFormat(fmt.locale, {
+      style: 'currency',
+      currency: revenue?.unit ?? fmt.currency ?? 'INR',
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(v);
   const sitesN = useCountUp(sites.length);
   const vehiclesN = useCountUp(entities.length ? vehicles.length : null);
   const workersN = useCountUp(entities.length ? workers.length : null);
@@ -135,14 +142,17 @@ export function KpiStrip() {
         aria-busy={kpis.loading}
       >
         <Tile
-          testId="kpi-orders-completed"
-          icon={PackageCheck}
+          testId="kpi-revenue"
+          icon={IndianRupee}
           tint="#7c3aed"
-          label={t('command.kpi.ordersCompleted')}
-          value={num(doneN)}
-          sub={done?.reason ?? t('command.kpi.window24h')}
-          trend={series.data?.points.map((p) => p.value)}
-          badge={badge(done)}
+          label={t('command.kpi.revenue')}
+          value={revenueN === null ? num(null) : money(revenueN)}
+          sub={
+            revenue?.value != null
+              ? t('command.kpi.revenueSub', { count: fmt.number(revenue.sample_size) })
+              : (revenue?.reason ?? t('command.kpi.window24h'))
+          }
+          badge={badge(revenue)}
         />
         <Tile
           testId="kpi-orders-open"
@@ -150,17 +160,22 @@ export function KpiStrip() {
           tint="#ea580c"
           label={t('command.kpi.ordersOpen')}
           value={num(openN)}
-          sub={t('command.kpi.trucksDocked', { count: num(docked?.value ?? null) })}
+          sub={t('command.kpi.completedSub', { count: num(done?.value ?? null) })}
+          trend={series.data?.points.map((p) => p.value)}
           badge={badge(open)}
         />
         <Tile
-          testId="kpi-dock-utilization"
-          icon={Gauge}
+          testId="kpi-on-time"
+          icon={Timer}
           tint="#16a34a"
-          label={t('command.kpi.dockUtilization')}
-          value={dockN === null ? num(null) : `${num(dockN, 1)}%`}
-          sub={t('command.kpi.trucksWaiting', { count: num(waiting?.value ?? null) })}
-          badge={badge(dock)}
+          label={t('command.kpi.onTime')}
+          value={onTimeN === null ? num(null) : `${num(onTimeN, 1)}%`}
+          sub={
+            onTime?.value != null
+              ? t('command.kpi.onTimeSub', { count: fmt.number(onTime.sample_size) })
+              : (onTime?.reason ?? t('command.kpi.window24h'))
+          }
+          badge={badge(onTime)}
         />
         <Tile
           testId="kpi-warehouses"

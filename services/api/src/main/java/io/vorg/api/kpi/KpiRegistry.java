@@ -65,6 +65,17 @@ public final class KpiRegistry {
                 "count(order revisions with status = COMPLETED ingested in window)", "orders",
                 List.of("integ.mirror_revisions", "integ.mirror_records"), true, true,
                 "At least one mirrored order for the site."));
+        add(def("shipped_order_value", "Revenue (shipped orders)", "orders",
+                "Source-system value of outbound orders completed inside the window.",
+                "sum(order_value of OUTBOUND order revisions with status = COMPLETED ingested in window)", "INR",
+                List.of("integ.mirror_revisions", "integ.mirror_records"), true, false,
+                "At least one outbound order with a source value completed in the window."));
+        add(def("on_time_dispatch", "On-time dispatch", "orders",
+                "Share of outbound orders completed within the dispatch window the source system promised.",
+                "100 * count(completed OUTBOUND orders where completed_at - released_at <= promised_within_s)"
+                        + " / count(completed OUTBOUND orders with a promise)", "%",
+                List.of("integ.mirror_revisions", "integ.mirror_records"), true, false,
+                "At least one outbound order with a promised dispatch window completed in the window."));
         add(def("event_throughput", "Event throughput", "platform", "Operational events recorded per minute.",
                 "count(events at site with occurred_at in window) / window minutes", "events/min",
                 List.of("evt.events"), true, true, "At least one event in the window."));

@@ -6,6 +6,7 @@ import { ENTITY_TYPES, type Entity, type Floor, type WorldResponse } from '@vo/t
 import { t } from '../../i18n';
 import type { AssistantHighlight, IncidentOverlay } from './twinStore';
 import type { CalloutNodes } from './Callouts';
+import type { SceneAlert } from './useOpenAlerts';
 import { MODELS, modelInstances, type ModelPart, type PartInstance } from './models';
 import {
   cinematicPose,
@@ -59,7 +60,11 @@ export interface Scene3DProps {
    * scene projects their anchors into these nodes every frame and drops its own zone/dock sprites. No portals.
    */
   calloutNodes?: CalloutNodes;
+  /** Open safety alerts on this floor (command view): floor rings here, labelled chips in the callout layer. */
+  alerts?: readonly SceneAlert[];
 }
+
+const NO_ALERTS: readonly SceneAlert[] = [];
 
 const scratch = new Object3D();
 const scratchColor = new Color();
@@ -582,11 +587,13 @@ function CalloutProjector({
   world,
   floor,
   entities,
+  alerts,
 }: {
   nodes: CalloutNodes;
   world: WorldResponse;
   floor: Floor;
   entities: Entity[];
+  alerts: readonly SceneAlert[];
 }) {
   const { camera, size } = useThree();
   const zones = useMemo(() => zonePatches(world.zones, floor), [world.zones, floor]);
@@ -627,8 +634,66 @@ function CalloutProjector({
       const spec = entityInstance(e);
       place(id, spec.position[0], spec.position[1] + spec.scale[1] / 2 + 1.4, spec.position[2]);
     }
+    for (const a of alerts) place(`inc:${a.id}`, a.x, floor.elevation_m + 4.5, -a.y);
   });
   return null;
+}
+
+/** A red ring and beacon on the floor under each open safety alert; the ring pulses unless motion is reduced. */
+function AlertRings({
+  alerts,
+  elevation,
+  animate,
+}: {
+  alerts: readonly SceneAlert[];
+  elevation: number;
+  animate: boolean;
+}) {
+  const rings = useRef<(Object3D | null)[]>([]);
+  const { invalidate } = useThree();
+  useFrame(({ clock }) => {
+    if (!animate) return;
+    const s = 1 + 0.35 * ((clock.getElapsedTime() * 0.8) % 1);
+    for (const r of rings.current) r?.scale.set(s, s, s);
+    invalidate();
+  });
+  return (
+    <group name="safety-alerts">
+      {alerts.map((a, i) => (
+        <group key={a.id} position={[a.x, elevation, -a.y]}>
+          <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}>
+            <circleGeometry args={[3, 40]} />
+            <meshBasicMaterial
+              color={INCIDENT_COLOR}
+              transparent
+              opacity={0.18}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh
+            ref={(el) => {
+              rings.current[i] = el;
+            }}
+            position={[0, 0.1, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            renderOrder={6}
+          >
+            <ringGeometry args={[2.6, 3, 40]} />
+            <meshBasicMaterial
+              color={INCIDENT_COLOR}
+              transparent
+              opacity={0.9}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh position={[0, 1.8, 0]}>
+            <cylinderGeometry args={[0.06, 0.06, 3.6, 8]} />
+            <meshBasicMaterial color={INCIDENT_COLOR} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
 }
 
 // Recent ground positions per moving forklift. Kept outside React state on purpose: it is a render-side cache that
@@ -986,6 +1051,7 @@ export default function Scene3D(props: Scene3DProps) {
     focusRequest = null,
     background = '#dce7f2',
     calloutNodes,
+    alerts = NO_ALERTS,
   } = props;
   const callouts = calloutNodes !== undefined;
   const overlay =
@@ -1027,7 +1093,13 @@ export default function Scene3D(props: Scene3DProps) {
       <Structure world={world} floor={floor} showCallouts={callouts} />
       <EntityLayers entities={entities} onSelect={onSelect} />
       {calloutNodes ? (
-        <CalloutProjector nodes={calloutNodes} world={world} floor={floor} entities={entities} />
+        <CalloutProjector
+          nodes={calloutNodes}
+          world={world}
+          floor={floor}
+          entities={entities}
+          alerts={alerts}
+        />
       ) : null}
       {callouts && !reducedMotion ? <MotionTrails entities={entities} /> : null}
       {/* The label is sized in metres: from a chase or driver's-eye camera it would fill the view. */}
@@ -1038,6 +1110,9 @@ export default function Scene3D(props: Scene3DProps) {
         />
       ) : null}
       {overlay ? <IncidentMarker3D overlay={overlay} elevation={floor.elevation_m} /> : null}
+      {alerts.length > 0 ? (
+        <AlertRings alerts={alerts} elevation={floor.elevation_m} animate={!reducedMotion} />
+      ) : null}
       {pair.map((e) => (
         <PairHighlight key={e.id} entity={e} />
       ))}
