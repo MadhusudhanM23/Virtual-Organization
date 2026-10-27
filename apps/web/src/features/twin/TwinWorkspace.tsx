@@ -19,6 +19,7 @@ import { useReducedMotion } from '../../lib/motion';
 import { useUiStore, type Lens } from '../../stores/uiStore';
 import { AnalyticsRow } from '../command/AnalyticsRow';
 import { KpiStrip } from '../command/KpiStrip';
+import { CalloutLayer, type CalloutNodes } from './Callouts';
 import { CameraBar, FloorRail, HudSlot, MiniLegend, SceneHeader, ViewSwitch } from './Hud';
 import { DemoProximityControl } from '../incidents/DemoProximityControl';
 import { LiveStreamStatus } from '../live/ConnectionIndicator';
@@ -374,6 +375,8 @@ function ReadyView(p: ReadyProps) {
     return m;
   }, [floorEntities]);
   const [legendOpen, setLegendOpen] = useState(() => window.innerHeight >= SHORT_SCREEN_PX);
+  // Shared between the DOM callouts and the scene's projector; mutated imperatively, never re-created.
+  const [calloutNodes] = useState<CalloutNodes>(() => new Map());
 
   if (!floor) {
     return (
@@ -428,40 +431,49 @@ function ReadyView(p: ReadyProps) {
           }
         >
           {p.view === '3d' ? (
-            <section
-              aria-label={t('twin.scene.label', { site: world.site.name, floor: floor.name })}
-              className="size-full"
-            >
-              <SceneBoundary onError={p.onSceneFailed}>
-                <Suspense
-                  fallback={
-                    <p
-                      role="status"
-                      className="grid size-full place-items-center text-sm text-ink-700"
-                    >
-                      {t('twin.loading')}
-                    </p>
-                  }
-                >
-                  <AnimatedScene3D
-                    world={world}
-                    floor={floor}
-                    entities={visible}
-                    selected={selected}
-                    onSelect={p.onSelect}
-                    cameraMode={p.cameraMode}
-                    reducedMotion={p.reducedMotion}
-                    panRequest={p.panRequest}
-                    onTarget={p.onTarget}
-                    incident={p.incident}
-                    assistant={p.assistant}
-                    focusRequest={p.focusRequest}
-                    stockByZone={stockByZone}
-                    callouts
-                  />
-                </Suspense>
-              </SceneBoundary>
-            </section>
+            <>
+              <section
+                aria-label={t('twin.scene.label', { site: world.site.name, floor: floor.name })}
+                className="size-full"
+              >
+                <SceneBoundary onError={p.onSceneFailed}>
+                  <Suspense
+                    fallback={
+                      <p
+                        role="status"
+                        className="grid size-full place-items-center text-sm text-ink-700"
+                      >
+                        {t('twin.loading')}
+                      </p>
+                    }
+                  >
+                    <AnimatedScene3D
+                      world={world}
+                      floor={floor}
+                      entities={visible}
+                      selected={selected}
+                      onSelect={p.onSelect}
+                      cameraMode={p.cameraMode}
+                      reducedMotion={p.reducedMotion}
+                      panRequest={p.panRequest}
+                      onTarget={p.onTarget}
+                      incident={p.incident}
+                      assistant={p.assistant}
+                      focusRequest={p.focusRequest}
+                      calloutNodes={calloutNodes}
+                    />
+                  </Suspense>
+                </SceneBoundary>
+              </section>
+              <CalloutLayer
+                nodes={calloutNodes}
+                world={world}
+                floor={floor}
+                entities={visible}
+                stockByZone={stockByZone}
+                onSelect={p.onSelect}
+              />
+            </>
           ) : (
             <AnimatedFloorMap2D
               floor={floor}

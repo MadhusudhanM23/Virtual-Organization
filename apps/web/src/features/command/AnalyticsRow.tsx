@@ -46,7 +46,10 @@ function Card({
         >
           <Icon className="size-4" />
         </span>
-        <h2 id={headingId} className="mr-auto text-sm font-semibold text-ink-900">
+        <h2
+          id={headingId}
+          className="font-display mr-auto text-[0.95rem] font-semibold tracking-[0.08em] text-ink-900 uppercase"
+        >
           {title}
         </h2>
         {actions}
@@ -208,7 +211,7 @@ export function PerformanceCard({ siteName }: { siteName: string }) {
                 />
                 {t(m.label)}
               </span>
-              <span className="block text-lg leading-tight font-semibold text-ink-900 tabular-nums">
+              <span className="font-display block text-2xl leading-none font-semibold tracking-tight text-ink-900 tabular-nums">
                 {metricValue(k, m.percent, fmt)}
               </span>
               <span className="block truncate text-[10px] text-ink-500">{k?.unit ?? ''}</span>

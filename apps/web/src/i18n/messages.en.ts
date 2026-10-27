@@ -953,6 +953,24 @@ export const messagesEn = {
   'command.flow.donut': 'Completed orders: {inbound} inbound, {outbound} outbound.',
   'command.flow.outboundShare': 'Outbound share of completed',
   'cameras.panel.select': 'Camera',
+
+  'nav.section.operate': 'Operate',
+  'nav.section.records': 'Records',
+  'nav.section.insight': 'Insight',
+  'nav.section.system': 'System',
+  'auth.login.kicker': 'Secure access',
+  'auth.login.footnote':
+    'Demo tenants run on simulated data. Every screen labels where its numbers come from.',
+  'auth.hero.kicker': 'Industrial digital twin',
+  'auth.hero.headline': 'See the operation. Test the future. Decide with evidence.',
+  'auth.hero.fact1': 'A simulated Bengaluru warehouse, running live.',
+  'auth.hero.fact2': 'Every number carries its source and a truth label.',
+  'auth.hero.fact3': 'Nothing executes without a human approval.',
+  'auth.hero.scene':
+    'Line drawing of a warehouse floor: rack rows, docks with trucks, and forklifts moving along the aisles.',
+  'overview.kicker': 'Site briefing',
+  'overview.headline': 'Headline figures',
+  'overview.detail': 'All figures by area',
 } as const;
 
 export type MessageId = keyof typeof messagesEn;

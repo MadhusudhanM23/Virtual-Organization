@@ -7,7 +7,13 @@ import { formatKpiValue } from './kpiModel';
 import type { KpiDefinition, KpiValue } from './kpiApi';
 
 /** One KPI: value, unit, provenance label, as-of time in the site time zone and an expandable definition. */
-export function KpiCard({ kpi, definition }: { kpi: KpiValue; definition: KpiDefinition | undefined }) {
+export function KpiCard({
+  kpi,
+  definition,
+}: {
+  kpi: KpiValue;
+  definition: KpiDefinition | undefined;
+}) {
   const fmt = useSiteFormat();
   const [open, setOpen] = useState(false);
   const defId = useId();
@@ -18,10 +24,10 @@ export function KpiCard({ kpi, definition }: { kpi: KpiValue; definition: KpiDef
     <article
       aria-labelledby={`${defId}-name`}
       data-kpi={kpi.id}
-      className="flex min-w-0 flex-col gap-2 rounded-card border border-line bg-surface p-4 shadow-card"
+      className="card-lift flex min-w-0 flex-col gap-2 rounded-card border border-line bg-surface p-4 shadow-card"
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 id={`${defId}-name`} className="text-sm font-semibold text-ink-900">
+        <h3 id={`${defId}-name`} className="eyebrow pt-1 text-ink-600">
           {kpi.name}
         </h3>
         {definition ? (
@@ -40,21 +46,23 @@ export function KpiCard({ kpi, definition }: { kpi: KpiValue; definition: KpiDef
 
       {insufficient ? (
         <div>
-          <p className="text-lg font-semibold text-ink-700">{t('kpi.insufficient')}</p>
+          <p className="font-display text-xl font-semibold text-ink-700">{t('kpi.insufficient')}</p>
           {kpi.reason ? <p className="text-xs text-ink-600">{kpi.reason}</p> : null}
         </div>
       ) : (
-        <p className="flex items-baseline gap-1.5">
-          <span className="text-3xl font-semibold tracking-tight text-ink-900 tabular-nums">
+        <p className="flex items-baseline gap-2">
+          <span className="font-display text-[2.6rem] leading-none font-semibold tracking-tight text-ink-900 tabular-nums">
             {valueText}
           </span>
-          <span className="text-sm text-ink-600">{kpi.unit}</span>
+          <span className="font-mono text-xs tracking-wide text-ink-500 uppercase">{kpi.unit}</span>
         </p>
       )}
 
       <div className="mt-auto flex flex-col gap-1.5 text-xs text-ink-600">
         {kpi.data_mode ? <DataModeBadge dataMode={kpi.data_mode} className="self-start" /> : null}
-        <p>{kpi.as_of ? t('kpi.asOf', { time: fmt.dateTime(kpi.as_of) }) : t('kpi.noAsOf')}</p>
+        <p className="font-mono text-[11px]">
+          {kpi.as_of ? t('kpi.asOf', { time: fmt.dateTime(kpi.as_of) }) : t('kpi.noAsOf')}
+        </p>
         {!insufficient ? <p>{t('kpi.sample', { count: fmt.number(kpi.sample_size) })}</p> : null}
         {kpi.window ? <p>{t('kpi.window.inline', { window: kpi.window.label })}</p> : null}
       </div>

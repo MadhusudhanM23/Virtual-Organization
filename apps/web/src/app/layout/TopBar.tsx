@@ -26,7 +26,7 @@ export function TopBar() {
   return (
     <header
       style={{ gridArea: 'header' }}
-      className="topbar border-b border-line bg-surface px-4 py-2.5 md:px-6 md:py-3"
+      className="topbar @container border-b border-line bg-surface px-4 py-2.5 md:px-6 md:py-3"
     >
       <button
         id="mobile-menu-button"
@@ -41,7 +41,8 @@ export function TopBar() {
 
       <SiteSwitcher />
 
-      <div className="topbar-search relative min-w-0 md:mx-auto md:w-full md:max-w-xl">
+      {/* The search is a placeholder until global search ships; it yields its room to the status pills first. */}
+      <div className="topbar-search relative min-w-0 md:mx-auto md:w-full md:max-w-xl @max-7xl:md:hidden">
         <Search
           aria-hidden="true"
           className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-400"

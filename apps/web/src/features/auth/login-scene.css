@@ -1,0 +1,133 @@
+/* Line drawing of the warehouse on the sign-in page. All motion is CSS, so reduced motion freezes it. */
+.login-scene {
+  overflow: visible;
+}
+.ls-wire {
+  stroke: rgb(139 184 255 / 0.4);
+}
+.ls-floor {
+  fill: rgb(255 255 255 / 0.03);
+  stroke: rgb(139 184 255 / 0.6);
+  stroke-width: 1.2;
+}
+.ls-zone-a {
+  fill: rgb(20 184 166 / 0.12);
+}
+.ls-zone-b {
+  fill: rgb(34 197 94 / 0.12);
+}
+.ls-grid line {
+  stroke: rgb(139 184 255 / 0.13);
+  stroke-width: 0.6;
+}
+.ls-route path {
+  stroke: rgb(139 184 255 / 0.6);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  animation: ls-march 1.4s linear infinite;
+}
+.ls-rack rect {
+  fill: rgb(234 122 30 / 0.2);
+  stroke: #ea7a1e;
+  stroke-width: 1;
+}
+.ls-rack line {
+  stroke: rgb(234 122 30 / 0.75);
+  stroke-width: 0.6;
+}
+.ls-dock {
+  fill: #22c55e;
+}
+.ls-dock-busy {
+  fill: #f59e0b;
+}
+.ls-truck {
+  fill: rgb(255 255 255 / 0.08);
+  stroke: rgb(255 255 255 / 0.75);
+  stroke-width: 1;
+}
+.ls-worker {
+  fill: #2dd4bf;
+}
+.ls-cone {
+  fill: rgb(139 184 255 / 0.14);
+  stroke: rgb(139 184 255 / 0.55);
+  stroke-width: 0.6;
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+  animation: ls-sweep 7s ease-in-out infinite alternate;
+}
+.ls-cam {
+  fill: #ffffff;
+}
+.ls-forklift rect {
+  fill: #f59e0b;
+}
+.ls-forklift .ls-mast {
+  fill: #1f2328;
+}
+.ls-forklift {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  offset-rotate: auto;
+  animation: ls-travel linear infinite;
+}
+.ls-forklift-1 {
+  offset-path: path('M20 120H220V58H20Z');
+  animation-duration: 18s;
+}
+.ls-forklift-2 {
+  offset-path: path('M220 25H30V88H220Z');
+  animation-duration: 23s;
+  animation-delay: -9s;
+}
+.ls-pulse {
+  fill: none;
+  stroke: #22c55e;
+  stroke-width: 1.2;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ls-ping 2.4s ease-out infinite;
+}
+.ls-beacon-core {
+  fill: #8bb8ff;
+}
+.ls-beacon-ring {
+  fill: none;
+  stroke: #8bb8ff;
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ls-ping 2s ease-out infinite;
+}
+@keyframes ls-march {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+@keyframes ls-travel {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+@keyframes ls-sweep {
+  from {
+    transform: rotate(-18deg);
+  }
+  to {
+    transform: rotate(30deg);
+  }
+}
+@keyframes ls-ping {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}

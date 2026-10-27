@@ -49,9 +49,10 @@ const WEATHER_ICONS: Record<WeatherKind, LucideIcon> = {
 };
 
 /** Compact stream state: a green "Live" pill while poses are fresh, amber when stale; the age is in the title. */
-function LivePill() {
+function LivePill({ lens }: { lens: Lens }) {
   const connection = useLiveStore((s) => s.connection);
   const lastPoseAt = useLiveStore((s) => s.lastPoseAt);
+  const lastDataMode = useLiveStore((s) => s.lastDataMode);
   const now = useNow();
   if (connection === 'idle') return null;
   const stale = connection !== 'live' || isStale(lastPoseAt, now);
@@ -59,23 +60,26 @@ function LivePill() {
     lastPoseAt === null
       ? t('live.freshness.none')
       : t('live.freshness.updated', { age: formatAge(now - lastPoseAt) });
+  // The stream's own truth label stays next to the pill: positions are SIMULATED even when the world is SYNTHETIC.
   return (
-    <span
-      data-testid="twin-live-stream"
-      className={cn(
-        'flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold',
-        stale ? 'bg-amber-400/90 text-navy-950' : 'bg-emerald-500 text-white',
-      )}
-    >
+    <span data-testid="twin-live-stream" className="flex items-center gap-2">
       <span
-        aria-hidden="true"
-        className={cn('size-1.5 rounded-full', stale ? 'bg-navy-950' : 'bg-white')}
-      />
-      {stale ? t('live.freshness.stale') : t('twin.hud.live')}
-      <span className="sr-only">{`${t('live.stream.label')}: ${age}`}</span>
-      <span aria-hidden="true" className="hidden font-normal opacity-85 2xl:inline">
-        {age}
+        className={cn(
+          'flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold',
+          stale ? 'bg-amber-400/90 text-navy-950' : 'bg-emerald-500 text-white',
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className={cn('size-1.5 rounded-full', stale ? 'bg-navy-950' : 'bg-white')}
+        />
+        {stale ? t('live.freshness.stale') : t('twin.hud.live')}
+        <span className="sr-only">{`${t('live.stream.label')}: ${age}`}</span>
+        <span aria-hidden="true" className="hidden font-normal opacity-85 2xl:inline">
+          {age}
+        </span>
       </span>
+      {lastDataMode ? <DataModeBadge dataMode={lastDataMode} lens={lens} /> : null}
     </span>
   );
 }
@@ -111,9 +115,11 @@ export function SceneHeader({ world, lens }: { world: WorldResponse; lens: Lens 
         <span className="grid size-8 place-items-center rounded-lg bg-white/10">
           <Building2 aria-hidden="true" className="size-4" />
         </span>
-        <span className="text-sm leading-tight font-semibold">{world.site.name}</span>
+        <span className="font-display text-base leading-none font-semibold tracking-[0.05em] uppercase">
+          {world.site.name}
+        </span>
       </span>
-      <LivePill />
+      <LivePill lens={lens} />
       <DataModeBadge dataMode={world.data_mode} lens={lens} />
       {kind && weather && WeatherIcon ? (
         <>
@@ -121,7 +127,7 @@ export function SceneHeader({ world, lens }: { world: WorldResponse; lens: Lens 
           <span className="flex items-center gap-2" title={t('weather.source')}>
             <WeatherIcon aria-hidden="true" className="size-6 text-amber-300" />
             <span className="leading-tight">
-              <span className="block text-sm font-semibold tabular-nums">
+              <span className="font-display block text-base leading-none font-semibold tabular-nums">
                 {t('weather.temp', { value: Math.round(weather.temperatureC) })}
               </span>
               <span className="block text-[11px] text-white/75 max-xl:sr-only">
@@ -133,8 +139,10 @@ export function SceneHeader({ world, lens }: { world: WorldResponse; lens: Lens 
       ) : null}
       <Divider />
       <span className="leading-tight">
-        <span className="block text-[11px] text-white/75">{date}</span>
-        <span className="block text-sm font-semibold tabular-nums">{time}</span>
+        <span className="block font-mono text-[10px] tracking-[0.1em] text-white/75 uppercase">
+          {date}
+        </span>
+        <span className="block font-mono text-sm font-medium tabular-nums">{time}</span>
       </span>
     </div>
   );

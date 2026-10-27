@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { DataModeBadge } from '../../components/DataModeBadge';
 import { t } from '../../i18n';
+import { useCountUp } from '../../lib/useCountUp';
 import { useSiteFormat } from '../../lib/useSiteFormat';
 import { useUiStore } from '../../stores/uiStore';
 import { fetchKpis, fetchSeries, type KpiValue } from '../kpi/kpiApi';
@@ -34,30 +35,33 @@ interface TileProps {
 function Tile({ icon: Icon, tint, label, value, sub, trend, badge, testId }: TileProps) {
   return (
     <div
-      className="flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface px-2.5 py-2 shadow-card"
+      className="card-lift flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface px-2.5 py-2 shadow-card"
       data-testid={testId}
     >
       <div className="flex min-w-0 items-center gap-2">
         <span
           aria-hidden="true"
-          className="grid size-7 shrink-0 place-items-center rounded-lg text-white"
+          className="grid size-6 shrink-0 place-items-center rounded-md text-white"
           style={{ backgroundColor: tint }}
         >
-          <Icon className="size-4" />
+          <Icon className="size-3.5" strokeWidth={2.25} />
         </span>
-        <p className="min-w-0 truncate text-xs font-medium text-ink-700" title={label}>
+        <p
+          className="eyebrow line-clamp-2 min-w-0 text-[10px] leading-[1.15] tracking-[0.06em] text-ink-600"
+          title={label}
+        >
           {label}
         </p>
       </div>
       <div className="flex items-end justify-between gap-1">
-        <span className="text-xl leading-tight font-semibold text-ink-900 tabular-nums">
+        <span className="font-display text-[1.85rem] leading-none font-semibold tracking-tight text-ink-900 tabular-nums">
           {value}
         </span>
         {trend ? <Sparkline values={trend} className="mb-1 h-5 w-12 shrink-0" /> : null}
       </div>
       {sub ? (
         <p
-          className="truncate text-[11px] text-ink-600"
+          className="truncate font-mono text-[11px] text-ink-600"
           title={typeof sub === 'string' ? sub : undefined}
         >
           {sub}
@@ -95,13 +99,6 @@ export function KpiStrip() {
   );
 
   const items = kpis.data?.items;
-  const show = (k: KpiValue | undefined, digits = 0) => {
-    if (!items) return kpis.loading ? '…' : '—';
-    return k && k.value !== null ? fmt.number(k.value, { maximumFractionDigits: digits }) : '—';
-  };
-  const badge = (k: KpiValue | undefined) =>
-    k?.data_mode ? <DataModeBadge dataMode={k.data_mode} /> : null;
-
   const done = byId(items, 'orders_completed');
   const open = byId(items, 'orders_open');
   const dock = byId(items, 'dock_utilization');
@@ -114,6 +111,20 @@ export function KpiStrip() {
   const moving = vehicles.filter((e) => statusTone(e.status) === 'active').length;
   const workers = entities.filter((e) => e.entity_type === 'WORKER');
   const onShift = workers.filter((e) => statusTone(e.status) === 'active').length;
+
+  const doneN = useCountUp(done?.value ?? null);
+  const openN = useCountUp(open?.value ?? null);
+  const dockN = useCountUp(dock?.value ?? null);
+  const sitesN = useCountUp(sites.length);
+  const vehiclesN = useCountUp(entities.length ? vehicles.length : null);
+  const workersN = useCountUp(entities.length ? workers.length : null);
+
+  const num = (n: number | null, digits = 0) => {
+    if (n === null) return items || !kpis.loading ? '—' : '…';
+    return fmt.number(n, { maximumFractionDigits: digits });
+  };
+  const badge = (k: KpiValue | undefined) =>
+    k?.data_mode ? <DataModeBadge dataMode={k.data_mode} /> : null;
 
   // Columns follow the width the shell leaves for the page (container query), not the window width.
   return (
@@ -128,7 +139,7 @@ export function KpiStrip() {
           icon={PackageCheck}
           tint="#7c3aed"
           label={t('command.kpi.ordersCompleted')}
-          value={show(done)}
+          value={num(doneN)}
           sub={done?.reason ?? t('command.kpi.window24h')}
           trend={series.data?.points.map((p) => p.value)}
           badge={badge(done)}
@@ -138,8 +149,8 @@ export function KpiStrip() {
           icon={ClipboardList}
           tint="#ea580c"
           label={t('command.kpi.ordersOpen')}
-          value={show(open)}
-          sub={t('command.kpi.trucksDocked', { count: show(docked) })}
+          value={num(openN)}
+          sub={t('command.kpi.trucksDocked', { count: num(docked?.value ?? null) })}
           badge={badge(open)}
         />
         <Tile
@@ -147,8 +158,8 @@ export function KpiStrip() {
           icon={Gauge}
           tint="#16a34a"
           label={t('command.kpi.dockUtilization')}
-          value={dock && dock.value !== null ? `${show(dock, 1)}%` : '—'}
-          sub={t('command.kpi.trucksWaiting', { count: show(waiting) })}
+          value={dockN === null ? num(null) : `${num(dockN, 1)}%`}
+          sub={t('command.kpi.trucksWaiting', { count: num(waiting?.value ?? null) })}
           badge={badge(dock)}
         />
         <Tile
@@ -156,7 +167,7 @@ export function KpiStrip() {
           icon={Warehouse}
           tint="#2563eb"
           label={t('command.kpi.warehouses')}
-          value={fmt.number(sites.length)}
+          value={num(sitesN)}
           sub={t('command.kpi.inScope')}
         />
         <Tile
@@ -164,7 +175,7 @@ export function KpiStrip() {
           icon={Truck}
           tint="#dc2626"
           label={t('command.kpi.vehicles')}
-          value={fmt.number(vehicles.length)}
+          value={num(vehiclesN)}
           sub={t('command.kpi.moving', { count: fmt.number(moving) })}
         />
         <Tile
@@ -172,7 +183,7 @@ export function KpiStrip() {
           icon={Users}
           tint="#9333ea"
           label={t('command.kpi.workers')}
-          value={fmt.number(workers.length)}
+          value={num(workersN)}
           sub={t('command.kpi.onShift', { count: fmt.number(onShift) })}
         />
       </section>

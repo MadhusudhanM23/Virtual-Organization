@@ -1,17 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, type ComponentRef } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { Edges, Grid, Html, Line, OrbitControls } from '@react-three/drei';
-import { Boxes } from 'lucide-react';
-import { CanvasTexture, Color, Object3D, SRGBColorSpace, type InstancedMesh } from 'three';
-import {
-  ENTITY_TYPES,
-  type Entity,
-  type EntityType,
-  type Floor,
-  type WorldResponse,
-} from '@vo/twin-schema';
+import { Edges, Grid, Line, OrbitControls } from '@react-three/drei';
+import { CanvasTexture, Color, Object3D, SRGBColorSpace, Vector3, type InstancedMesh } from 'three';
+import { ENTITY_TYPES, type Entity, type Floor, type WorldResponse } from '@vo/twin-schema';
 import { t } from '../../i18n';
 import type { AssistantHighlight, IncidentOverlay } from './twinStore';
+import type { CalloutNodes } from './Callouts';
 import { MODELS, modelInstances, type ModelPart, type PartInstance } from './models';
 import {
   cinematicPose,
@@ -60,10 +54,11 @@ export interface Scene3DProps {
   focusRequest?: { x: number; y: number; z: number; nonce: number } | null;
   /** Scene background; the REPLAY lens tints it so playback never looks like the live view. */
   background?: string;
-  /** Pallets per zone on this floor (from loaded entities), shown on the zone callouts. */
-  stockByZone?: ReadonlyMap<string, number>;
-  /** Rich HTML callouts for zones, docks and vehicles (the live command view); plain labels otherwise. */
-  callouts?: boolean;
+  /**
+   * Command view: the DOM callouts (zones, docks, vehicles) that CalloutLayer renders outside the canvas. The
+   * scene projects their anchors into these nodes every frame and drops its own zone/dock sprites. No portals.
+   */
+  calloutNodes?: CalloutNodes;
 }
 
 const scratch = new Object3D();
@@ -218,55 +213,6 @@ function Label({
     </sprite>
   );
 }
-function ZoneCallout({
-  name,
-  type,
-  color,
-  stock,
-}: {
-  name: string;
-  type: string;
-  color: string;
-  stock: number | undefined;
-}) {
-  return (
-    <div className="flex min-w-[7.5rem] items-center gap-2 rounded-lg border border-white/70 bg-white/92 px-2.5 py-1.5 shadow-float backdrop-blur-sm">
-      <span
-        aria-hidden="true"
-        className="grid size-7 shrink-0 place-items-center rounded-md text-white"
-        style={{ backgroundColor: color }}
-      >
-        <Boxes className="size-4" />
-      </span>
-      <span className="leading-tight whitespace-nowrap">
-        <span className="block text-[12px] font-semibold text-ink-900">{name}</span>
-        <span className="block text-[10px] text-ink-600">{humanizeStatus(type)}</span>
-        {stock !== undefined ? (
-          <span className="block text-[11px] font-semibold text-ink-900">
-            {t('twin.callout.pallets', { count: stock })}
-          </span>
-        ) : null}
-      </span>
-    </div>
-  );
-}
-
-function DockCallout({ name, status, color }: { name: string; status: string; color: string }) {
-  return (
-    <div className="flex items-center gap-1.5 rounded-lg border border-white/70 bg-white/92 px-2 py-1 shadow-float">
-      <span
-        aria-hidden="true"
-        className="size-2.5 rounded-full"
-        style={{ backgroundColor: color }}
-      />
-      <span className="leading-tight whitespace-nowrap">
-        <span className="block text-[11px] font-semibold text-ink-900">{name}</span>
-        <span className="block text-[10px] text-ink-600">{humanizeStatus(status)}</span>
-      </span>
-    </div>
-  );
-}
-
 /** Deterministic pseudo-random in [0, 1) so the yard looks the same on every load. */
 function hash01(n: number): number {
   const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
@@ -388,12 +334,11 @@ function Shell({ floor }: { floor: Floor }) {
 function Structure({
   world,
   floor,
-  stockByZone,
   showCallouts,
 }: {
   world: WorldResponse;
   floor: Floor;
-  stockByZone: ReadonlyMap<string, number> | undefined;
+  /** Command view: zone and dock names come from the DOM callouts, so the sprite labels stay off. */
   showCallouts: boolean;
 }) {
   const floors = useMemo(() => sortFloors(world.floors), [world.floors]);
@@ -402,14 +347,6 @@ function Structure({
   const bodies = useMemo(() => rackBodies(world.racks, floor), [world.racks, floor]);
   const shelves = useMemo(() => rackShelves(world.racks, floor), [world.racks, floor]);
   const uprights = useMemo(() => rackUprights(world.racks, floor), [world.racks, floor]);
-  const zoneTypes = useMemo(
-    () => new Map(world.zones.map((z) => [z.id, z.zone_type])),
-    [world.zones],
-  );
-  const dockStatus = useMemo(
-    () => new Map(world.docks.map((d) => [d.id, d.status])),
-    [world.docks],
-  );
   const elev = floor.elevation_m;
 
   return (
@@ -483,21 +420,7 @@ function Structure({
               [z.center[0] - z.width / 2, z.center[1] + 0.06, z.center[2] - z.depth / 2],
             ]}
           />
-          {showCallouts ? (
-            <Html
-              position={[z.center[0], z.center[1] + 4, z.center[2]]}
-              center
-              zIndexRange={[8, 0]}
-              className="pointer-events-none"
-            >
-              <ZoneCallout
-                name={z.name}
-                type={zoneTypes.get(z.id) ?? ''}
-                color={z.color}
-                stock={stockByZone?.get(z.id)}
-              />
-            </Html>
-          ) : (
+          {showCallouts ? null : (
             <Label position={[z.center[0], z.center[1] + 0.3, z.center[2]]}>{z.name}</Label>
           )}
         </group>
@@ -527,16 +450,7 @@ function Structure({
               <meshStandardMaterial color={d.color} roughness={0.5} />
             </mesh>
           </group>
-          {showCallouts ? (
-            <Html
-              position={[d.position[0], d.position[1] + 6.2, d.position[2]]}
-              center
-              zIndexRange={[8, 0]}
-              className="pointer-events-none"
-            >
-              <DockCallout name={d.name} status={dockStatus.get(d.id) ?? ''} color={d.color} />
-            </Html>
-          ) : (
+          {showCallouts ? null : (
             <Label tone="dock" position={[d.position[0], d.position[1] + 1.4, d.position[2]]}>
               {d.name}
             </Label>
@@ -658,62 +572,63 @@ function EntityLayers({
   );
 }
 
-// Trucks sit at docks that already carry a callout; tagging them too would bury the docks.
-const TAGGED_TYPES: ReadonlySet<EntityType> = new Set(['FORKLIFT', 'ROBOT']);
-const MAX_TAGS = 30;
-
-/** Floating code + status tags over vehicles, like the concept's "F-028 Moving" chips. */
-function EntityTags({
+/**
+ * Moves the DOM callouts (CalloutLayer) to the screen position of their 3D anchors on every rendered frame.
+ * Imperative on purpose: a React re-render per frame for 40 chips would be far more expensive than setting
+ * one transform each. Anchors behind the camera or far outside the viewport are hidden.
+ */
+function CalloutProjector({
+  nodes,
+  world,
+  floor,
   entities,
-  onSelect,
 }: {
+  nodes: CalloutNodes;
+  world: WorldResponse;
+  floor: Floor;
   entities: Entity[];
-  onSelect: (id: string) => void;
 }) {
-  const tagged = useMemo(
-    () =>
-      entities
-        .filter((e) => TAGGED_TYPES.has(e.entity_type) || statusTone(e.status) === 'alert')
-        .slice(0, MAX_TAGS),
-    [entities],
-  );
-  return (
-    <group name="entity-tags">
-      {tagged.map((e) => {
-        const spec = entityInstance(e);
-        const tone = statusTone(e.status);
-        return (
-          <Html
-            key={e.id}
-            position={[
-              spec.position[0],
-              spec.position[1] + spec.scale[1] / 2 + 1.4,
-              spec.position[2],
-            ]}
-            center
-            zIndexRange={[9, 0]}
-            className="pointer-events-none"
-          >
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={() => onSelect(e.id)}
-              className={`pointer-events-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] leading-tight font-semibold whitespace-nowrap text-white shadow-float ${
-                tone === 'alert'
-                  ? 'bg-danger-fg'
-                  : tone === 'active'
-                    ? 'bg-accent-600'
-                    : 'bg-ink-700'
-              }`}
-            >
-              <span>{e.code}</span>
-              <span className="font-normal opacity-90">{humanizeStatus(e.status)}</span>
-            </button>
-          </Html>
-        );
-      })}
-    </group>
-  );
+  const { camera, size } = useThree();
+  const zones = useMemo(() => zonePatches(world.zones, floor), [world.zones, floor]);
+  const docks = useMemo(() => dockMarkers(world.docks, floor), [world.docks, floor]);
+  const point = useMemo(() => new Vector3(), []);
+  const forward = useMemo(() => new Vector3(), []);
+
+  useFrame(() => {
+    camera.getWorldDirection(forward);
+    const place = (id: string, x: number, y: number, z: number) => {
+      const el = nodes.get(id);
+      if (!el) return;
+      const inFront =
+        (x - camera.position.x) * forward.x +
+          (y - camera.position.y) * forward.y +
+          (z - camera.position.z) * forward.z >
+        0;
+      point.set(x, y, z).project(camera);
+      const sx = (point.x * 0.5 + 0.5) * size.width;
+      const sy = (0.5 - point.y * 0.5) * size.height;
+      const visible =
+        inFront &&
+        point.z < 1 &&
+        sx > -80 &&
+        sx < size.width + 80 &&
+        sy > -40 &&
+        sy < size.height + 40;
+      el.style.visibility = visible ? 'visible' : 'hidden';
+      if (visible) {
+        el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) translate(-50%, -50%)`;
+      }
+    };
+    for (const z of zones) place(`zone:${z.id}`, z.center[0], z.center[1] + 4, z.center[2]);
+    for (const d of docks) place(`dock:${d.id}`, d.position[0], d.position[1] + 6.2, d.position[2]);
+    for (const e of entities) {
+      const id = `ent:${e.id}`;
+      if (!nodes.has(id)) continue;
+      const spec = entityInstance(e);
+      place(id, spec.position[0], spec.position[1] + spec.scale[1] / 2 + 1.4, spec.position[2]);
+    }
+  });
+  return null;
 }
 
 // Recent ground positions per moving forklift. Kept outside React state on purpose: it is a render-side cache that
@@ -762,11 +677,6 @@ function MotionTrails({ entities }: { entities: Entity[] }) {
       ))}
     </group>
   );
-}
-
-function humanizeStatus(status: string): string {
-  const s = status.replace(/_/g, ' ').toLowerCase();
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function SelectionMarker({ entity }: { entity: Entity }) {
@@ -1073,9 +983,9 @@ export default function Scene3D(props: Scene3DProps) {
     assistant = null,
     focusRequest = null,
     background = '#dce7f2',
-    stockByZone,
-    callouts = false,
+    calloutNodes,
   } = props;
+  const callouts = calloutNodes !== undefined;
   const overlay =
     incident && (!incident.floorId || incident.floorId === floor.id) ? incident : null;
   const pair = useMemo(
@@ -1112,9 +1022,11 @@ export default function Scene3D(props: Scene3DProps) {
         <color attach="background" args={[background]} />
       )}
       <Lights />
-      <Structure world={world} floor={floor} stockByZone={stockByZone} showCallouts={callouts} />
+      <Structure world={world} floor={floor} showCallouts={callouts} />
       <EntityLayers entities={entities} onSelect={onSelect} />
-      {callouts ? <EntityTags entities={entities} onSelect={onSelect} /> : null}
+      {calloutNodes ? (
+        <CalloutProjector nodes={calloutNodes} world={world} floor={floor} entities={entities} />
+      ) : null}
       {callouts && !reducedMotion ? <MotionTrails entities={entities} /> : null}
       {selected ? <SelectionMarker entity={selected} /> : null}
       {overlay ? <IncidentMarker3D overlay={overlay} elevation={floor.elevation_m} /> : null}

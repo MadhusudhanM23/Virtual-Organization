@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import { NavLink } from 'react-router';
 import { ArrowLeftRight, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { visibleNavEntries } from '../navAccess';
-import type { NavItem } from '../navigation';
-import { t } from '../../i18n';
+import type { NavEntry, NavItem } from '../navigation';
+import { BrandMark } from '../../components/BrandMark';
+import { t, type MessageId } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -11,32 +12,41 @@ import { useUiStore } from '../../stores/uiStore';
 function Brand({ collapsed }: { collapsed: boolean }) {
   return (
     <div className="flex items-center gap-3 overflow-hidden">
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 32 32"
-        className="size-9 shrink-0 rounded-[0.6rem] bg-navy-700/60 p-1.5 ring-1 ring-navy-600"
-      >
-        <path
-          d="M16 4 26 9.5v11L16 26 6 20.5v-11z"
-          fill="none"
-          stroke="#8bb8ff"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M6 9.5 16 15l10-5.5M16 15v11"
-          fill="none"
-          stroke="#8bb8ff"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <BrandMark className="size-9 shrink-0 rounded-[0.6rem] bg-navy-800 p-1 ring-1 ring-navy-600" />
       <div className={cn('min-w-0 leading-tight', collapsed && 'sr-only')}>
-        <p className="truncate text-[0.9375rem] font-semibold text-white">{t('app.name')}</p>
-        <p className="truncate text-xs text-navy-muted">{t('app.tagline')}</p>
+        <p className="font-display truncate text-lg leading-none font-semibold tracking-[0.06em] text-white uppercase">
+          {t('app.name')}
+        </p>
+        <p className="mt-1 truncate font-mono text-[10px] tracking-[0.12em] text-navy-muted uppercase">
+          {t('app.tagline')}
+        </p>
       </div>
     </div>
   );
+}
+
+// Visual grouping only: the order and the role filtering of NAV_ENTRIES are unchanged.
+const SECTION_OF: Record<string, MessageId> = {
+  overview: 'nav.section.operate',
+  orders: 'nav.section.records',
+  analytics: 'nav.section.insight',
+  settings: 'nav.section.system',
+};
+
+type Row = { kind: 'section'; id: string; labelId: MessageId } | NavEntry;
+
+function withSectionLabels(entries: readonly NavEntry[]): Row[] {
+  const rows: Row[] = [];
+  let current: MessageId | null = null;
+  for (const entry of entries) {
+    const section = SECTION_OF[entry.id];
+    if (section && section !== current) {
+      current = section;
+      rows.push({ kind: 'section', id: `section-${entry.id}`, labelId: section });
+    }
+    rows.push(entry);
+  }
+  return rows;
 }
 
 interface NavLinkItemProps {
@@ -102,7 +112,10 @@ export function Sidebar({ variant }: SidebarProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   // UX only: hides sections the signed-in roles can never use. The API enforces access (ADR-06).
   const meRoles = useSessionStore((s) => s.me?.roles);
-  const entries = useMemo(() => visibleNavEntries((meRoles ?? []).map((r) => r.role)), [meRoles]);
+  const entries = useMemo(
+    () => withSectionLabels(visibleNavEntries((meRoles ?? []).map((r) => r.role))),
+    [meRoles],
+  );
 
   const isDrawer = variant === 'drawer';
   const collapsed = !isDrawer && sidebarCollapsed;
@@ -165,6 +178,20 @@ export function Sidebar({ variant }: SidebarProps) {
 
         <ul className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-3">
           {entries.map((entry) => {
+            if (entry.kind === 'section') {
+              return (
+                <li
+                  key={entry.id}
+                  aria-hidden="true"
+                  className={cn(
+                    'eyebrow mt-4 mb-1 px-3 text-navy-muted first:mt-1',
+                    collapsed && 'sr-only',
+                  )}
+                >
+                  {t(entry.labelId)}
+                </li>
+              );
+            }
             if (entry.kind === 'item') {
               return (
                 <NavLinkItem

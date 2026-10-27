@@ -19,9 +19,13 @@ function SiteClock() {
     <time
       dateTime={now}
       title={t('site.switcher.localTime')}
-      className="hidden truncate text-xs text-ink-500 lg:block"
+      className="hidden truncate font-mono text-[11px] text-ink-500 tabular-nums 2xl:block"
     >
-      {format.dateTime(now)}
+      {new Intl.DateTimeFormat(format.locale, {
+        timeZone: format.timeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(now))}
     </time>
   );
 }
@@ -72,7 +76,7 @@ export function SiteSwitcher() {
             id="site-switcher"
             value={selectedSiteId ?? ''}
             onChange={(e) => setSelectedSiteId(e.target.value)}
-            className="h-10 min-w-0 max-w-full rounded-control border border-line bg-surface px-2 text-sm font-medium text-ink-900"
+            className="font-display h-10 min-w-0 max-w-full rounded-control border border-line bg-surface px-2 text-base font-semibold text-ink-900 lg:min-w-52"
           >
             {sites.map((site) => (
               <option key={site.id} value={site.id}>

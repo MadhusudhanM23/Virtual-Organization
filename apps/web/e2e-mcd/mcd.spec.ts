@@ -63,9 +63,10 @@ test('MCD 1: organization overview as an Executive (KPIs with truth labels, both
     .click();
   await expect(page).toHaveURL(/\/overview$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Overview' })).toBeVisible();
-  // The executive sees the organization: both demo sites are in the site switcher.
-  const options = await page.locator('#site-switcher option').allTextContents();
-  expect(options).toEqual(expect.arrayContaining([SITE_NAME, 'Mumbai Warehouse 02']));
+  // The executive sees the organization: both demo sites are in the site switcher (they load after the page shell).
+  await expect
+    .poll(() => page.locator('#site-switcher option').allTextContents(), { timeout: 30_000 })
+    .toEqual(expect.arrayContaining([SITE_NAME, 'Mumbai Warehouse 02']));
   // KPI cards come from the API, each with its own truth label.
   await expect
     .poll(async () => page.locator('[data-kpi]').count(), { timeout: 30_000 })
@@ -383,11 +384,12 @@ test('MCD 7: replay the incident from the last snapshot plus state-delta events'
   }
   measure('mcd7_scrub_60s_to_rendered_ms', scrubs);
   // In REPLAY nothing is labeled LIVE; the page is labeled REPLAY and each replayed item keeps its recorded data mode
-  // (ADR-46: lens and data mode are shown separately), which is SIMULATED or SYNTHETIC in the MCD.
+  // (ADR-46: lens and data mode are shown separately): SIMULATED or SYNTHETIC in the MCD, or MIXED for an incident
+  // that combined a simulated and a synthetic observation (ADR-27), as happens when demo runs overlap.
   await expectNoLiveLabel(page);
   const labels = await truthLabels(page);
   expect(labels).toContain('replay');
-  expect(labels.every((l) => ['replay', 'simulated', 'synthetic'].includes(l))).toBe(true);
+  expect(labels.every((l) => ['replay', 'simulated', 'synthetic', 'mixed'].includes(l))).toBe(true);
 });
 
 test('MCD 8: create a scenario that closes a dock for a defined interval', async ({

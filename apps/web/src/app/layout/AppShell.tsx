@@ -33,7 +33,8 @@ export function AppShell() {
   const mobileNavOpen = useUiStore((s) => s.mobileNavOpen);
   const setMobileNavOpen = useUiStore((s) => s.setMobileNavOpen);
   // The live command view lays out its own analytics row under the scene.
-  const ownAnalytics = useLocation().pathname.startsWith('/twin/live');
+  const { pathname } = useLocation();
+  const ownAnalytics = pathname.startsWith('/twin/live');
   useReducedMotionEffects();
 
   // Leaving the narrow layout must not leave the off-canvas menu "open" in state.
@@ -66,7 +67,10 @@ export function AppShell() {
         <TopBar />
         <LensBanner lens={lens} />
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 pb-16 outline-none">
-          <Outlet />
+          {/* Keyed on the path so each page rises in once; the key also scopes page state to its route. */}
+          <div key={pathname} className="enter h-full">
+            <Outlet />
+          </div>
         </main>
         <PanelDrawer />
       </div>
@@ -98,9 +102,12 @@ export function AppShell() {
         tabIndex={0}
         style={{ gridArea: 'main' }}
         // outline-none sets Tailwind's outline style variable to none, so a focus ring needs outline-solid again.
-        className="min-h-0 min-w-0 overflow-y-auto outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-500"
+        className="canvas-grid min-h-0 min-w-0 overflow-y-auto outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-500"
       >
-        <Outlet />
+        {/* Keyed on the path so each page rises in once; the key also scopes page state to its route. */}
+        <div key={pathname} className="enter h-full">
+          <Outlet />
+        </div>
       </main>
       <RightPanel />
       {ownAnalytics ? null : <BottomPanel />}

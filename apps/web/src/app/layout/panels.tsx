@@ -60,9 +60,9 @@ export function PanelCard({
     >
       <h2
         id={headingId}
-        className="flex items-center gap-2 border-b border-line px-4 py-3 text-sm font-semibold text-ink-900"
+        className="font-display flex items-center gap-2 border-b border-line px-4 py-2.5 text-[0.95rem] font-semibold tracking-[0.08em] text-ink-900 uppercase"
       >
-        <Icon aria-hidden="true" className="size-4 text-accent-600" />
+        <Icon aria-hidden="true" className="size-4 text-accent-600" strokeWidth={2} />
         {t(panel.titleId)}
       </h2>
       {scrollBody ? (
