@@ -74,7 +74,7 @@ After all tasks complete, verify:
 
 | Type | Use For | Behavior |
 |------|---------|----------|
-| `auto` | Everything Claude can do independently | Fully autonomous |
+| `auto` | Everything the AI agent can do independently | Fully autonomous |
 | `checkpoint:human-verify` | Visual/functional verification | Pauses for user |
 | `checkpoint:decision` | Implementation choices | Pauses for user |
 

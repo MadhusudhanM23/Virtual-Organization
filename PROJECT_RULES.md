@@ -152,7 +152,6 @@ At the end of each wave or significant work block, create a state snapshot:
 **Adapter Pattern:**
 ```
 adapters/
-├── CLAUDE.md    # Optional Claude enhancements
 ├── GEMINI.md    # Optional Gemini enhancements
 └── GPT_OSS.md   # Optional GPT/OSS enhancements
 ```

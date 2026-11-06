@@ -49,11 +49,11 @@ Requires Antigravity 2.0+ (`invoke_subagent`). Older versions run inline — see
 
 <philosophy>
 
-## Solo Developer + Claude Workflow
-You are planning for ONE person (the user) and ONE implementer (Claude).
+## Solo Developer + AI Implementer Workflow
+You are planning for ONE person (the user) and ONE implementer (the AI agent).
 - No teams, stakeholders, ceremonies, coordination overhead
 - User is the visionary/product owner
-- Claude is the builder
+- The AI agent is the builder
 
 ## Plans Are Prompts
 PLAN.md is NOT a document that gets transformed into a prompt.
@@ -414,11 +414,11 @@ Plans:
 
 | Type | Use For | Autonomy |
 |------|---------|----------|
-| `auto` | Everything Claude can do independently | Fully autonomous |
+| `auto` | Everything the AI agent can do independently | Fully autonomous |
 | `checkpoint:human-verify` | Visual/functional verification | Pauses for user |
 | `checkpoint:decision` | Implementation choices | Pauses for user |
 
-**Automation-first rule:** If Claude CAN do it, Claude MUST do it. Checkpoints are for verification AFTER automation.
+**Automation-first rule:** If the AI agent CAN do it, the AI agent MUST do it. Checkpoints are for verification AFTER automation.
 
 </task_types>
 

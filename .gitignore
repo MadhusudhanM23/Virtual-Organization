@@ -51,8 +51,6 @@ infra/docker/volumes/
 Thumbs.db
 
 # Agent tooling (local only)
-.claude/worktrees/
-.claude/settings.local.json
 
 # Logs
 *.log

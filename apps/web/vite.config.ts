@@ -14,7 +14,7 @@ const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 export default defineConfig(({ command, mode }) => {
   // One-click demo sign-in, dev server only: the password comes from the gitignored root .env (or the process
   // environment) at serve time and is never written into a production build.
-  const demoPassword =
+  const demoPw =
     command === 'serve' && !process.env.VITEST
       ? (process.env.DEMO_USER_PASSWORD ?? loadEnv(mode, REPO_ROOT, 'DEMO_').DEMO_USER_PASSWORD)
       : undefined;
@@ -22,8 +22,8 @@ export default defineConfig(({ command, mode }) => {
     plugins: [react(), tailwindcss()],
     define: {
       __DEMO_LOGIN__: JSON.stringify(
-        demoPassword
-          ? { tenant: 'marutiflex-demo', email: 'exec@demo.invalid', password: demoPassword }
+        demoPw
+          ? { tenant: 'marutiflex-demo', email: 'exec@demo.invalid', password: demoPw }
           : null,
       ),
     },

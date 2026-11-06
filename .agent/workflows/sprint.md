@@ -58,8 +58,8 @@ Create `.gsd/SPRINT.md` using the template from `.gsd/templates/sprint.md`:
 
 | Task | Assignee | Status | Est. Hours |
 |------|----------|--------|------------|
-| {Task 1} | Claude | ⬜ Todo | — |
-| {Task 2} | Claude | ⬜ Todo | — |
+| {Task 1} | AI agent | ⬜ Todo | — |
+| {Task 2} | AI agent | ⬜ Todo | — |
 
 ## Daily Log
 
