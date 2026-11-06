@@ -91,6 +91,7 @@ export function CalloutLayer({
   stockByZone,
   alerts,
   onSelect,
+  alertsOnly = false,
 }: {
   nodes: CalloutNodes;
   world: WorldResponse;
@@ -99,9 +100,13 @@ export function CalloutLayer({
   stockByZone: ReadonlyMap<string, number> | undefined;
   alerts: readonly SceneAlert[];
   onSelect: (id: string) => void;
+  /** Miniature view: the model is the picture, so only safety alerts float over it. */
+  alertsOnly?: boolean;
 }) {
-  const zones = useMemo(() => zonePatches(world.zones, floor), [world.zones, floor]);
-  const docks = useMemo(() => dockMarkers(world.docks, floor), [world.docks, floor]);
+  const allZones = useMemo(() => zonePatches(world.zones, floor), [world.zones, floor]);
+  const allDocks = useMemo(() => dockMarkers(world.docks, floor), [world.docks, floor]);
+  const zones = alertsOnly ? [] : allZones;
+  const docks = alertsOnly ? [] : allDocks;
   const zoneTypes = useMemo(
     () => new Map(world.zones.map((z) => [z.id, z.zone_type])),
     [world.zones],
@@ -110,7 +115,8 @@ export function CalloutLayer({
     () => new Map(world.docks.map((d) => [d.id, d.status])),
     [world.docks],
   );
-  const tagged = useMemo(() => taggedEntities(entities), [entities]);
+  const allTagged = useMemo(() => taggedEntities(entities), [entities]);
+  const tagged = alertsOnly ? [] : allTagged;
   const bind = (id: string) => (el: HTMLElement | null) => {
     if (el) nodes.set(id, el);
     else nodes.delete(id);

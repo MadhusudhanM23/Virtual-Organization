@@ -7,6 +7,9 @@ import {
   effectiveMode,
   firstPersonPose,
   floorViewPose,
+  lensFov,
+  lensPose,
+  MINIATURE_LENS,
   modeLocksControls,
 } from './cameraModes';
 import { rackUprights } from './sceneModel';
@@ -88,6 +91,26 @@ describe('camera modes', () => {
     const r = (p: typeof a) => Math.hypot(p.position[0] - p.target[0], p.position[2] - p.target[2]);
     expect(r(a)).toBeCloseTo(r(b), 6);
     expect(a.position[0]).not.toBeCloseTo(b.position[0], 1);
+  });
+});
+
+describe('miniature lens', () => {
+  it('keeps the framing: distance grows by the factor exactly as the half-angle tangent shrinks', () => {
+    const base = Math.tan(((45 / 2) * Math.PI) / 180);
+    const narrow = Math.tan(((lensFov(MINIATURE_LENS) / 2) * Math.PI) / 180);
+    expect(base / narrow).toBeCloseTo(MINIATURE_LENS, 6);
+    expect(lensFov(1)).toBeCloseTo(45, 6);
+  });
+
+  it('moves the camera along its line of sight and leaves the target alone', () => {
+    const pose = floorViewPose(bounds, 0);
+    const far = lensPose(pose, MINIATURE_LENS);
+    expect(far.target).toEqual(pose.target);
+    expect(far.position[1] - pose.target[1]).toBeCloseTo(
+      (pose.position[1] - pose.target[1]) * MINIATURE_LENS,
+      6,
+    );
+    expect(lensPose(pose, 1)).toBe(pose);
   });
 });
 

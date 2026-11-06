@@ -177,6 +177,30 @@ export function moveFraction(reducedMotion: boolean, dtSeconds: number): number 
   return 1 - Math.exp(-5 * Math.min(Math.max(dtSeconds, 0), 0.1));
 }
 
+/**
+ * Miniature lens: the camera backs off by `factor` along its line of sight and narrows its field of view by the same
+ * ratio, so the framing is unchanged but perspective flattens towards an isometric, tilt-shift look.
+ */
+export const MINIATURE_LENS = 3.2;
+
+export function lensFov(factor: number): number {
+  const half = Math.atan(Math.tan((FOV_DEG / 2) * (Math.PI / 180)) / factor);
+  return (2 * half * 180) / Math.PI;
+}
+
+export function lensPose(pose: CameraPose, factor: number): CameraPose {
+  if (factor === 1) return pose;
+  const [tx, ty, tz] = pose.target;
+  return {
+    target: pose.target,
+    position: [
+      tx + (pose.position[0] - tx) * factor,
+      ty + (pose.position[1] - ty) * factor,
+      tz + (pose.position[2] - tz) * factor,
+    ],
+  };
+}
+
 export function lerpVec(a: Vec3, b: Vec3, f: number): Vec3 {
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 }

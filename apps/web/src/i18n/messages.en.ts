@@ -974,6 +974,9 @@ export const messagesEn = {
   'command.kpi.onTimeSub': '{count} outbound orders · 24 h',
   'command.kpi.completedSub': '{count} completed · 24 h',
   'twin.alert.title': 'Safety alert',
+  'twin.hud.miniature': 'Miniature',
+  'twin.hud.miniatureHint':
+    'Miniature look: long lens, tilt-shift blur, contact shadows and warm light. Uses more graphics power.',
   'overview.kicker': 'Site briefing',
   'overview.headline': 'Headline figures',
   'overview.detail': 'All figures by area',

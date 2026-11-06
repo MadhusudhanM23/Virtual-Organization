@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import {
+  Aperture,
   Building2,
   Camera,
   Clapperboard,
@@ -163,6 +164,8 @@ export function ViewSwitch({
   legendOpen,
   onToggleLegend,
   onRecenter,
+  miniature,
+  onToggleMiniature,
 }: {
   view: ViewMode;
   onView: (v: ViewMode) => void;
@@ -170,6 +173,8 @@ export function ViewSwitch({
   legendOpen: boolean;
   onToggleLegend: () => void;
   onRecenter: () => void;
+  miniature: boolean;
+  onToggleMiniature: () => void;
 }) {
   return (
     <div className={cn(HUD_PANEL, 'flex items-center gap-1 p-1')}>
@@ -204,15 +209,27 @@ export function ViewSwitch({
         <Layers aria-hidden="true" className="size-4" />
       </button>
       {view === '3d' ? (
-        <button
-          type="button"
-          aria-label={t('twin.hud.recenter')}
-          title={t('twin.hud.recenter')}
-          onClick={onRecenter}
-          className={cn(hudSeg(false), 'px-2')}
-        >
-          <LocateFixed aria-hidden="true" className="size-4" />
-        </button>
+        <>
+          <button
+            type="button"
+            aria-pressed={miniature}
+            title={t('twin.hud.miniatureHint')}
+            onClick={onToggleMiniature}
+            className={cn(hudSeg(miniature), 'flex items-center gap-1.5 px-2.5')}
+          >
+            <Aperture aria-hidden="true" className="size-4" />
+            <span className="text-xs">{t('twin.hud.miniature')}</span>
+          </button>
+          <button
+            type="button"
+            aria-label={t('twin.hud.recenter')}
+            title={t('twin.hud.recenter')}
+            onClick={onRecenter}
+            className={cn(hudSeg(false), 'px-2')}
+          >
+            <LocateFixed aria-hidden="true" className="size-4" />
+          </button>
+        </>
       ) : null}
     </div>
   );

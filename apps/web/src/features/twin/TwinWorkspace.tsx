@@ -379,6 +379,8 @@ function ReadyView(p: ReadyProps) {
   // Shared between the DOM callouts and the scene's projector; mutated imperatively, never re-created.
   const [calloutNodes] = useState<CalloutNodes>(() => new Map());
   const alerts = useOpenAlerts(p.command ? world.site.id : null, floor?.id ?? null);
+  const miniature = useTwinStore((s) => s.miniature);
+  const toggleMiniature = useTwinStore((s) => s.toggleMiniature);
 
   if (!floor) {
     return (
@@ -463,6 +465,7 @@ function ReadyView(p: ReadyProps) {
                       assistant={p.assistant}
                       focusRequest={p.focusRequest}
                       calloutNodes={calloutNodes}
+                      miniature={miniature}
                       alerts={alerts}
                     />
                   </Suspense>
@@ -476,6 +479,7 @@ function ReadyView(p: ReadyProps) {
                 stockByZone={stockByZone}
                 alerts={alerts}
                 onSelect={p.onSelect}
+                alertsOnly={miniature}
               />
             </>
           ) : (
@@ -502,6 +506,8 @@ function ReadyView(p: ReadyProps) {
               legendOpen={legendOpen}
               onToggleLegend={() => setLegendOpen((v) => !v)}
               onRecenter={recenter}
+              miniature={miniature}
+              onToggleMiniature={toggleMiniature}
             />
           </HudSlot>
           {floors.length > 1 ? (

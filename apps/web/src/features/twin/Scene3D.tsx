@@ -1,7 +1,24 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, type ComponentRef } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Edges, Grid, Line, OrbitControls } from '@react-three/drei';
-import { CanvasTexture, Color, Object3D, SRGBColorSpace, Vector3, type InstancedMesh } from 'three';
+import {
+  BrightnessContrast,
+  EffectComposer,
+  HueSaturation,
+  N8AO,
+  SMAA,
+  TiltShift2,
+  Vignette,
+} from '@react-three/postprocessing';
+import {
+  CanvasTexture,
+  Color,
+  Object3D,
+  SRGBColorSpace,
+  Vector3,
+  type InstancedMesh,
+  type PerspectiveCamera,
+} from 'three';
 import { ENTITY_TYPES, type Entity, type Floor, type WorldResponse } from '@vo/twin-schema';
 import { t } from '../../i18n';
 import type { AssistantHighlight, IncidentOverlay } from './twinStore';
@@ -11,6 +28,9 @@ import { MODELS, modelInstances, type ModelPart, type PartInstance } from './mod
 import {
   cinematicPose,
   desiredPose,
+  lensFov,
+  lensPose,
+  MINIATURE_LENS,
   effectiveMode,
   incidentFocusPose,
   modeLocksControls,
@@ -62,6 +82,8 @@ export interface Scene3DProps {
   calloutNodes?: CalloutNodes;
   /** Open safety alerts on this floor (command view): floor rings here, labelled chips in the callout layer. */
   alerts?: readonly SceneAlert[];
+  /** Miniature look: long lens, tilt-shift, ambient occlusion and warm grading (heavier on the GPU). */
+  miniature?: boolean;
 }
 
 const NO_ALERTS: readonly SceneAlert[] = [];
@@ -888,6 +910,7 @@ function CameraController({
   panRequest,
   focusRequest,
   onTarget,
+  lens,
 }: {
   floor: Floor;
   selected: Entity | null;
@@ -896,19 +919,48 @@ function CameraController({
   panRequest: Scene3DProps['panRequest'];
   focusRequest: Scene3DProps['focusRequest'];
   onTarget: ((x: number, y: number) => void) | undefined;
+  /** 1 = normal lens; MINIATURE_LENS = long lens (same framing, flattened perspective). */
+  lens: number;
 }) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
   const { camera, gl, size, invalidate } = useThree();
+  // Live store accessor: the lens effect mutates the camera, which may not be done through a render-time value.
+  const getThree = useThree((s) => s.get);
   const goal = useRef<CameraPose | null>(null);
   const snapNext = useRef(true);
   const reducedRef = useRef(reducedMotion);
   const lastPan = useRef(0);
   const lastFocus = useRef(0);
   const orbitAngle = useRef(0);
+  const lensRef = useRef(lens);
+  const stretch = (p: CameraPose | null) => (p ? lensPose(p, lensRef.current) : null);
 
   useEffect(() => {
     reducedRef.current = reducedMotion;
   }, [reducedMotion]);
+
+  // Switching lens keeps the framing: change the field of view and move the camera along its line of sight.
+  useLayoutEffect(() => {
+    const previous = lensRef.current;
+    lensRef.current = lens;
+    const three = getThree();
+    const cam = three.camera as PerspectiveCamera;
+    cam.fov = lensFov(lens);
+    cam.updateProjectionMatrix();
+    const c = controls.current;
+    if (c && previous !== lens) {
+      const k = lens / previous;
+      const t = c.target;
+      cam.position.set(
+        t.x + (cam.position.x - t.x) * k,
+        t.y + (cam.position.y - t.y) * k,
+        t.z + (cam.position.z - t.z) * k,
+      );
+      if (goal.current) goal.current = lensPose(goal.current, k);
+      c.update();
+    }
+    three.invalidate();
+  }, [lens, getThree]);
 
   const live = effectiveMode(mode, selected !== null);
   const aspect = size.width / Math.max(1, size.height);
@@ -925,7 +977,7 @@ function CameraController({
       aspect,
     });
     // Explore leaves the camera to the user, but must not cancel a pan or incident flight already under way.
-    if (next !== null || live !== 'explore') goal.current = next;
+    if (next !== null || live !== 'explore') goal.current = stretch(next);
     orbitAngle.current = 0;
     invalidate();
     // `selected` is represented by its pose fields: a new object with the same pose must not re-fly the camera.
@@ -957,13 +1009,13 @@ function CameraController({
     const c = controls.current;
     if (snapNext.current && c && !reducedRef.current) {
       // Fresh scene: start the flight from the floor overview instead of cutting to the close shot.
-      const from = overviewPose(floor.bounds, floor.elevation_m, aspect);
+      const from = lensPose(overviewPose(floor.bounds, floor.elevation_m, aspect), lensRef.current);
       camera.position.set(from.position[0], from.position[1], from.position[2]);
       c.target.set(from.target[0], from.target[1], from.target[2]);
       c.update();
       snapNext.current = false;
     }
-    goal.current = incidentFocusPose(focusRequest, floor.elevation_m);
+    goal.current = stretch(incidentFocusPose(focusRequest, floor.elevation_m));
     invalidate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRequest, floor.id]);
@@ -979,7 +1031,9 @@ function CameraController({
     const orbiting = live === 'cinematic' && !reducedRef.current;
     if (orbiting) {
       orbitAngle.current += Math.min(Math.max(dt, 0), 0.1) * 0.07;
-      goal.current = cinematicPose(floor.bounds, floor.elevation_m, orbitAngle.current, aspect);
+      goal.current = stretch(
+        cinematicPose(floor.bounds, floor.elevation_m, orbitAngle.current, aspect),
+      );
     }
     const g = goal.current;
     if (g) {
@@ -1006,21 +1060,40 @@ function CameraController({
       enableDamping={false}
       enabled={!modeLocksControls(live)}
       maxPolarAngle={Math.PI * 0.49}
-      minDistance={4}
-      maxDistance={400}
+      minDistance={4 * lens}
+      maxDistance={400 * lens}
       keyPanSpeed={25}
     />
   );
 }
 
-function Lights() {
+/**
+ * Miniature look (post-processing): ambient occlusion for contact shadows, tilt-shift blur on the top and bottom
+ * bands, a little more saturation and contrast, and a soft vignette. Only mounted in miniature mode.
+ */
+function MiniatureEffects() {
+  return (
+    <EffectComposer multisampling={0} enableNormalPass={false}>
+      <N8AO aoRadius={2.2} distanceFalloff={1.2} intensity={2.6} halfRes quality="medium" />
+      <TiltShift2 blur={0.22} taper={0.55} start={[0.5, 0.0]} end={[0.5, 1.0]} samples={10} />
+      <HueSaturation saturation={0.16} />
+      <BrightnessContrast brightness={0.02} contrast={0.08} />
+      <Vignette offset={0.32} darkness={0.42} />
+      <SMAA />
+    </EffectComposer>
+  );
+}
+
+function Lights({ miniature = false }: { miniature?: boolean }) {
   return (
     <>
-      <hemisphereLight args={['#f4f8ff', '#a9b4a0', 0.95]} />
+      <hemisphereLight
+        args={miniature ? ['#fff4e2', '#9fae94', 1.05] : ['#f4f8ff', '#a9b4a0', 0.95]}
+      />
       <directionalLight
         position={[150, 140, 40]}
-        intensity={1.75}
-        color="#fff6e8"
+        intensity={miniature ? 2.15 : 1.75}
+        color={miniature ? '#ffe9c8' : '#fff6e8'}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-140}
@@ -1052,8 +1125,10 @@ export default function Scene3D(props: Scene3DProps) {
     background = '#dce7f2',
     calloutNodes,
     alerts = NO_ALERTS,
+    miniature = false,
   } = props;
   const callouts = calloutNodes !== undefined;
+  const lens = miniature ? MINIATURE_LENS : 1;
   const overlay =
     incident && (!incident.floorId || incident.floorId === floor.id) ? incident : null;
   const pair = useMemo(
@@ -1073,7 +1148,13 @@ export default function Scene3D(props: Scene3DProps) {
       frameloop="demand"
       shadows="percentage"
       dpr={[1, 1.75]}
-      camera={{ fov: 45, near: 0.5, far: 1200, position: [...initial.position], up: [0, 1, 0] }}
+      camera={{
+        fov: lensFov(lens),
+        near: 0.5,
+        far: 3000,
+        position: [...lensPose(initial, lens).position],
+        up: [0, 1, 0],
+      }}
       gl={{ antialias: true, powerPreference: 'high-performance', alpha: callouts }}
       onCreated={({ gl }) => {
         // Keyboard access: the canvas takes focus so OrbitControls arrow-key panning works.
@@ -1084,12 +1165,16 @@ export default function Scene3D(props: Scene3DProps) {
       data-testid="twin-canvas"
     >
       {/* The command view lets the page's sky gradient show through; a light fog fades the far yard into it. */}
-      {callouts ? (
+      {/* Miniature: an opaque warm sky (the effect passes need one) and no distance fog, since the lens sits far back. */}
+      {miniature ? (
+        <color attach="background" args={['#e9e4d8']} />
+      ) : callouts ? (
         <fog attach="fog" args={['#e3ecf6', 260, 620]} />
       ) : (
         <color attach="background" args={[background]} />
       )}
-      <Lights />
+      <Lights miniature={miniature} />
+      {miniature ? <MiniatureEffects /> : null}
       <Structure world={world} floor={floor} showCallouts={callouts} />
       <EntityLayers entities={entities} onSelect={onSelect} />
       {calloutNodes ? (
@@ -1128,6 +1213,7 @@ export default function Scene3D(props: Scene3DProps) {
         panRequest={panRequest}
         focusRequest={focusRequest}
         onTarget={onTarget}
+        lens={lens}
       />
     </Canvas>
   );

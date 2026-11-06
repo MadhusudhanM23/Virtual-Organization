@@ -24,28 +24,42 @@ async function openLive(page: Page, path = '/twin/live') {
 }
 
 test.describe('Twin: Live View and Map View', () => {
-  test('labels the data mode, lists entities from the API and shows the legend', async ({ page }) => {
+  test('labels the data mode, lists entities from the API and shows the legend', async ({
+    page,
+  }) => {
     await openLive(page);
-    await expect(page.getByTestId('twin-truth').getByRole('img', { name: /synthetic/i })).toBeVisible();
+    await expect(
+      page.getByTestId('twin-truth').getByRole('img', { name: /synthetic/i }),
+    ).toBeVisible();
     await expect(page.getByRole('status', { name: /lens/i }).first()).toBeVisible();
     await expect(page.getByTestId('twin-legend')).toBeVisible();
     // Table rows come straight from the (mocked) API payload, no invented numbers.
     await expect(page.locator('tbody tr')).toHaveCount(entityFixtures.length);
   });
 
-  test('3D scene renders (when WebGL is available) and a screenshot is captured', async ({ page }) => {
+  test('3D scene renders (when WebGL is available) and a screenshot is captured', async ({
+    page,
+  }) => {
     await openLive(page);
     if (!(await hasWebGL(page))) {
-      test.skip(true, 'no WebGL in this browser: 3D asserted by unit tests, 2D fallback by the other tests');
+      test.skip(
+        true,
+        'no WebGL in this browser: 3D asserted by unit tests, 2D fallback by the other tests',
+      );
     }
     await expect(page.getByTestId('twin-viewport')).toHaveAttribute('data-view', '3d');
-    await expect(page.getByTestId('twin-canvas').locator('canvas')).toBeVisible();
+    // The 3D bundle is lazy-loaded; a dev server compiling it under a parallel run needs more than 5 s.
+    await expect(page.getByTestId('twin-canvas').locator('canvas')).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(page.getByTestId('twin-minimap')).toBeVisible();
     await page.waitForTimeout(1500);
     await page.screenshot({ path: 'test-results/twin-live-3d.png' });
   });
 
-  test('clicking anywhere on a table row (not only the code button) selects it', async ({ page }) => {
+  test('clicking anywhere on a table row (not only the code button) selects it', async ({
+    page,
+  }) => {
     await openLive(page);
     const cell = page.locator('tbody tr').first().locator('td').nth(2);
     const name = (await cell.innerText()).trim();
@@ -53,7 +67,9 @@ test.describe('Twin: Live View and Map View', () => {
     await expect(page.getByTestId('twin-inspector').getByText(name).first()).toBeVisible();
   });
 
-  test('selecting from the table fills the inspector with provenance and external IDs', async ({ page }) => {
+  test('selecting from the table fills the inspector with provenance and external IDs', async ({
+    page,
+  }) => {
     await openLive(page);
     const first = entityFixtures[0]!;
     await page.getByRole('button', { name: `Inspect ${first.code}` }).click();
@@ -87,7 +103,9 @@ test.describe('Twin: Live View and Map View', () => {
     await expect(map).toBeVisible();
     await map.focus();
     await page.keyboard.press('ArrowRight');
-    await expect(page.getByTestId('twin-inspector').getByText(entityFixtures[0]!.name).first()).toBeVisible();
+    await expect(
+      page.getByTestId('twin-inspector').getByText(entityFixtures[0]!.name).first(),
+    ).toBeVisible();
     await page.screenshot({ path: 'test-results/twin-map-2d.png' });
   });
 
@@ -121,21 +139,31 @@ test.describe('Twin: Live View and Map View', () => {
     await expect(page.locator('tbody tr')).toHaveCount(entityFixtures.length);
   });
 
-  test('reduced motion is announced and the page has no serious axe violations', async ({ page }) => {
+  test('reduced motion is announced and the page has no serious axe violations', async ({
+    page,
+  }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await openLive(page);
     await expect(page.getByText(/Reduced motion is on/)).toBeVisible();
     await page.waitForTimeout(500);
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+      .analyze();
     const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
-    expect(bad.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)).toEqual([]);
+    expect(
+      bad.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`),
+    ).toEqual([]);
   });
 
   test('2D view has no serious axe violations', async ({ page }) => {
     await openLive(page, '/twin/map');
     await expect(page.getByTestId('twin-map-2d')).toBeVisible();
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+      .analyze();
     const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
-    expect(bad.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)).toEqual([]);
+    expect(
+      bad.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`),
+    ).toEqual([]);
   });
 });

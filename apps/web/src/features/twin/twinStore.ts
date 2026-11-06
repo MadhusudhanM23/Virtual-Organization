@@ -49,8 +49,11 @@ export interface TwinViewState {
   /** One-shot request: fly the camera to frame this world point (cinematic incident focus, REQ-053). */
   focusRequest: { x: number; y: number; z: number; nonce: number } | null;
   assistantHighlight: AssistantHighlight | null;
+  /** Miniature look in the 3D view (long lens, tilt-shift, ambient occlusion). */
+  miniature: boolean;
 
   setFloorId: (id: string | null) => void;
+  toggleMiniature: () => void;
   select: (id: string | null) => void;
   setEntities: (entities: Entity[]) => void;
   setCameraMode: (mode: CameraMode) => void;
@@ -79,11 +82,13 @@ const initial = {
   incident: null as IncidentOverlay | null,
   focusRequest: null as TwinViewState['focusRequest'],
   assistantHighlight: null as AssistantHighlight | null,
+  miniature: false,
 };
 
 export const useTwinStore = create<TwinViewState>()((set) => ({
   ...initial,
   setEntities: (entities) => set({ entities }),
+  toggleMiniature: () => set((s) => ({ miniature: !s.miniature })),
   setFloorId: (floorId) => set({ floorId, selectedEntityId: null }),
   select: (selectedEntityId) =>
     set((s) => ({
