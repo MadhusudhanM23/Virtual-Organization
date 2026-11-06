@@ -163,13 +163,19 @@ export function CalloutLayer({
       })}
       {alerts.map((a) => (
         <div key={a.id} ref={bind(`inc:${a.id}`)} className={ANCHOR}>
+          {/* A small pulsing pin; the details unfold on hover, so several alerts never bury the scene. */}
           <Link
             to={`/incidents/${encodeURIComponent(a.id)}`}
             tabIndex={-1}
-            className="pointer-events-auto flex items-center gap-1.5 rounded-md border border-white/30 bg-danger-fg px-2 py-1 text-white shadow-float"
+            title={`${t('twin.alert.title')}: ${a.pair ? `${a.pair} · ` : ''}${humanizeStatus(a.status)}`}
+            className="group pointer-events-auto relative flex items-center gap-1.5 rounded-full border-2 border-white bg-danger-fg p-1 text-white shadow-float"
           >
-            <TriangleAlert className="size-3.5 shrink-0" strokeWidth={2.5} />
-            <span className="leading-tight whitespace-nowrap">
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 rounded-full bg-danger-fg opacity-60 motion-safe:animate-ping"
+            />
+            <TriangleAlert className="relative size-3.5 shrink-0" strokeWidth={2.5} />
+            <span className="relative hidden pr-1.5 leading-tight whitespace-nowrap group-hover:block">
               <span className="font-display block text-[13px] font-semibold tracking-wide uppercase">
                 {t('twin.alert.title')}
               </span>

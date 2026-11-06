@@ -82,7 +82,8 @@ const initial = {
   incident: null as IncidentOverlay | null,
   focusRequest: null as TwinViewState['focusRequest'],
   assistantHighlight: null as AssistantHighlight | null,
-  miniature: false,
+  // The calm, video-like view is the default; the toggle switches to the detailed, labelled view.
+  miniature: true,
 };
 
 export const useTwinStore = create<TwinViewState>()((set) => ({
