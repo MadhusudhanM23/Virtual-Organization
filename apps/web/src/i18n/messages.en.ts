@@ -959,6 +959,9 @@ export const messagesEn = {
   'nav.section.insight': 'Insight',
   'nav.section.system': 'System',
   'auth.login.kicker': 'Secure access',
+  'auth.login.or': 'or',
+  'auth.login.demo': 'Demo sign-in',
+  'auth.login.demoHint': '{email} on {tenant} · local dev server only',
   'auth.login.footnote':
     'Demo tenants run on simulated data. Every screen labels where its numbers come from.',
   'auth.hero.kicker': 'Industrial digital twin',

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
+import { Zap } from 'lucide-react';
 import { BrandMark } from '../../components/BrandMark';
 import { t, type MessageId } from '../../i18n';
 import { ApiError, bootstrapSession, login } from '../../lib/api/client';
@@ -47,16 +48,11 @@ export default function LoginPage() {
 
   if (status === 'authenticated') return <Navigate to={from} replace />;
 
-  const onSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!tenant.trim() || !email.trim() || !password) {
-      setError('auth.login.required');
-      return;
-    }
+  const signIn = async (credentials: { tenant: string; email: string; password: string }) => {
     setBusy(true);
     setError(null);
     try {
-      await login({ tenant: tenant.trim(), email: email.trim(), password });
+      await login(credentials);
       void navigate(from, { replace: true });
     } catch (caught) {
       setPassword('');
@@ -64,6 +60,25 @@ export default function LoginPage() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const onSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!tenant.trim() || !email.trim() || !password) {
+      setError('auth.login.required');
+      return;
+    }
+    await signIn({ tenant: tenant.trim(), email: email.trim(), password });
+  };
+
+  // Dev server only (see vite.config.ts): fills the form visibly, then signs in as the demo executive.
+  const demo = __DEMO_LOGIN__;
+  const onDemo = async () => {
+    if (!demo) return;
+    setTenant(demo.tenant);
+    setEmail(demo.email);
+    setPassword(demo.password);
+    await signIn(demo);
   };
 
   return (
@@ -184,6 +199,28 @@ export default function LoginPage() {
               {busy ? t('auth.login.submitting') : t('auth.login.submit')}
             </button>
           </form>
+
+          {demo ? (
+            <div className="mt-4">
+              <div className="flex items-center gap-3">
+                <span aria-hidden="true" className="h-px flex-1 bg-line-strong" />
+                <span className="eyebrow">{t('auth.login.or')}</span>
+                <span aria-hidden="true" className="h-px flex-1 bg-line-strong" />
+              </div>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onDemo()}
+                className="font-display mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-control border-2 border-dashed border-accent-500 bg-accent-50 text-lg font-semibold tracking-[0.06em] text-accent-700 uppercase transition-colors hover:bg-accent-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:opacity-70"
+              >
+                <Zap aria-hidden="true" className="size-5" />
+                {t('auth.login.demo')}
+              </button>
+              <p className="mt-2 text-center font-mono text-[11px] text-ink-500">
+                {t('auth.login.demoHint', { tenant: demo.tenant, email: demo.email })}
+              </p>
+            </div>
+          ) : null}
 
           <p className="mt-8 flex items-start gap-2 text-xs text-ink-500">
             <span aria-hidden="true" className="beacon mt-1 shrink-0" />

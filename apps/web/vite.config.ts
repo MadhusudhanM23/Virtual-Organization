@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -8,18 +9,34 @@ import tailwindcss from '@tailwindcss/vite';
 const API_ORIGIN = process.env.VITE_API_ORIGIN ?? 'http://localhost:8080';
 // The AI assistant gateway (services/ai, ADR-64) serves `/api/assistant`; it must be listed before `/api`.
 const AI_ORIGIN = process.env.VITE_AI_ORIGIN ?? 'http://localhost:8090';
+const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  server: {
-    port: 5173,
-    strictPort: true,
-    proxy: {
-      '/api/assistant': { target: AI_ORIGIN, changeOrigin: false },
-      '/api': { target: API_ORIGIN, changeOrigin: false },
-      '/ws': { target: API_ORIGIN.replace('http', 'ws'), ws: true, changeOrigin: false },
+export default defineConfig(({ command, mode }) => {
+  // One-click demo sign-in, dev server only: the password comes from the gitignored root .env (or the process
+  // environment) at serve time and is never written into a production build.
+  const demoPassword =
+    command === 'serve' && !process.env.VITEST
+      ? (process.env.DEMO_USER_PASSWORD ?? loadEnv(mode, REPO_ROOT, 'DEMO_').DEMO_USER_PASSWORD)
+      : undefined;
+  return {
+    plugins: [react(), tailwindcss()],
+    define: {
+      __DEMO_LOGIN__: JSON.stringify(
+        demoPassword
+          ? { tenant: 'marutiflex-demo', email: 'exec@demo.invalid', password: demoPassword }
+          : null,
+      ),
     },
-  },
-  preview: { port: 4173, strictPort: true },
-  build: { target: 'es2022' },
+    server: {
+      port: 5173,
+      strictPort: true,
+      proxy: {
+        '/api/assistant': { target: AI_ORIGIN, changeOrigin: false },
+        '/api': { target: API_ORIGIN, changeOrigin: false },
+        '/ws': { target: API_ORIGIN.replace('http', 'ws'), ws: true, changeOrigin: false },
+      },
+    },
+    preview: { port: 4173, strictPort: true },
+    build: { target: 'es2022' },
+  };
 });
