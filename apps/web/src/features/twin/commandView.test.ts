@@ -13,6 +13,7 @@ import {
   modeLocksControls,
 } from './cameraModes';
 import { rackUprights } from './sceneModel';
+import { yardFoliage } from './foliage';
 import { weatherKind } from '../weather/useWeather';
 
 const forklift = (over: Partial<Entity> = {}): Entity =>
@@ -111,6 +112,29 @@ describe('miniature lens', () => {
       6,
     );
     expect(lensPose(pose, 1)).toBe(pose);
+  });
+});
+
+describe('yard foliage', () => {
+  const slab = { id: 'g', name: 'Ground', center: [60, 0, -40] as const, width: 120, depth: 80 };
+
+  it('is deterministic and mixes leafy trees, conifers and shrubs', () => {
+    const a = yardFoliage(slab, 34);
+    const b = yardFoliage(slab, 34);
+    expect(a).toEqual(b);
+    expect(a.trunks.length).toBeGreaterThan(40);
+    expect(a.tiers.length).toBeGreaterThan(0);
+    expect(a.tiers.length % 3).toBe(0);
+    expect(a.crowns.length).toBeGreaterThan(a.trunks.length);
+  });
+
+  it('keeps every plant off the building and the asphalt', () => {
+    const { trunks, crowns } = yardFoliage(slab, 34);
+    for (const p of [...trunks, ...crowns]) {
+      const dx = Math.abs(p.position[0] - slab.center[0]);
+      const dz = Math.abs(p.position[2] - slab.center[2]);
+      expect(dx > slab.width / 2 + 34 || dz > slab.depth / 2 + 34).toBe(true);
+    }
   });
 });
 

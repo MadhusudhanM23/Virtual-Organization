@@ -23,11 +23,13 @@ import { ENTITY_TYPES, type Entity, type Floor, type WorldResponse } from '@vo/t
 import { t } from '../../i18n';
 import type { AssistantHighlight, IncidentOverlay } from './twinStore';
 import type { CalloutNodes } from './Callouts';
+import { yardFoliage } from './foliage';
 import type { SceneAlert } from './useOpenAlerts';
 import { MODELS, modelInstances, type ModelPart, type PartInstance } from './models';
 import {
   cinematicPose,
   desiredPose,
+  lensDistance,
   lensFov,
   lensPose,
   MINIATURE_LENS,
@@ -100,16 +102,20 @@ function InstancedLayer({
   metalness = 0.05,
   pickable = false,
   castShadow = false,
+  flat = false,
   onPick,
   name,
 }: {
   specs: InstanceSpec[];
-  shape?: 'box' | 'cylinder' | 'sphere';
+  /** `ico` = faceted crown (icosahedron), `cone` = conifer tier; both suit the low-poly scenery. */
+  shape?: 'box' | 'cylinder' | 'sphere' | 'ico' | 'cone';
   opacity?: number;
   roughness?: number;
   metalness?: number;
   pickable?: boolean;
   castShadow?: boolean;
+  /** Flat shading: each facet lit on its own, the faceted low-poly look. */
+  flat?: boolean;
   onPick?: (id: string) => void;
   name: string;
 }) {
@@ -166,10 +172,15 @@ function InstancedLayer({
         <cylinderGeometry args={[0.5, 0.5, 1, 14]} />
       ) : shape === 'sphere' ? (
         <sphereGeometry args={[0.5, 12, 9]} />
+      ) : shape === 'ico' ? (
+        <icosahedronGeometry args={[0.5, 1]} />
+      ) : shape === 'cone' ? (
+        <coneGeometry args={[0.5, 1, 8]} />
       ) : (
         <boxGeometry args={[1, 1, 1]} />
       )}
       <meshStandardMaterial
+        flatShading={flat}
         roughness={roughness}
         metalness={metalness}
         transparent={opacity < 1}
@@ -240,46 +251,11 @@ function Label({
     </sprite>
   );
 }
-/** Deterministic pseudo-random in [0, 1) so the yard looks the same on every load. */
-function hash01(n: number): number {
-  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
-  return x - Math.floor(x);
-}
-
 /** Asphalt apron and lawn around the building, with a tree line: context only, not part of the world model. */
 function Yard({ floor }: { floor: Floor }) {
-  const slab = floorSlab(floor);
+  const slab = useMemo(() => floorSlab(floor), [floor]);
   const apron = 34;
-  const trees = useMemo(() => {
-    const out: { trunk: InstanceSpec; crown: InstanceSpec }[] = [];
-    const halfW = slab.width / 2 + apron + 8;
-    const halfD = slab.depth / 2 + apron + 8;
-    const ring: [number, number][] = [];
-    for (let x = -halfW; x <= halfW; x += 11) ring.push([x, -halfD], [x, halfD]);
-    for (let z = -halfD + 11; z < halfD; z += 11) ring.push([-halfW, z], [halfW, z]);
-    ring.forEach(([x, z], i) => {
-      const h = 4 + hash01(i) * 3;
-      const px = slab.center[0] + x + (hash01(i + 50) - 0.5) * 4;
-      const pz = slab.center[2] + z + (hash01(i + 90) - 0.5) * 4;
-      out.push({
-        trunk: {
-          id: `t${i}`,
-          position: [px, h * 0.25, pz],
-          yaw: 0,
-          scale: [0.45, h * 0.5, 0.45],
-          color: '#7c5a3a',
-        },
-        crown: {
-          id: `c${i}`,
-          position: [px, h * 0.72, pz],
-          yaw: 0,
-          scale: [h * 0.62, h * 0.7, h * 0.62],
-          color: hash01(i + 7) > 0.5 ? '#4f8a3c' : '#3f7a35',
-        },
-      });
-    });
-    return out;
-  }, [slab.width, slab.depth, slab.center]);
+  const foliage = useMemo(() => yardFoliage(slab, apron), [slab]);
   return (
     <group name="yard">
       <mesh
@@ -301,15 +277,24 @@ function Yard({ floor }: { floor: Floor }) {
       <InstancedLayer
         name="tree-trunks"
         shape="cylinder"
-        specs={trees.map((t) => t.trunk)}
+        specs={foliage.trunks}
         roughness={0.9}
         castShadow
       />
       <InstancedLayer
         name="tree-crowns"
-        shape="sphere"
-        specs={trees.map((t) => t.crown)}
+        shape="ico"
+        specs={foliage.crowns}
         roughness={0.85}
+        flat
+        castShadow
+      />
+      <InstancedLayer
+        name="conifer-tiers"
+        shape="cone"
+        specs={foliage.tiers}
+        roughness={0.85}
+        flat
         castShadow
       />
     </group>
@@ -933,7 +918,7 @@ function CameraController({
   const lastFocus = useRef(0);
   const orbitAngle = useRef(0);
   const lensRef = useRef(lens);
-  const stretch = (p: CameraPose | null) => (p ? lensPose(p, lensRef.current) : null);
+  const stretch = (p: CameraPose | null) => (p ? lensPose(p, lensDistance(lensRef.current)) : null);
 
   useEffect(() => {
     reducedRef.current = reducedMotion;
@@ -949,7 +934,7 @@ function CameraController({
     cam.updateProjectionMatrix();
     const c = controls.current;
     if (c && previous !== lens) {
-      const k = lens / previous;
+      const k = lensDistance(lens) / lensDistance(previous);
       const t = c.target;
       cam.position.set(
         t.x + (cam.position.x - t.x) * k,
@@ -1009,7 +994,10 @@ function CameraController({
     const c = controls.current;
     if (snapNext.current && c && !reducedRef.current) {
       // Fresh scene: start the flight from the floor overview instead of cutting to the close shot.
-      const from = lensPose(overviewPose(floor.bounds, floor.elevation_m, aspect), lensRef.current);
+      const from = lensPose(
+        overviewPose(floor.bounds, floor.elevation_m, aspect),
+        lensDistance(lensRef.current),
+      );
       camera.position.set(from.position[0], from.position[1], from.position[2]);
       c.target.set(from.target[0], from.target[1], from.target[2]);
       c.update();
@@ -1060,8 +1048,8 @@ function CameraController({
       enableDamping={false}
       enabled={!modeLocksControls(live)}
       maxPolarAngle={Math.PI * 0.49}
-      minDistance={4 * lens}
-      maxDistance={400 * lens}
+      minDistance={4 * lensDistance(lens)}
+      maxDistance={400 * lensDistance(lens)}
       keyPanSpeed={25}
     />
   );
@@ -1152,7 +1140,7 @@ export default function Scene3D(props: Scene3DProps) {
         fov: lensFov(lens),
         near: 0.5,
         far: 3000,
-        position: [...lensPose(initial, lens).position],
+        position: [...lensPose(initial, lensDistance(lens)).position],
         up: [0, 1, 0],
       }}
       gl={{ antialias: true, powerPreference: 'high-performance', alpha: callouts }}

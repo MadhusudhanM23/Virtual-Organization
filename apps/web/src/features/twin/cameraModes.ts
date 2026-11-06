@@ -183,6 +183,14 @@ export function moveFraction(reducedMotion: boolean, dtSeconds: number): number 
  */
 export const MINIATURE_LENS = 3.2;
 
+/**
+ * How far the camera backs off for a lens. The miniature lens also widens the framing by a third, so the lawn and
+ * tree line around the building stay in shot (the diorama look depends on its surroundings).
+ */
+export function lensDistance(factor: number): number {
+  return factor === 1 ? 1 : factor * 1.35;
+}
+
 export function lensFov(factor: number): number {
   const half = Math.atan(Math.tan((FOV_DEG / 2) * (Math.PI / 180)) / factor);
   return (2 * half * 180) / Math.PI;
